@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Conversa.Application</RootNamespace>
+    <AssemblyName>Conversa.Application</AssemblyName>
+    <Description>Conversa application services and provider abstractions.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Conversa.Domain\Conversa.Domain.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Conversa.Api/Conversa.Api.csproj" />
+    <Project Path="src/Conversa.Application/Conversa.Application.csproj" />
+    <Project Path="src/Conversa.Domain/Conversa.Domain.csproj" />
+    <Project Path="src/Conversa.Infrastructure/Conversa.Infrastructure.csproj" />
+  </Folder>
+</Solution>

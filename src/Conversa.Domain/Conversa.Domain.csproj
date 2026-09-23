@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Conversa.Domain</RootNamespace>
+    <AssemblyName>Conversa.Domain</AssemblyName>
+    <Description>Conversa domain model. No infrastructure dependencies.</Description>
+  </PropertyGroup>
+</Project>
