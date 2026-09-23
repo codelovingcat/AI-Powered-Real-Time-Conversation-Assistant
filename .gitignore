@@ -1,0 +1,16 @@
+bin/
+obj/
+.vs/
+.idea/
+*.user
+*.suo
+.DS_Store
+.env
+.env.*
+!.env.example
+appsettings.*.local.json
+**/secrets.json
+TestResults/
+*.log
+.nuget/
+packages/

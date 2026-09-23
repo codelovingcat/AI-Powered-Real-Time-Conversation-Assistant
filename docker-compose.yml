@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: conversa
+      POSTGRES_PASSWORD: conversa
+      POSTGRES_DB: conversa
+    ports:
+      - "5432:5432"
+    volumes:
+      - conversa_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U conversa -d conversa"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  conversa_pg:

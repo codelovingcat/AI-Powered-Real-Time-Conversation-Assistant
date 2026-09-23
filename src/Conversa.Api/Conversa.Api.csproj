@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>Conversa.Api</RootNamespace>
+    <AssemblyName>Conversa.Api</AssemblyName>
+    <Description>Conversa HTTP and WebSocket host.</Description>
+    <UserSecretsId>conversa-api-8f3c2a1b-7d4e-4c9a-9b21-0d6e5f4a3c2b</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Conversa.Application\Conversa.Application.csproj" />
+    <ProjectReference Include="..\Conversa.Infrastructure\Conversa.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>
