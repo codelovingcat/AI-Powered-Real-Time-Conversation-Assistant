@@ -66,13 +66,13 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
             validation.Errors),
         AiProviderNotConfiguredException notConfigured => new(
             StatusCodes.Status503ServiceUnavailable,
-            "AI provider is not configured",
-            notConfigured.Message,
+            "AI service is not currently available",
+            "The AI service is not currently available. Please try again later.",
             null),
         AiProviderException provider => new(
             StatusCodes.Status502BadGateway,
-            "AI provider request failed",
-            provider.Message,
+            "AI service request failed",
+            "The AI service could not complete the request. Please try again later.",
             null),
         SpeechToTextNotConfiguredException speech => new(
             StatusCodes.Status501NotImplemented,
