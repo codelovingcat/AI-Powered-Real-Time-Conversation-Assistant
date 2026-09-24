@@ -15,6 +15,7 @@ internal sealed class GeminiAiProvider(
     ILogger<GeminiAiProvider> logger) : IAiProvider
 {
     public const string HttpClientName = "Gemini";
+    private const string ProviderName = "gemini";
 
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
@@ -49,7 +50,7 @@ internal sealed class GeminiAiProvider(
         }
         """).RootElement;
 
-    public string Name => "gemini";
+    public string Name => ProviderName;
 
     public async Task<AiAssistantResponse> ProcessAsync(
         AiConversationRequest request,
