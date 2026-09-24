@@ -15,6 +15,7 @@ public sealed class ConversationService(
     public const int DefaultListSize = 50;
     public const int MaxListSize = 200;
     public const int MaxMessages = 1000;
+    private const string InstructionUpdatedNote = InstructionUpdatedNote;
     private const string DefaultSourceLanguage = "en";
     private const string DefaultTargetLanguage = "tr";
 
