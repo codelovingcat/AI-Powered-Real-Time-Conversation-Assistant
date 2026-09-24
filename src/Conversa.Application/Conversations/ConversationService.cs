@@ -15,6 +15,8 @@ public sealed class ConversationService(
     public const int DefaultListSize = 50;
     public const int MaxListSize = 200;
     public const int MaxMessages = 1000;
+    private const string DefaultSourceLanguage = "en";
+    private const string DefaultTargetLanguage = "tr";
 
     public async Task<IReadOnlyList<ConversationSummaryDto>> ListAsync(int take, CancellationToken cancellationToken)
     {
@@ -40,8 +42,8 @@ public sealed class ConversationService(
                 currentUser.UserId,
                 string.IsNullOrWhiteSpace(command.Title) ? "New conversation" : command.Title,
                 command.Instruction,
-                string.IsNullOrWhiteSpace(command.SourceLanguage) ? "en" : command.SourceLanguage,
-                string.IsNullOrWhiteSpace(command.TargetLanguage) ? "tr" : command.TargetLanguage,
+                string.IsNullOrWhiteSpace(command.SourceLanguage) ? DefaultSourceLanguage : command.SourceLanguage,
+                string.IsNullOrWhiteSpace(command.TargetLanguage) ? DefaultTargetLanguage : command.TargetLanguage,
                 timeProvider.GetUtcNow());
         }
         catch (ArgumentException exception)
