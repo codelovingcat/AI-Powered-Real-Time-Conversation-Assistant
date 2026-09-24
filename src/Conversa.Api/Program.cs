@@ -35,6 +35,7 @@ app.MapAudioWebSocket();
 app.MapGet("/", () => Results.Json(new
 {
     name = "Conversa",
+    message = "Conversa API is running.",
     status = "ok",
     health = "/health",
     conversations = "/api/conversations",
