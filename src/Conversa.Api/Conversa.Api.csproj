@@ -6,6 +6,7 @@
     <UserSecretsId>conversa-api-8f3c2a1b-7d4e-4c9a-9b21-0d6e5f4a3c2b</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
     <ProjectReference Include="..\Conversa.Application\Conversa.Application.csproj" />
     <ProjectReference Include="..\Conversa.Infrastructure\Conversa.Infrastructure.csproj" />
   </ItemGroup>
