@@ -20,11 +20,11 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
 
         if (mapped.Status >= StatusCodes.Status500InternalServerError)
         {
-            logger.LogError(exception, "Request failed with status {StatusCode}.", mapped.Status);
+            logger.LogError("Request failed with status {StatusCode}.", mapped.Status);
         }
         else
         {
-            logger.LogInformation(exception, "Request rejected with status {StatusCode}.", mapped.Status);
+            logger.LogInformation("Request rejected with status {StatusCode}.", mapped.Status);
         }
 
         var problem = new ProblemDetails
