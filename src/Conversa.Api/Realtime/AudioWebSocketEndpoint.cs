@@ -14,7 +14,8 @@ public static class AudioWebSocketEndpoint
 {
     public static void MapAudioWebSocket(this WebApplication app)
     {
-        app.Map("/ws/conversations/{conversationId:guid}/audio", HandleAsync);
+        app.Map("/ws/conversations/{conversationId:guid}/audio", HandleAsync)
+            .RequireRateLimiting("audio");
     }
 
     private static async Task HandleAsync(
