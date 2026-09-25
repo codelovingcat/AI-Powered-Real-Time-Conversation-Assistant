@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Security.Claims;
+using System.Threading.RateLimiting;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Conversa.Api.Identity;
@@ -7,6 +10,7 @@ using Conversa.Application.Abstractions.Identity;
 using Conversa.Application.Conversations;
 using Conversa.Infrastructure;
 using Conversa.Infrastructure.Persistence;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -41,15 +45,74 @@ if (signingKeyBytes.Length < 32)
         "Authentication:SigningKey must contain at least 32 bytes.");
 }
 
-builder.Services.AddInfrastructure(builder.Configuration);
+var rateLimitOptions = new RateLimitOptions();
+builder.Configuration.GetSection(RateLimitOptions.SectionName).Bind(rateLimitOptions);
+rateLimitOptions.Validate();
 
+builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.Configure<AudioWebSocketOptions>(builder.Configuration.GetSection(AudioWebSocketOptions.SectionName));
+builder.Services.Configure<RateLimitOptions>(builder.Configuration.GetSection(RateLimitOptions.SectionName));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HeaderCurrentUser>();
 builder.Services.AddScoped<IConversationService, ConversationService>();
 builder.Services.AddScoped<IConversationAssistant, ConversationAssistant>();
 builder.Services.AddScoped<ConversationInputValidator>();
 builder.Services.AddSingleton(TimeProvider.System);
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            context.HttpContext.Response.Headers.RetryAfter =
+                ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+        }
+
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new
+            {
+                error = "rate_limit_exceeded",
+                message = "Too many requests. Please try again later."
+            },
+            cancellationToken);
+    };
+
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            GetRateLimitPartitionKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = rateLimitOptions.GlobalPermitLimit,
+                QueueLimit = 0,
+                Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds)
+            }));
+
+    options.AddPolicy("ai", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            GetRateLimitPartitionKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = rateLimitOptions.AiPermitLimit,
+                QueueLimit = 0,
+                Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds)
+            }));
+
+    options.AddPolicy("audio", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            GetRateLimitPartitionKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = rateLimitOptions.AudioPermitLimit,
+                QueueLimit = 0,
+                Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds)
+            }));
+});
+
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddControllers()
@@ -61,6 +124,8 @@ builder.Services.AddControllers()
 var app = builder.Build();
 
 app.UseExceptionHandler();
+app.UseRouting();
+app.UseRateLimiter();
 app.UseWebSockets();
 app.MapControllers();
 app.MapHealthChecks("/health");
@@ -85,5 +150,16 @@ if (app.Environment.IsDevelopment())
 }
 
 app.Run();
+
+static string GetRateLimitPartitionKey(HttpContext context)
+{
+    var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+        ?? context.User.FindFirstValue("sub");
+
+    if (!string.IsNullOrWhiteSpace(userId))
+        return $"user:{userId}";
+
+    return $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+}
 
 public partial class Program;
