@@ -11,6 +11,36 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var authenticationIssuer = builder.Configuration["Authentication:Issuer"];
+var authenticationAudience = builder.Configuration["Authentication:Audience"];
+var authenticationSigningKey = builder.Configuration["Authentication:SigningKey"];
+
+if (string.IsNullOrWhiteSpace(authenticationIssuer)
+    || string.IsNullOrWhiteSpace(authenticationAudience)
+    || string.IsNullOrWhiteSpace(authenticationSigningKey))
+{
+    throw new InvalidOperationException(
+        "Authentication:Issuer, Authentication:Audience, and Authentication:SigningKey must be configured outside source control.");
+}
+
+byte[] signingKeyBytes;
+try
+{
+    signingKeyBytes = Convert.FromBase64String(authenticationSigningKey);
+}
+catch (FormatException exception)
+{
+    throw new InvalidOperationException(
+        "Authentication:SigningKey must be a valid base64 value.",
+        exception);
+}
+
+if (signingKeyBytes.Length < 32)
+{
+    throw new InvalidOperationException(
+        "Authentication:SigningKey must contain at least 32 bytes.");
+}
+
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HeaderCurrentUser>();
