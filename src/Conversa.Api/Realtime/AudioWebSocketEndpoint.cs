@@ -1,7 +1,7 @@
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
-using Conversa.Api.Identity;
+using System.Security.Claims;
 using Conversa.Application.Abstractions.Persistence;
 using Conversa.Application.Speech;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,14 +23,18 @@ public static class AudioWebSocketEndpoint
         IConversationRepository conversations,
         IServiceProvider services)
     {
-        if (!HeaderCurrentUser.TryResolve(context, out var userId))
+        if (context.User.Identity?.IsAuthenticated != true)
         {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            await context.Response.WriteAsJsonAsync(new
-            {
-                error = "user_required",
-                message = $"Provide {HeaderCurrentUser.HeaderName} or the userId query parameter."
-            });
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+
+        var rawUserId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? context.User.FindFirstValue("sub");
+
+        if (!Guid.TryParse(rawUserId, out var userId) || userId == Guid.Empty)
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return;
         }
 
