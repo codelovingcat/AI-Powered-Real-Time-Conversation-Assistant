@@ -14,11 +14,11 @@ public sealed class RateLimitOptions
         if (GlobalPermitLimit <= 0)
             throw new InvalidOperationException("RateLimiting:GlobalPermitLimit must be greater than zero.");
 
-        if (AiPermitLimit <= 0 || AiPermitLimit >= GlobalPermitLimit)
-            throw new InvalidOperationException("RateLimiting:AiPermitLimit must be greater than zero and below GlobalPermitLimit.");
+        if (AiPermitLimit <= 0 || AiPermitLimit > GlobalPermitLimit)
+            throw new InvalidOperationException("RateLimiting:AiPermitLimit must be greater than zero and no greater than GlobalPermitLimit.");
 
-        if (AudioPermitLimit <= 0 || AudioPermitLimit >= AiPermitLimit)
-            throw new InvalidOperationException("RateLimiting:AudioPermitLimit must be greater than zero and below AiPermitLimit.");
+        if (AudioPermitLimit <= 0 || AudioPermitLimit > AiPermitLimit)
+            throw new InvalidOperationException("RateLimiting:AudioPermitLimit must be greater than zero and no greater than AiPermitLimit.");
 
         if (WindowSeconds <= 0)
             throw new InvalidOperationException("RateLimiting:WindowSeconds must be greater than zero.");
