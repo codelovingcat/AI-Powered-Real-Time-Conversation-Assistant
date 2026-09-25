@@ -5,4 +5,7 @@
     <Project Path="src/Conversa.Domain/Conversa.Domain.csproj" />
     <Project Path="src/Conversa.Infrastructure/Conversa.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Conversa.Api.Tests/Conversa.Api.Tests.csproj" />
+  </Folder>
 </Solution>
