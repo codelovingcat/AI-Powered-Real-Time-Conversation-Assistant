@@ -25,9 +25,11 @@ public static class DependencyInjection
                 npgsql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName)));
 
         services.Configure<GeminiOptions>(configuration.GetSection(GeminiOptions.SectionName));
+        var geminiOptions = configuration.GetSection(GeminiOptions.SectionName).Get<GeminiOptions>() ?? new GeminiOptions();
+        geminiOptions.Validate();
         services.AddHttpClient<IAiProvider, GeminiAiProvider>(client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(45);
+            client.Timeout = Timeout.InfiniteTimeSpan;
         });
 
         services.AddScoped<IConversationRepository, ConversationRepository>();
