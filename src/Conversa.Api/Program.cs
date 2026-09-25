@@ -42,6 +42,8 @@ if (signingKeyBytes.Length < 32)
 }
 
 builder.Services.AddInfrastructure(builder.Configuration);
+
+builder.Services.Configure<AudioWebSocketOptions>(builder.Configuration.GetSection(AudioWebSocketOptions.SectionName));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HeaderCurrentUser>();
 builder.Services.AddScoped<IConversationService, ConversationService>();
