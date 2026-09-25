@@ -10,7 +10,8 @@ public sealed class ConversationService(
     IConversationRepository conversations,
     IMessageRepository messages,
     IUnitOfWork unitOfWork,
-    TimeProvider timeProvider) : IConversationService
+    TimeProvider timeProvider,
+    ConversationInputValidator validator) : IConversationService
 {
     public const int DefaultListSize = 50;
     public const int MaxListSize = 200;
@@ -36,6 +37,8 @@ public sealed class ConversationService(
         CreateConversationCommand command,
         CancellationToken cancellationToken)
     {
+        validator.ValidateCreate(command);
+
         Conversation conversation;
         try
         {
@@ -61,6 +64,8 @@ public sealed class ConversationService(
         UpdateConversationCommand command,
         CancellationToken cancellationToken)
     {
+        validator.ValidateUpdate(command);
+
         if (command.Title is null
             && command.Instruction is null
             && command.SourceLanguage is null

@@ -12,7 +12,8 @@ public sealed class ConversationAssistant(
     IMessageRepository messages,
     IAiProvider aiProvider,
     IUnitOfWork unitOfWork,
-    TimeProvider timeProvider) : IConversationAssistant
+    TimeProvider timeProvider,
+    ConversationInputValidator validator) : IConversationAssistant
 {
     public const int ContextMessageCount = 12;
 
