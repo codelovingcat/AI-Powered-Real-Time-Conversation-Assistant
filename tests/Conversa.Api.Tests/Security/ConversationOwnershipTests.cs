@@ -21,7 +21,8 @@ public sealed class ConversationOwnershipTests
             repository,
             messages: null!,
             unitOfWork: null!,
-            TimeProvider.System);
+            TimeProvider.System,
+            new ConversationInputValidator());
 
         await Assert.ThrowsAsync<NotFoundException>(() =>
             service.GetAsync(conversationId, CancellationToken.None));
