@@ -1,17 +1,17 @@
 using System.Net.WebSockets;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
-using System.Security.Claims;
 using Conversa.Application.Abstractions.Persistence;
 using Conversa.Application.Speech;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Conversa.Api.Realtime;
 
 public static class AudioWebSocketEndpoint
 {
-    private const int MaxFrameBytes = 256 * 1024;
-
     public static void MapAudioWebSocket(this WebApplication app)
     {
         app.Map("/ws/conversations/{conversationId:guid}/audio", HandleAsync);
@@ -21,7 +21,8 @@ public static class AudioWebSocketEndpoint
         HttpContext context,
         Guid conversationId,
         IConversationRepository conversations,
-        IServiceProvider services)
+        IServiceProvider services,
+        IOptions<AudioWebSocketOptions> options)
     {
         if (context.User.Identity?.IsAuthenticated != true)
         {
@@ -56,8 +57,16 @@ public static class AudioWebSocketEndpoint
             return;
         }
 
+        var settings = options.Value;
+        settings.Validate();
+
+        using var lifetimeCts = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
+        lifetimeCts.CancelAfter(TimeSpan.FromSeconds(settings.MaxConnectionSeconds));
+        var cancellationToken = lifetimeCts.Token;
+
         var factory = services.GetService<ISpeechToTextSessionFactory>();
         using var socket = await context.WebSockets.AcceptWebSocketAsync();
+
         if (factory is null)
         {
             await SendAsync(socket, new
@@ -65,47 +74,78 @@ public static class AudioWebSocketEndpoint
                 type = "error",
                 code = "stt_provider_not_configured",
                 message = "No speech-to-text provider is registered. Audio was not transcribed."
-            }, context.RequestAborted);
+            }, cancellationToken);
+
             await socket.CloseAsync(
                 WebSocketCloseStatus.PolicyViolation,
                 "stt_provider_not_configured",
-                context.RequestAborted);
+                cancellationToken);
             return;
         }
 
         await using var session = await factory.OpenSessionAsync(
             new SpeechSessionOptions(conversation.Id, conversation.SourceLanguage, null, null),
-            context.RequestAborted);
+            cancellationToken);
 
-        var pumping = PumpTranscriptsAsync(socket, session, context.RequestAborted);
-        await ReceiveAudioAsync(socket, session, context.RequestAborted);
-        await pumping;
+        try
+        {
+            var pumping = PumpTranscriptsAsync(socket, session, cancellationToken);
+            await ReceiveAudioAsync(socket, session, settings, cancellationToken);
+            await pumping;
+        }
+        catch (OperationCanceledException) when (lifetimeCts.IsCancellationRequested)
+        {
+            if (socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
+            {
+                await socket.CloseAsync(
+                    WebSocketCloseStatus.PolicyViolation,
+                    "connection lifetime exceeded or request cancelled",
+                    CancellationToken.None);
+            }
+        }
     }
 
     private static async Task ReceiveAudioAsync(
         WebSocket socket,
         ISpeechToTextSession session,
+        AudioWebSocketOptions settings,
         CancellationToken cancellationToken)
     {
-        var buffer = new byte[MaxFrameBytes];
+        var buffer = new byte[Math.Min(settings.MaxMessageBytes, 64 * 1024)];
+        var currentMessageBytes = 0;
+
         while (socket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
         {
             var received = await socket.ReceiveAsync(buffer, cancellationToken);
+
             if (received.MessageType == WebSocketMessageType.Close)
+                return;
+
+            if (received.MessageType != WebSocketMessageType.Binary)
             {
-                break;
+                await socket.CloseAsync(
+                    WebSocketCloseStatus.InvalidMessageType,
+                    "binary audio messages are required",
+                    cancellationToken);
+                return;
             }
 
-            if (received.Count == MaxFrameBytes && !received.EndOfMessage)
+            currentMessageBytes = checked(currentMessageBytes + received.Count);
+
+            if (currentMessageBytes > settings.MaxMessageBytes)
             {
-                await socket.CloseAsync(WebSocketCloseStatus.MessageTooBig, "frame too large", cancellationToken);
-                break;
+                await socket.CloseAsync(
+                    WebSocketCloseStatus.MessageTooBig,
+                    "audio message too large",
+                    cancellationToken);
+                return;
             }
 
-            if (received.MessageType == WebSocketMessageType.Binary && received.Count > 0)
-            {
+            if (received.Count > 0)
                 await session.AppendAudioAsync(buffer.AsMemory(0, received.Count), cancellationToken);
-            }
+
+            if (received.EndOfMessage)
+                currentMessageBytes = 0;
         }
     }
 
