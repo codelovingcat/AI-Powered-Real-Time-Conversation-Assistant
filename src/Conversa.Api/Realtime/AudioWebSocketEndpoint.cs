@@ -5,6 +5,7 @@ using Conversa.Api.Identity;
 using Conversa.Application.Abstractions.Persistence;
 using Conversa.Application.Speech;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Conversa.Api.Realtime;
 
@@ -14,7 +15,7 @@ public static class AudioWebSocketEndpoint
 
     public static void MapAudioWebSocket(this WebApplication app)
     {
-        app.Map("/ws/conversations/{conversationId:guid}/audio", HandleAsync);
+        app.Map("/ws/conversations/{conversationId:guid}/audio", HandleAsync).RequireRateLimiting("audio");
     }
 
     private static async Task HandleAsync(
