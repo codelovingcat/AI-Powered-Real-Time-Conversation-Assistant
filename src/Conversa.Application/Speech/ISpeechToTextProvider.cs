@@ -7,5 +7,7 @@ public interface ISpeechToTextProvider
 {
     string ProviderName { get; }
 
-    Task<SpeechRecognitionResult> TranscribeAsync(SpeechAudio audio, CancellationToken cancellationToken);
+    Task<SpeechRecognitionResult> TranscribeAsync(
+        SpeechAudio audio,
+        CancellationToken cancellationToken);
 }
