@@ -8,10 +8,84 @@ using Conversa.Application.Conversations;
 using Conversa.Infrastructure;
 using Conversa.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddInfrastructure(builder.Configuration);
+
+var rateLimitOptions = builder.Configuration
+    .GetSection(RateLimitOptions.SectionName)
+    .Get<RateLimitOptions>() ?? new RateLimitOptions();
+
+rateLimitOptions.Validate();
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.Headers.RetryAfter = rateLimitOptions.WindowSeconds.ToString();
+        await context.HttpContext.Response.WriteAsJsonAsync(new
+        {
+            error = "rate_limit_exceeded",
+            message = "Too many requests. Please try again later."
+        }, cancellationToken);
+    };
+
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        var userId = httpContext.User.FindFirst("sub")?.Value
+            ?? httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        var key = !string.IsNullOrWhiteSpace(userId)
+            ? $"user:{userId}"
+            : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            key,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = rateLimitOptions.GlobalPermitLimit,
+                Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            });
+    });
+
+    options.AddPolicy("ai", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            GetRateLimitKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = rateLimitOptions.AiPermitLimit,
+                Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy("audio", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            GetRateLimitKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = rateLimitOptions.AudioPermitLimit,
+                Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
+
+static string GetRateLimitKey(HttpContext httpContext)
+{
+    var userId = httpContext.User.FindFirst("sub")?.Value
+        ?? httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+    return !string.IsNullOrWhiteSpace(userId)
+        ? $"user:{userId}"
+        : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+}
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HeaderCurrentUser>();
 builder.Services.AddScoped<IConversationService, ConversationService>();
@@ -28,6 +102,7 @@ builder.Services.AddControllers()
 var app = builder.Build();
 
 app.UseExceptionHandler();
+app.UseRateLimiter();
 app.UseWebSockets();
 app.MapControllers();
 app.MapHealthChecks("/health");
