@@ -14,3 +14,4 @@ TestResults/
 *.log
 .nuget/
 packages/
+\n# Local configuration and secret files\nappsettings.local.json\nappsettings.*.local.json\n*.pem\n*.key\n
