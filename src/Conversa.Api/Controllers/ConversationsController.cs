@@ -2,6 +2,7 @@ using Conversa.Application.Common;
 using Conversa.Application.Conversations;
 using Conversa.Api.Contracts;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Conversa.Api.Controllers;
 
@@ -51,6 +52,7 @@ public sealed class ConversationsController(
         => Ok(await conversations.ListMessagesAsync(id, cancellationToken));
 
     [HttpPost("{id:guid}/assistant")]
+    [EnableRateLimiting("ai")]
     public async Task<IActionResult> Process(Guid id, [FromBody] ProcessInputRequest request, CancellationToken cancellationToken)
     {
         if (request.InputKind is null)
