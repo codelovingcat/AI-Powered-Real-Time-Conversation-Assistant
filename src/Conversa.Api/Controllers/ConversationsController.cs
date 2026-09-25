@@ -2,10 +2,12 @@ using Conversa.Application.Common;
 using Conversa.Application.Conversations;
 using Conversa.Api.Contracts;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Conversa.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/conversations")]
 public sealed class ConversationsController(
     IConversationService conversations,
