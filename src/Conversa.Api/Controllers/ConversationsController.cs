@@ -16,6 +16,7 @@ public sealed class ConversationsController(
         => Ok(await conversations.ListAsync(take, cancellationToken));
 
     [HttpPost]
+    [RequestSizeLimit(ConversationInputValidator.MaxRequestBodyBytes)]
     public async Task<IActionResult> Create([FromBody] CreateConversationRequest request, CancellationToken cancellationToken)
     {
         var created = await conversations.CreateAsync(
@@ -34,6 +35,7 @@ public sealed class ConversationsController(
         => Ok(await conversations.GetAsync(id, cancellationToken));
 
     [HttpPatch("{id:guid}")]
+    [RequestSizeLimit(ConversationInputValidator.MaxRequestBodyBytes)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateConversationRequest request, CancellationToken cancellationToken)
         => Ok(await conversations.UpdateAsync(
             new UpdateConversationCommand(id, request.Title, request.Instruction, request.SourceLanguage, request.TargetLanguage),
@@ -51,6 +53,7 @@ public sealed class ConversationsController(
         => Ok(await conversations.ListMessagesAsync(id, cancellationToken));
 
     [HttpPost("{id:guid}/assistant")]
+    [RequestSizeLimit(ConversationInputValidator.MaxAssistantRequestBodyBytes)]
     public async Task<IActionResult> Process(Guid id, [FromBody] ProcessInputRequest request, CancellationToken cancellationToken)
     {
         if (request.InputKind is null)
