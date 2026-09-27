@@ -16,7 +16,7 @@ public sealed class ConversationService(
     public const int DefaultListSize = 50;
     public const int MaxListSize = 200;
     public const int MaxMessages = 1000;
-    private const string InstructionUpdatedNote = InstructionUpdatedNote;
+    private const string InstructionUpdatedNote = "Instruction updated.";
     private const string DefaultSourceLanguage = "en";
     private const string DefaultTargetLanguage = "tr";
 
@@ -110,7 +110,7 @@ public sealed class ConversationService(
         if (instructionChanged)
         {
             await messages.AddAsync(
-                Message.CreateSystemNote(conversation.Id, "Instruction updated.", now),
+                Message.CreateSystemNote(conversation.Id, InstructionUpdatedNote, now),
                 cancellationToken);
         }
 
