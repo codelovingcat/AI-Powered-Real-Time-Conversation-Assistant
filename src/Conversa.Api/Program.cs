@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Security.Claims;
+using System.Text;
 using System.Threading.RateLimiting;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -10,8 +11,10 @@ using Conversa.Application.Abstractions.Identity;
 using Conversa.Application.Conversations;
 using Conversa.Infrastructure;
 using Conversa.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,6 +48,29 @@ if (signingKeyBytes.Length < 32)
         "Authentication:SigningKey must contain at least 32 bytes.");
 }
 
+var signingKey = new SymmetricSecurityKey(signingKeyBytes);
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = authenticationIssuer,
+            ValidateAudience = true,
+            ValidAudience = authenticationAudience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = signingKey,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(1),
+            NameClaimType = ClaimTypes.NameIdentifier
+        };
+    });
+
+builder.Services.AddAuthorization();
+
 var rateLimitOptions = new RateLimitOptions();
 builder.Configuration.GetSection(RateLimitOptions.SectionName).Bind(rateLimitOptions);
 rateLimitOptions.Validate();
@@ -53,7 +79,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.Configure<AudioWebSocketOptions>(builder.Configuration.GetSection(AudioWebSocketOptions.SectionName));
 builder.Services.Configure<RateLimitOptions>(builder.Configuration.GetSection(RateLimitOptions.SectionName));
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<ICurrentUser, HeaderCurrentUser>();
+builder.Services.AddScoped<ICurrentUser, AuthenticatedCurrentUser>();
 builder.Services.AddScoped<IConversationService, ConversationService>();
 builder.Services.AddScoped<IConversationAssistant, ConversationAssistant>();
 builder.Services.AddScoped<ConversationInputValidator>();
@@ -125,6 +151,8 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseRateLimiter();
 app.UseWebSockets();
 app.MapControllers();
