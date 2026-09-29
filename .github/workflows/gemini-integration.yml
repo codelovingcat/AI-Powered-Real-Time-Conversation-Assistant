@@ -1,0 +1,47 @@
+name: Gemini integration
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-smoke-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Restore
+        run: dotnet restore Conversa.slnx
+
+      - name: Build
+        run: dotnet build Conversa.slnx --no-restore --configuration Release
+
+      - name: Run unit tests
+        run: dotnet test tests/Conversa.Api.Tests/Conversa.Api.Tests.csproj --no-build --configuration Release --verbosity normal
+
+      - name: Run Gemini API smoke test
+        env:
+          Gemini__ApiKey: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "$Gemini__ApiKey" ]; then
+            echo "::error::The GEMINI_API_KEY repository secret is not configured."
+            exit 1
+          fi
+
+          dotnet test tests/Conversa.Api.Tests/Conversa.Api.Tests.csproj \
+            --no-build \
+            --configuration Release \
+            --filter "FullyQualifiedName~GeminiApiSmokeTests" \
+            --verbosity normal
