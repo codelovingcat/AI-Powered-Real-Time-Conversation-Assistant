@@ -33,10 +33,10 @@ jobs:
 
       - name: Run Gemini API smoke test
         env:
-          Gemini__ApiKey: ${{ secrets.GEMINI_API_KEY }}
+          Gemini__ApiKey: ${{ secrets.Gemini_ApiKey_Key }}
         run: |
           if [ -z "$Gemini__ApiKey" ]; then
-            echo "::error::The GEMINI_API_KEY repository secret is not configured."
+            echo "::error::The Gemini_ApiKey_Key repository secret is not configured."
             exit 1
           fi
 
