@@ -38,7 +38,7 @@ jobs:
       - name: Run Gemini API smoke test
         env:
           Gemini__ApiKey: ${{ secrets.GEMINI_API_KEY }}
-          Gemini__Model: gemini-3.5-flash-lite
+          Gemini__Model: gemini-3.8-flash
           CONVERSA_RUN_GEMINI_INTEGRATION: "true"
         run: |
           if [ -z "$Gemini__ApiKey" ]; then
@@ -46,4 +46,8 @@ jobs:
             exit 1
           fi
 
-          dotnet test tests/Conversa.Api.Tests/Conversa.Api.Tests.csproj             --no-build             --configuration Release             --filter "FullyQualifiedName~GeminiApiSmokeTests"             --verbosity normal
+          dotnet test tests/Conversa.Api.Tests/Conversa.Api.Tests.csproj \
+            --no-build \
+            --configuration Release \
+            --filter "FullyQualifiedName~GeminiApiSmokeTests" \
+            --verbosity normal
