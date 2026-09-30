@@ -28,7 +28,7 @@ public sealed class GeminiApiSmokeTests
             Model = Environment.GetEnvironmentVariable("Gemini__Model") ?? "gemini-3.8-flash",
             BaseUrl = "https://generativelanguage.googleapis.com/",
             TimeoutSeconds = 45,
-            MaxRetries = 1,
+            MaxRetries = 0,
             InitialRetryDelayMilliseconds = 250
         });
 
