@@ -34,6 +34,7 @@ jobs:
       - name: Run Gemini API smoke test
         env:
           Gemini__ApiKey: ${{ secrets.Gemini_ApiKey_Key }}
+          CONVERSA_RUN_GEMINI_INTEGRATION: "true"
         run: |
           if [ -z "$Gemini__ApiKey" ]; then
             echo "::error::The Gemini_ApiKey_Key repository secret is not configured."

@@ -2,13 +2,13 @@ using Conversa.Application.Ai;
 using Conversa.Infrastructure.Ai.Gemini;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Xunit;
+using Conversa.Api.Tests.Integration;
 
 namespace Conversa.Api.Tests.Gemini;
 
 public sealed class GeminiApiSmokeTests
 {
-    [Fact]
+    [GeminiIntegrationFact]
     public async Task Gemini_can_process_a_real_assistant_request()
     {
         var apiKey = Environment.GetEnvironmentVariable("Gemini__ApiKey");
