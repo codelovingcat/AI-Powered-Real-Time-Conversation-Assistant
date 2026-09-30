@@ -1,7 +1,7 @@
 using Conversa.Domain.Conversations;
 using Conversa.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Conversa.Api.Tests.Integration;
+using System.Data.Common;
 
 namespace Conversa.Api.Tests.Integration;
 
@@ -23,9 +23,21 @@ public sealed class NeonDatabaseIntegrationTests
 
         await using (var pooledDb = CreateDbContext(pooledConnectionString!))
         {
-            Assert.True(
-                await pooledDb.Database.CanConnectAsync(),
-                "The pooled Neon PostgreSQL connection must be reachable.");
+            try
+            {
+                await pooledDb.Database.OpenConnectionAsync();
+                await pooledDb.Database.CloseConnectionAsync();
+            }
+            catch (DbException exception)
+            {
+                Assert.Fail(
+                    $"The pooled Neon PostgreSQL connection failed with database error code {exception.ErrorCode}.");
+            }
+            catch (Exception exception)
+            {
+                Assert.Fail(
+                    $"The pooled Neon PostgreSQL connection failed with {exception.GetType().Name}.");
+            }
         }
 
         await using var db = CreateDbContext(migrationConnectionString!);
