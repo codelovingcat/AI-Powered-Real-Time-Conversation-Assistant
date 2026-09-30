@@ -22,7 +22,7 @@ public sealed class ConversationInputValidationTests
     }
 
     [Fact]
-    public void Create_RejectsUnsupportedLanguage()
+    public void Create_RejectsMalformedLanguageTag()
     {
         var validator = new ConversationInputValidator();
 
@@ -30,7 +30,7 @@ public sealed class ConversationInputValidationTests
             validator.ValidateCreate(new CreateConversationCommand(
                 "Test",
                 "Translate naturally.",
-                "xx-invalid",
+                "xx_invalid",
                 "tr")));
 
         Assert.Contains("sourceLanguage", exception.Errors.Keys);
