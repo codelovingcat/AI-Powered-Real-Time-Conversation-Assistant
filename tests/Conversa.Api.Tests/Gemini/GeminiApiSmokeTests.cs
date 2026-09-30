@@ -25,7 +25,7 @@ public sealed class GeminiApiSmokeTests
         var options = Options.Create(new GeminiOptions
         {
             ApiKey = apiKey!,
-            Model = "gemini-2.5-flash",
+            Model = Environment.GetEnvironmentVariable("Gemini__Model") ?? "gemini-3.8-flash",
             BaseUrl = "https://generativelanguage.googleapis.com/",
             TimeoutSeconds = 45,
             MaxRetries = 1,
