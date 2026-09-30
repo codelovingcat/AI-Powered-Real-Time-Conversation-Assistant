@@ -33,7 +33,7 @@ jobs:
 
       - name: Run Gemini API smoke test
         env:
-          Gemini__ApiKey: ${{ secrets.Gemini_ApiKey_Key }}
+          Gemini__ApiKey: ${{ secrets.GEMINI_API_KEY }}
           CONVERSA_RUN_GEMINI_INTEGRATION: "true"
         run: |
           if [ -z "$Gemini__ApiKey" ]; then
