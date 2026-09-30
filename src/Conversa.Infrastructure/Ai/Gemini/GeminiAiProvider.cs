@@ -74,16 +74,20 @@ internal sealed class GeminiAiProvider(
                 }
                 else
                 {
+                    var error = ParseGeminiError(response.StatusCode, body);
+
                     logger.LogWarning(
-                        "Gemini request failed with status {StatusCode} on attempt {Attempt} in {ElapsedMilliseconds} ms.",
+                        "Gemini request failed with status {StatusCode}, provider error {ProviderErrorCode}, reason {ProviderErrorReason}, quota metric {QuotaMetric} on attempt {Attempt} in {ElapsedMilliseconds} ms.",
                         (int)response.StatusCode,
+                        error.Code ?? "unknown",
+                        error.Reason ?? "unknown",
+                        error.QuotaMetric ?? "unknown",
                         attempt,
                         stopwatch.ElapsedMilliseconds);
 
-                    if (!IsTransient(response.StatusCode) || attempt == maxAttempts)
+                    if (!IsTransient(response.StatusCode, error) || attempt == maxAttempts)
                     {
-                        throw new AiProviderException(
-                            $"Gemini request failed with status {(int)response.StatusCode}.");
+                        throw new AiProviderException(error.ToSafeMessage());
                     }
                 }
             }
@@ -117,12 +121,99 @@ internal sealed class GeminiAiProvider(
         throw new AiProviderException("Gemini request failed after all retry attempts.");
     }
 
-    private static bool IsTransient(HttpStatusCode statusCode) =>
+    private static bool IsTransient(HttpStatusCode statusCode, GeminiError error) =>
         statusCode is HttpStatusCode.RequestTimeout
-            or HttpStatusCode.TooManyRequests
             or HttpStatusCode.BadGateway
             or HttpStatusCode.ServiceUnavailable
-            or HttpStatusCode.GatewayTimeout;
+            or HttpStatusCode.GatewayTimeout
+            || statusCode == HttpStatusCode.TooManyRequests
+                && !string.Equals(error.Code, "quota_exceeded", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(error.Reason, "QUOTA_EXCEEDED", StringComparison.OrdinalIgnoreCase);
+
+    private static GeminiError ParseGeminiError(HttpStatusCode statusCode, string responseBody)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(responseBody);
+
+            if (!document.RootElement.TryGetProperty("error", out var error))
+                return new GeminiError((int)statusCode, null, null, null, null);
+
+            var providerCode = error.TryGetProperty("status", out var status)
+                && status.ValueKind == JsonValueKind.String
+                ? status.GetString()
+                : null;
+
+            var machineCode = error.TryGetProperty("code", out var code)
+                && code.ValueKind == JsonValueKind.String
+                ? code.GetString()
+                : null;
+
+            var normalizedCode = !string.IsNullOrWhiteSpace(machineCode)
+                ? machineCode
+                : null;
+
+            var reason = ExtractErrorReason(error);
+            var quotaMetric = ExtractQuotaMetric(error);
+
+            return new GeminiError(
+                (int)statusCode,
+                normalizedCode ?? providerCode,
+                reason,
+                quotaMetric,
+                providerCode);
+        }
+        catch (JsonException)
+        {
+            return new GeminiError((int)statusCode, null, null, null, null);
+        }
+    }
+
+    private static string? ExtractErrorReason(JsonElement error)
+    {
+        if (!error.TryGetProperty("details", out var details)
+            || details.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        foreach (var detail in details.EnumerateArray())
+        {
+            if (detail.TryGetProperty("reason", out var reason)
+                && reason.ValueKind == JsonValueKind.String)
+            {
+                return reason.GetString();
+            }
+        }
+
+        return null;
+    }
+
+    private static string? ExtractQuotaMetric(JsonElement error)
+    {
+        if (!error.TryGetProperty("details", out var details)
+            || details.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        foreach (var detail in details.EnumerateArray())
+        {
+            if (!detail.TryGetProperty("metadata", out var metadata)
+                || metadata.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            if (metadata.TryGetProperty("quotaMetric", out var quotaMetric)
+                && quotaMetric.ValueKind == JsonValueKind.String)
+            {
+                return quotaMetric.GetString();
+            }
+        }
+
+        return null;
+    }
 
     private static void ValidateSettings(GeminiOptions settings)
     {
@@ -175,5 +266,34 @@ internal sealed class GeminiAiProvider(
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         request.Headers.TryAddWithoutValidation("x-goog-api-key", settings.ApiKey.Trim());
         return request;
+    }
+}
+
+internal sealed record GeminiError(
+    int StatusCode,
+    string? Code,
+    string? Reason,
+    string? QuotaMetric,
+    string? ProviderStatus)
+{
+    public string ToSafeMessage()
+    {
+        var parts = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(Code))
+            parts.Add(Code);
+
+        if (!string.IsNullOrWhiteSpace(Reason)
+            && !string.Equals(Reason, Code, StringComparison.OrdinalIgnoreCase))
+        {
+            parts.Add(Reason);
+        }
+
+        if (!string.IsNullOrWhiteSpace(QuotaMetric))
+            parts.Add($"quotaMetric={QuotaMetric}");
+
+        return parts.Count == 0
+            ? $"Gemini request failed with status {StatusCode}."
+            : $"Gemini request failed with status {StatusCode} ({string.Join(", ", parts)}).";
     }
 }
