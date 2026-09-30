@@ -246,14 +246,14 @@ ASP.NET Core maps `__` to configuration sections. See `.env.example`.
 | --- | --- | --- |
 | `ConnectionStrings__DefaultConnection` | Yes, outside the committed Development default | PostgreSQL connection string |
 | `Gemini__ApiKey` | Required to call the assistant | Gemini API key. Never commit this |
-| `Gemini__Model` | No | Defaults to `gemini-2.5-flash` |
+| `Gemini__Model` | No | Defaults to `gemini-3.8-flash` |
 | `Gemini__BaseUrl` | No | Defaults to `https://generativelanguage.googleapis.com/` |
 
 `appsettings.json` ships with an empty API key and an empty connection string. `appsettings.Development.json` contains only the local Docker connection string so `dotnet run` works against compose. Production must set the environment variables and must not run as Development.
 
 ### GitHub Actions Gemini secret
 
-The repository secret `Gemini_ApiKey_Key` is mapped by GitHub Actions to the ASP.NET Core configuration variable `Gemini__ApiKey`. The application provider reads that configuration value at runtime and sends it to the Gemini API as the `x-goog-api-key` request header. The integration workflow runs a real Gemini smoke test on pushes to `main` and via manual dispatch; the secret value is never written to the repository or printed to logs.
+The repository secret `GEMINI_API_KEY` is mapped by GitHub Actions to the ASP.NET Core configuration variable `Gemini__ApiKey`. The application provider reads that configuration value at runtime and sends it to the Gemini API as the `x-goog-api-key` request header. The integration workflow runs a real Gemini smoke test on pushes to `main` and via manual dispatch; the secret value is never written to the repository or printed to logs.
 
 User secrets are also supported:
 
