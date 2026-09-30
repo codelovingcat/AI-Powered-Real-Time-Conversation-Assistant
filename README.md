@@ -261,6 +261,22 @@ User secrets are also supported:
 dotnet user-secrets set "Gemini:ApiKey" "your-gemini-api-key" --project src/Conversa.Api
 ```
 
+## Hosted PostgreSQL with Neon
+
+Conversa can use Neon as its hosted PostgreSQL database without changing the EF Core/Npgsql persistence layer.
+
+The application continues to read the database connection from `ConnectionStrings:DefaultConnection`, which maps to the `ConnectionStrings__DefaultConnection` environment variable. For local development, the committed Development configuration keeps the Docker PostgreSQL fallback.
+
+For a hosted environment, set the application connection to the Neon pooled connection string. Keep both Neon connection strings outside source control:
+
+- `NEON_DATABASE_URL`: pooled connection string for normal application traffic.
+- `NEON_DATABASE_URL_UNPOOLED`: direct/unpooled connection string for schema migration and database administration tasks.
+
+Neither value belongs in the repository. GitHub Actions uses repository secrets with the same names.
+
+The Neon integration workflow runs on pull requests to `main`. It first checks the pooled connection, then applies the existing EF Core migrations through the unpooled connection and verifies conversation/message persistence against the real Neon database. The CRUD assertions run inside a transaction and roll back the test data after verification.
+
+The current schema is created by the existing `InitialCreate` migration; no new migration is required just to switch from local PostgreSQL to Neon.
 ## Database migration
 
 The initial migration is `src/Conversa.Infrastructure/Persistence/Migrations/20260922223000_InitialCreate.cs`.
