@@ -17,7 +17,7 @@ public sealed class GeminiAiProviderIntegrationTests
         var options = new GeminiOptions
         {
             ApiKey = apiKey!,
-            Model = Environment.GetEnvironmentVariable("Gemini__Model") ?? "gemini-2.5-flash",
+            Model = Environment.GetEnvironmentVariable("Gemini__Model") ?? "gemini-3.8-flash",
             BaseUrl = Environment.GetEnvironmentVariable("Gemini__BaseUrl")
                 ?? "https://generativelanguage.googleapis.com/"
         };
