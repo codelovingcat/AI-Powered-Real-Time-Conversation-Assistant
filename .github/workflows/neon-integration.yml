@@ -1,0 +1,54 @@
+name: Neon integration
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: neon-integration-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-neon-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Restore
+        run: dotnet restore Conversa.slnx
+
+      - name: Build
+        run: dotnet build Conversa.slnx --no-restore --configuration Release
+
+      - name: Run unit tests
+        run: dotnet test tests/Conversa.Api.Tests/Conversa.Api.Tests.csproj --no-build --configuration Release --verbosity normal
+
+      - name: Run Neon PostgreSQL integration test
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          NEON_DATABASE_URL_UNPOOLED: ${{ secrets.NEON_DATABASE_URL_UNPOOLED }}
+          CONVERSA_RUN_NEON_INTEGRATION: "true"
+        run: |
+          if [ -z "$NEON_DATABASE_URL" ]; then
+            echo "::error::The NEON_DATABASE_URL repository secret is not configured."
+            exit 1
+          fi
+
+          if [ -z "$NEON_DATABASE_URL_UNPOOLED" ]; then
+            echo "::error::The NEON_DATABASE_URL_UNPOOLED repository secret is not configured."
+            exit 1
+          fi
+
+          dotnet test tests/Conversa.Api.Tests/Conversa.Api.Tests.csproj             --no-build             --configuration Release             --filter "FullyQualifiedName~NeonDatabaseIntegrationTests"             --verbosity normal
