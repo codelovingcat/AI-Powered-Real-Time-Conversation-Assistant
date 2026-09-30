@@ -71,7 +71,7 @@ internal static class GeminiPromptBuilder
             builder.AppendLine("<recent_turns>");
             foreach (var turn in request.RecentTurns)
             {
-                builder.Append("<turn role="").Append(RoleLabel(turn.Role)).AppendLine("">");
+                builder.Append("<turn role=\"").Append(RoleLabel(turn.Role)).AppendLine("\">");
                 builder.Append("<original>").Append(Escape(Truncate(turn.OriginalText))).AppendLine("</original>");
 
                 if (!string.IsNullOrWhiteSpace(turn.Translation))
