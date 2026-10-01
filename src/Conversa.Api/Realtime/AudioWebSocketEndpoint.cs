@@ -91,7 +91,16 @@ public static class AudioWebSocketEndpoint
         try
         {
             var pumping = PumpTranscriptsAsync(socket, session, cancellationToken);
-            await ReceiveAudioAsync(socket, session, settings, cancellationToken);
+
+            try
+            {
+                await ReceiveAudioAsync(socket, session, settings, cancellationToken);
+            }
+            finally
+            {
+                await session.DisposeAsync();
+            }
+
             await pumping;
         }
         catch (OperationCanceledException) when (lifetimeCts.IsCancellationRequested)
