@@ -8,6 +8,7 @@ using Conversa.Api.Realtime;
 using Conversa.Application.Abstractions.Persistence;
 using Conversa.Application.Speech;
 using Conversa.Domain.Conversations;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
