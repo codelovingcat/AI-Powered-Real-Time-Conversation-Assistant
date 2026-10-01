@@ -55,7 +55,10 @@ public sealed class DeepgramSpeechToTextProviderTests
         var uri = DeepgramSpeechToTextProvider.BuildUri(
             settings.BaseUrl,
             "/v1/listen",
-            [new("model", "nova-3"), new("language", "en-US")]);
+            DeepgramSpeechToTextProvider.BuildPreRecordedParameters(
+                settings,
+                "en-US",
+                "audio/wav"));
 
         Assert.Contains("model=nova-3", uri.Query, StringComparison.Ordinal);
         Assert.Contains("language=en-US", uri.Query, StringComparison.Ordinal);
