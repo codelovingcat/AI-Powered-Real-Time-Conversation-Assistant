@@ -1,0 +1,61 @@
+name: Neon database migration
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: neon-database-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Restore
+        run: dotnet restore Conversa.slnx
+
+      - name: Build
+        run: dotnet build Conversa.slnx --no-restore --configuration Release
+
+      - name: Install EF Core CLI
+        run: dotnet tool install --global dotnet-ef --version 10.0.11
+
+      - name: Validate migration secret
+        env:
+          NEON_DATABASE_URL_UNPOOLED: ${{ secrets.NEON_DATABASE_URL_UNPOOLED }}
+        run: |
+          if [ -z "$NEON_DATABASE_URL_UNPOOLED" ]; then
+            echo "::error::The NEON_DATABASE_URL_UNPOOLED repository secret is not configured."
+            exit 1
+          fi
+
+      - name: Apply EF Core migrations to Neon
+        env:
+          ConnectionStrings__DefaultConnection: ${{ secrets.NEON_DATABASE_URL_UNPOOLED }}
+        run: |
+          dotnet ef database update             --project src/Conversa.Infrastructure/Conversa.Infrastructure.csproj             --startup-project src/Conversa.Api/Conversa.Api.csproj             --configuration Release             --no-build
+
+      - name: Verify migrated Neon schema and persistence
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          NEON_DATABASE_URL_UNPOOLED: ${{ secrets.NEON_DATABASE_URL_UNPOOLED }}
+          CONVERSA_RUN_NEON_INTEGRATION: "true"
+        run: |
+          if [ -z "$NEON_DATABASE_URL" ]; then
+            echo "::error::The NEON_DATABASE_URL repository secret is not configured."
+            exit 1
+          fi
+
+          dotnet test tests/Conversa.Api.Tests/Conversa.Api.Tests.csproj             --no-build             --configuration Release             --filter "FullyQualifiedName~NeonDatabaseIntegrationTests"             --verbosity normal
