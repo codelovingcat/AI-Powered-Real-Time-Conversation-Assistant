@@ -1,8 +1,10 @@
 using Conversa.Application.Abstractions.Persistence;
 using Conversa.Application.Ai;
+using Conversa.Application.Speech;
 using Conversa.Infrastructure.Ai.Gemini;
 using Conversa.Infrastructure.Persistence;
 using Conversa.Infrastructure.Persistence.Repositories;
+using Conversa.Infrastructure.Speech;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
