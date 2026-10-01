@@ -15,6 +15,8 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
                 "ConnectionStrings__DefaultConnection must be configured for EF Core design-time operations.");
         }
 
+        connectionString = ConnectionStringNormalizer.Normalize(connectionString);
+
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseNpgsql(
                 connectionString,
