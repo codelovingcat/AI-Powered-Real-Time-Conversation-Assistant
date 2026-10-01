@@ -1,17 +1,17 @@
 using System.Net.WebSockets;
 using System.Security.Claims;
-using System.Text.Encodings.Web;
 using System.Text;
 using System.Text.Json;
+using System.Text.Encodings.Web;
+using System.Threading.RateLimiting;
+using Conversa.Api.Realtime;
 using Conversa.Application.Abstractions.Persistence;
 using Conversa.Application.Speech;
-using Conversa.Api.Realtime;
 using Conversa.Domain.Conversations;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -24,28 +24,64 @@ public sealed class DeepgramWebSocketIntegrationTests
     [Fact]
     public async Task Authenticated_audio_websocket_forwards_binary_audio_and_returns_transcript_updates()
     {
-        using var factory = new TestAppFactory();
+        var userId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        var conversation = Conversation.Create(
+            userId,
+            "WebSocket integration test",
+            "Translate English into natural Turkish.",
+            "en",
+            "tr",
+            DateTimeOffset.UtcNow);
 
-        var session = factory.Session;
+        var session = new RecordingSpeechSession();
 
-        var client = factory.Server.CreateWebSocketClient();
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
 
-        WebSocket socket;
-        try
+        builder.Services.AddRouting();
+        builder.Services.Configure<AudioWebSocketOptions>(_ => { });
+        builder.Services.AddRateLimiter(options =>
         {
-            socket = await client.ConnectAsync(
-                new Uri(
-                    $"ws://localhost/ws/conversations/{factory.Conversation.Id}/audio"),
-                CancellationToken.None);
-        }
-        catch (Exception exception)
-        {
-            Assert.Fail(
-                $"WebSocket test server handshake failed with {exception.GetType().Name}: {exception.Message}");
-            return;
-        }
+            options.AddPolicy(
+                "audio",
+                context => RateLimitPartition.GetNoLimiter(
+                    context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "test"));
+        });
 
-        using (socket)
+        builder.Services.AddSingleton<IConversationRepository>(
+            new RecordingConversationRepository(conversation));
+
+        builder.Services.AddSingleton<ISpeechToTextSessionFactory>(
+            new RecordingSpeechSessionFactory(session));
+
+        builder.Services
+            .AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = TestAuthenticationHandler.TestScheme;
+                options.DefaultChallengeScheme = TestAuthenticationHandler.TestScheme;
+            })
+            .AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>(
+                TestAuthenticationHandler.TestScheme,
+                _ => { });
+
+        builder.Services.AddAuthorization();
+
+        await using var app = builder.Build();
+
+        app.UseRouting();
+        app.UseAuthentication();
+        app.UseAuthorization();
+        app.UseRateLimiter();
+        app.UseWebSockets();
+        app.MapAudioWebSocket();
+
+        await app.StartAsync();
+
+        var client = app.GetTestServer().CreateWebSocketClient();
+        using var socket = await client.ConnectAsync(
+            new Uri(
+                $"ws://localhost/ws/conversations/{conversation.Id}/audio"),
+            CancellationToken.None);
 
         await socket.SendAsync(
             new byte[] { 0x01, 0x02, 0x03, 0x04 },
@@ -59,10 +95,18 @@ public sealed class DeepgramWebSocketIntegrationTests
         using var firstPayload = JsonDocument.Parse(first);
         using var secondPayload = JsonDocument.Parse(second);
 
-        Assert.Equal("partial_transcript", firstPayload.RootElement.GetProperty("type").GetString());
-        Assert.Equal("Hello", firstPayload.RootElement.GetProperty("text").GetString());
-        Assert.Equal("final_transcript", secondPayload.RootElement.GetProperty("type").GetString());
-        Assert.Equal("Hello, world.", secondPayload.RootElement.GetProperty("text").GetString());
+        Assert.Equal(
+            "partial_transcript",
+            firstPayload.RootElement.GetProperty("type").GetString());
+        Assert.Equal(
+            "Hello",
+            firstPayload.RootElement.GetProperty("text").GetString());
+        Assert.Equal(
+            "final_transcript",
+            secondPayload.RootElement.GetProperty("type").GetString());
+        Assert.Equal(
+            "Hello, world.",
+            secondPayload.RootElement.GetProperty("text").GetString());
         Assert.Equal(1, session.ReceivedChunkCount);
 
         await socket.CloseAsync(
@@ -71,6 +115,7 @@ public sealed class DeepgramWebSocketIntegrationTests
             CancellationToken.None);
 
         await session.Disposed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await app.StopAsync();
     }
 
     private static async Task<string> ReceiveTextAsync(WebSocket socket)
@@ -91,74 +136,6 @@ public sealed class DeepgramWebSocketIntegrationTests
         return Encoding.UTF8.GetString(message.ToArray());
     }
 
-    private sealed class TestAppFactory : WebApplicationFactory<Program>
-    {
-        private static readonly Guid TestUserId =
-            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-
-        public TestAppFactory()
-        {
-            Conversation = Conversation.Create(
-                TestUserId,
-                "WebSocket integration test",
-                "Translate English into natural Turkish.",
-                "en",
-                "tr",
-                DateTimeOffset.UtcNow);
-
-            Session = new RecordingSpeechSession();
-
-            ServerRepository = new RecordingConversationRepository(Conversation);
-            SessionFactory = new RecordingSpeechSessionFactory(Session);
-        }
-
-        public Conversation Conversation { get; }
-
-        public RecordingSpeechSession Session { get; }
-
-        private RecordingConversationRepository ServerRepository { get; }
-
-        private RecordingSpeechSessionFactory SessionFactory { get; }
-
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
-        {
-            builder.UseEnvironment("Test");
-
-            builder.ConfigureAppConfiguration((_, configuration) =>
-            {
-                configuration.AddInMemoryCollection(
-                [
-                    new KeyValuePair<string, string?>(
-                        "ConnectionStrings:DefaultConnection",
-                        "Host=localhost;Port=5432;Database=conversa;Username=conversa;Password=test"),
-                    new KeyValuePair<string, string?>("Gemini:ApiKey", "test-key"),
-                    new KeyValuePair<string, string?>("Authentication:Issuer", "test"),
-                    new KeyValuePair<string, string?>("Authentication:Audience", "test"),
-                    new KeyValuePair<string, string?>(
-                        "Authentication:SigningKey",
-                        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
-                ]);
-            });
-
-            builder.ConfigureServices(services =>
-            {
-                services.RemoveAll<IConversationRepository>();
-                services.AddSingleton<IConversationRepository>(ServerRepository);
-
-                services.RemoveAll<ISpeechToTextSessionFactory>();
-                services.AddSingleton<ISpeechToTextSessionFactory>(SessionFactory);
-
-                services.AddAuthentication(options =>
-                {
-                    options.DefaultAuthenticateScheme = TestAuthenticationHandler.TestScheme;
-                    options.DefaultChallengeScheme = TestAuthenticationHandler.TestScheme;
-                }).AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>(
-                    TestAuthenticationHandler.TestScheme,
-                    _ => { });
-            });
-        }
-    }
-
     private sealed class TestAuthenticationHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
@@ -170,7 +147,9 @@ public sealed class DeepgramWebSocketIntegrationTests
         protected override Task<AuthenticateResult> HandleAuthenticateAsync()
         {
             var identity = new ClaimsIdentity(
-                [new Claim(ClaimTypes.NameIdentifier, TestUserIdValue())],
+                [new Claim(
+                    ClaimTypes.NameIdentifier,
+                    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")],
                 TestScheme);
 
             var principal = new ClaimsPrincipal(identity);
@@ -178,9 +157,6 @@ public sealed class DeepgramWebSocketIntegrationTests
 
             return Task.FromResult(AuthenticateResult.Success(ticket));
         }
-
-        private static string TestUserIdValue()
-            => "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
     }
 
     private sealed class RecordingConversationRepository(Conversation conversation)
@@ -233,7 +209,6 @@ public sealed class DeepgramWebSocketIntegrationTests
             CancellationToken cancellationToken)
         {
             ReceivedChunkCount++;
-
             return ValueTask.CompletedTask;
         }
 
