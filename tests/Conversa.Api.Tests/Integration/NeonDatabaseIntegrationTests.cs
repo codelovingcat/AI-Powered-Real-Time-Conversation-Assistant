@@ -1,6 +1,7 @@
 using Conversa.Domain.Conversations;
 using Conversa.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using System.Data.Common;
 
 namespace Conversa.Api.Tests.Integration;
@@ -20,6 +21,19 @@ public sealed class NeonDatabaseIntegrationTests
         Assert.False(
             string.IsNullOrWhiteSpace(migrationConnectionString),
             "NEON_DATABASE_URL_UNPOOLED must be provided by the GitHub Actions secret.");
+
+        pooledConnectionString = ConnectionStringNormalizer.Normalize(pooledConnectionString!);
+        migrationConnectionString = ConnectionStringNormalizer.Normalize(migrationConnectionString!);
+
+        try
+        {
+            _ = new NpgsqlConnectionStringBuilder(pooledConnectionString!);
+        }
+        catch (ArgumentException)
+        {
+            Assert.Fail(
+                $"The pooled Neon connection string could not be parsed by Npgsql. Detected format: {DescribeConnectionStringFormat(pooledConnectionString!)}.");
+        }
 
         await using (var pooledDb = CreateDbContext(pooledConnectionString!))
         {
@@ -111,8 +125,37 @@ public sealed class NeonDatabaseIntegrationTests
         await transaction.RollbackAsync();
     }
 
+    private static string DescribeConnectionStringFormat(string connectionString)
+    {
+        var value = connectionString.Trim();
+
+        if (value.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase))
+        {
+            return "PostgreSQL URI";
+        }
+
+        if (value.StartsWith('"') && value.EndsWith('"'))
+        {
+            return "quoted Npgsql key-value";
+        }
+
+        if (value.StartsWith('"'))
+        {
+            return "Npgsql key-value with a leading quote";
+        }
+
+        if (value.Contains('=') && value.Contains(';'))
+        {
+            return "Npgsql key-value";
+        }
+
+        return "unknown";
+    }
+
     private static AppDbContext CreateDbContext(string connectionString)
     {
+        connectionString = ConnectionStringNormalizer.Normalize(connectionString);
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseNpgsql(
                 connectionString,
