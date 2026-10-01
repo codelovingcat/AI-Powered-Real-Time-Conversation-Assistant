@@ -282,7 +282,7 @@ The current schema is created by the existing `InitialCreate` migration; no new 
 
 The initial migration is `src/Conversa.Infrastructure/Persistence/Migrations/20260922223000_InitialCreate.cs`.
 
-The Infrastructure project already references `Microsoft.EntityFrameworkCore.Design`, and the repository can use the `dotnet-ef` CLI for explicit migration operations. The design-time `AppDbContextFactory` reads only `ConnectionStrings__DefaultConnection`, so EF commands do not need to start the full API or expose application credentials in source code.
+The Infrastructure and API projects reference `Microsoft.EntityFrameworkCore.Design`, and the repository can use the version-pinned `dotnet-ef` CLI for explicit migration operations. The design-time `AppDbContextFactory` reads only `ConnectionStrings__DefaultConnection`, so EF commands do not need to start the full API or expose application credentials in source code.
 
 For local development, point `ConnectionStrings__DefaultConnection` at the Docker PostgreSQL instance and run:
 
