@@ -36,14 +36,14 @@ Working now:
 - Gemini provider behind `IAiProvider`, returning a structured result rather than free text
 - Honest failure when the Gemini API key is missing (no fabricated translation)
 - PostgreSQL persistence through Entity Framework Core, including the initial migration
-- Speech-to-text and streaming-audio boundaries, with no vendor implementation yet
+- Deepgram speech-to-text provider with one-shot transcription and a streaming session adapter
 - WebSocket entry point for continuous listening that reports when speech-to-text is not configured
 
 Not implemented yet:
 
 - Authentication. `X-User-Id` is a temporary request header, not a security boundary
 - Web and React Native clients
-- A speech-to-text provider and the full microphone pipeline
+- A full microphone pipeline in the web client
 - Production deployment, background workers, and multi-instance hosting
 - A model snapshot for later `dotnet ef migrations add` diffs (see below)
 
@@ -144,11 +144,21 @@ Two replaceable contracts live in the application layer:
 - `ISpeechToTextProvider` for a completed audio payload
 - `ISpeechToTextSessionFactory` / `ISpeechToTextSession` for a continuous chunk stream
 
-Nothing is registered. `GET /api/speech/provider` reports that. `POST /api/speech/transcriptions` returns HTTP 501. The WebSocket route is:
+Deepgram is the first concrete speech-to-text provider. It is enabled only when `Deepgram:ApiKey` is configured. The provider adapter stays in `Conversa.Infrastructure`; the application layer remains vendor-neutral.
+
+Deepgram credentials are read from `Deepgram__ApiKey` in the environment (or the equivalent ASP.NET Core configuration source). The key is never committed or returned by the API.
+
+The one-shot provider uses Deepgram's `/v1/listen` endpoint. The streaming adapter uses Deepgram's secure WebSocket listen endpoint with interim results and endpointing enabled. Deepgram's current live API supports binary media messages and returns JSON results with `is_final` and `speech_final` flags. citeturn734035search0turn734035search2
+
+Until `Deepgram:ApiKey` is configured, `GET /api/speech/provider` reports no configured STT provider and the audio WebSocket keeps its existing `stt_provider_not_configured` behavior.
+
+The WebSocket route is:
 
 ```text
 /ws/conversations/{conversationId}/audio
 ```
+
+The real Deepgram provider smoke test is manual because it makes a live external API request. It uses Deepgram's published English WAV sample and requires the `DEEPGRAM_API_KEY` GitHub Actions secret. citeturn635016search0turn667825search0
 
 Pass the user id as the `X-User-Id` header or the `userId` query parameter. Binary frames are audio chunks. They are not transcribed until a session factory is registered.
 
@@ -248,6 +258,11 @@ ASP.NET Core maps `__` to configuration sections. See `.env.example`.
 | `Gemini__ApiKey` | Required to call the assistant | Gemini API key. Never commit this |
 | `Gemini__Model` | No | Defaults to `gemini-3.8-flash` |
 | `Gemini__BaseUrl` | No | Defaults to `https://generativelanguage.googleapis.com/` |
+| `Deepgram__ApiKey` | Required to enable STT | Deepgram API key. Never commit this |
+| `Deepgram__Model` | No | Defaults to `nova-3` |
+| `Deepgram__BaseUrl` | No | Defaults to `https://api.deepgram.com` |
+| `Deepgram__EndpointingMilliseconds` | No | Defaults to `300` |
+
 
 `appsettings.json` ships with an empty API key and an empty connection string. `appsettings.Development.json` contains only the local Docker connection string so `dotnet run` works against compose. Production must set the environment variables and must not run as Development.
 
