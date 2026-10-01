@@ -137,10 +137,10 @@ public sealed class DeepgramWebSocketIntegrationTests
 
                 services.AddAuthentication(options =>
                 {
-                    options.DefaultAuthenticateScheme = TestAuthenticationHandler.Scheme;
-                    options.DefaultChallengeScheme = TestAuthenticationHandler.Scheme;
+                    options.DefaultAuthenticateScheme = TestAuthenticationHandler.TestScheme;
+                    options.DefaultChallengeScheme = TestAuthenticationHandler.TestScheme;
                 }).AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>(
-                    TestAuthenticationHandler.Scheme,
+                    TestAuthenticationHandler.TestScheme,
                     _ => { });
             });
         }
@@ -152,16 +152,16 @@ public sealed class DeepgramWebSocketIntegrationTests
         UrlEncoder encoder)
         : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
     {
-        public const string Scheme = "Test";
+        public const string TestScheme = "Test";
 
         protected override Task<AuthenticateResult> HandleAuthenticateAsync()
         {
             var identity = new ClaimsIdentity(
                 [new Claim(ClaimTypes.NameIdentifier, TestUserIdValue())],
-                Scheme);
+                TestScheme);
 
             var principal = new ClaimsPrincipal(identity);
-            var ticket = new AuthenticationTicket(principal, Scheme);
+            var ticket = new AuthenticationTicket(principal, TestScheme);
 
             return Task.FromResult(AuthenticateResult.Success(ticket));
         }
