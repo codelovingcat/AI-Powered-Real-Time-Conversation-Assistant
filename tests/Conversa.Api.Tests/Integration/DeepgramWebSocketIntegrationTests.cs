@@ -110,10 +110,7 @@ public sealed class DeepgramWebSocketIntegrationTests
             secondPayload.RootElement.GetProperty("text").GetString());
         Assert.Equal(1, session.ReceivedChunkCount);
 
-        await socket.CloseAsync(
-            WebSocketCloseStatus.NormalClosure,
-            "test complete",
-            CancellationToken.None);
+        socket.Abort();
 
         await session.Disposed.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await app.StopAsync();
