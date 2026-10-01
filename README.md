@@ -146,6 +146,8 @@ Two replaceable contracts live in the application layer:
 
 Deepgram is the first concrete speech-to-text provider. It is enabled only when `Deepgram:ApiKey` is configured. The provider adapter stays in `Conversa.Infrastructure`; the application layer remains vendor-neutral.
 
+Deepgram credentials are read from `Deepgram__ApiKey` in the environment (or the equivalent ASP.NET Core configuration source). The key is never committed or returned by the API.
+
 The one-shot provider uses Deepgram's `/v1/listen` endpoint. The streaming adapter uses Deepgram's secure WebSocket listen endpoint with interim results and endpointing enabled. Deepgram's current live API supports binary media messages and returns JSON results with `is_final` and `speech_final` flags. citeturn734035search0turn734035search2
 
 Until `Deepgram:ApiKey` is configured, `GET /api/speech/provider` reports no configured STT provider and the audio WebSocket keeps its existing `stt_provider_not_configured` behavior.
@@ -155,6 +157,8 @@ The WebSocket route is:
 ```text
 /ws/conversations/{conversationId}/audio
 ```
+
+The real Deepgram provider smoke test is manual because it makes a live external API request. It uses Deepgram's published English WAV sample and requires the `DEEPGRAM_API_KEY` GitHub Actions secret. citeturn635016search0turn667825search0
 
 Pass the user id as the `X-User-Id` header or the `userId` query parameter. Binary frames are audio chunks. They are not transcribed until a session factory is registered.
 
@@ -258,6 +262,7 @@ ASP.NET Core maps `__` to configuration sections. See `.env.example`.
 | `Deepgram__Model` | No | Defaults to `nova-3` |
 | `Deepgram__BaseUrl` | No | Defaults to `https://api.deepgram.com` |
 | `Deepgram__EndpointingMilliseconds` | No | Defaults to `300` |
+
 
 `appsettings.json` ships with an empty API key and an empty connection string. `appsettings.Development.json` contains only the local Docker connection string so `dotnet run` works against compose. Production must set the environment variables and must not run as Development.
 
