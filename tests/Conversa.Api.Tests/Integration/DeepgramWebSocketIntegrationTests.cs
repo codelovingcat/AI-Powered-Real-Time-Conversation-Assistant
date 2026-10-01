@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Security.Claims;
+using System.Text.Encodings.Web;
 using System.Text;
 using Conversa.Application.Abstractions.Persistence;
 using Conversa.Application.Speech;
@@ -144,7 +145,7 @@ public sealed class DeepgramWebSocketIntegrationTests
     private sealed class TestAuthenticationHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
-        System.Text.Encoder encoder)
+        UrlEncoder encoder)
         : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
     {
         public const string Scheme = "Test";
