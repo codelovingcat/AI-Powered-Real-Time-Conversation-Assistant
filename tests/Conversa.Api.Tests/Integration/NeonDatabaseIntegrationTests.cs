@@ -1,6 +1,7 @@
 using Conversa.Domain.Conversations;
 using Conversa.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using System.Data.Common;
 
 namespace Conversa.Api.Tests.Integration;
@@ -20,6 +21,16 @@ public sealed class NeonDatabaseIntegrationTests
         Assert.False(
             string.IsNullOrWhiteSpace(migrationConnectionString),
             "NEON_DATABASE_URL_UNPOOLED must be provided by the GitHub Actions secret.");
+
+        try
+        {
+            _ = new NpgsqlConnectionStringBuilder(pooledConnectionString!);
+        }
+        catch (ArgumentException exception)
+        {
+            Assert.Fail(
+                $"The pooled Neon connection string could not be parsed by Npgsql. Invalid parameter: {exception.ParamName ?? "unknown"}.");
+        }
 
         await using (var pooledDb = CreateDbContext(pooledConnectionString!))
         {
