@@ -29,10 +29,23 @@ public sealed class DeepgramWebSocketIntegrationTests
         var session = factory.Session;
 
         var client = factory.Server.CreateWebSocketClient();
-        using var socket = await client.ConnectAsync(
-            new Uri(
-                $"ws://localhost/ws/conversations/{factory.Conversation.Id}/audio"),
-            CancellationToken.None);
+
+        WebSocket socket;
+        try
+        {
+            socket = await client.ConnectAsync(
+                new Uri(
+                    $"ws://localhost/ws/conversations/{factory.Conversation.Id}/audio"),
+                CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            Assert.Fail(
+                $"WebSocket test server handshake failed with {exception.GetType().Name}: {exception.Message}");
+            return;
+        }
+
+        using (socket)
 
         await socket.SendAsync(
             new byte[] { 0x01, 0x02, 0x03, 0x04 },
