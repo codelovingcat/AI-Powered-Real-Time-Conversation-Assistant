@@ -22,10 +22,10 @@ public sealed class DeepgramSpeechToTextProviderTests
             "audio/webm;codecs=opus",
             null);
 
-        Assert.Contains(parameters, parameter => parameter == new KeyValuePair<string, string>("model", "nova-3"));
-        Assert.Contains(parameters, parameter => parameter == new KeyValuePair<string, string>("language", "en-US"));
-        Assert.Contains(parameters, parameter => parameter == new KeyValuePair<string, string>("interim_results", "true"));
-        Assert.Contains(parameters, parameter => parameter == new KeyValuePair<string, string>("endpointing", "300"));
+        Assert.Contains(parameters, parameter => parameter.Key == "model" && parameter.Value == "nova-3");
+        Assert.Contains(parameters, parameter => parameter.Key == "language" && parameter.Value == "en-US");
+        Assert.Contains(parameters, parameter => parameter.Key == "interim_results" && parameter.Value == "true");
+        Assert.Contains(parameters, parameter => parameter.Key == "endpointing" && parameter.Value == "300");
         Assert.DoesNotContain(parameters, parameter => parameter.Key == "encoding");
     }
 
