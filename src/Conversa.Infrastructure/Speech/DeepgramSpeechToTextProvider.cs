@@ -31,11 +31,10 @@ public sealed class DeepgramSpeechToTextProvider(
                 new SpeechError("empty_audio", "The supplied audio payload is empty."));
         }
 
-        var parameters = BuildParameters(
+        var parameters = BuildPreRecordedParameters(
             settings,
             audio.Language,
-            audio.ContentType,
-            sampleRateHertz: null);
+            audio.ContentType);
 
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
@@ -99,7 +98,24 @@ public sealed class DeepgramSpeechToTextProvider(
         }
     }
 
-    internal static List<KeyValuePair<string, string>> BuildParameters(
+    internal static List<KeyValuePair<string, string>> BuildPreRecordedParameters(
+        DeepgramOptions settings,
+        string language,
+        string? contentType)
+    {
+        var parameters = new List<KeyValuePair<string, string>>
+        {
+            new("model", settings.Model),
+            new("language", language),
+            new("punctuate", "true"),
+            new("smart_format", "true")
+        };
+
+        DeepgramAudioFormat.ApplyQueryParameters(parameters, contentType, sampleRateHertz: null);
+        return parameters;
+    }
+
+    internal static List<KeyValuePair<string, string>> BuildStreamingParameters(
         DeepgramOptions settings,
         string language,
         string? contentType,
