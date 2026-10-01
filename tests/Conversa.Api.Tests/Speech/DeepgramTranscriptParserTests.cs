@@ -1,3 +1,4 @@
+using Conversa.Application.Speech;
 using Conversa.Infrastructure.Speech;
 
 namespace Conversa.Api.Tests.Speech;
