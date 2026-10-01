@@ -6,7 +6,7 @@ namespace Conversa.Api.Tests.Speech;
 public sealed class DeepgramSpeechToTextProviderTests
 {
     [Fact]
-    public void BuildParameters_configures_live_transcription_defaults()
+    public void BuildStreamingParameters_configures_live_transcription_defaults()
     {
         var settings = new DeepgramOptions
         {
@@ -16,7 +16,7 @@ public sealed class DeepgramSpeechToTextProviderTests
             EndpointingMilliseconds = 300
         };
 
-        var parameters = DeepgramSpeechToTextProvider.BuildParameters(
+        var parameters = DeepgramSpeechToTextProvider.BuildStreamingParameters(
             settings,
             "en-US",
             "audio/webm;codecs=opus",
