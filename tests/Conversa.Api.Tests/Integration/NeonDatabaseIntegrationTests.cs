@@ -28,13 +28,8 @@ public sealed class NeonDatabaseIntegrationTests
         }
         catch (ArgumentException)
         {
-            var format = DescribeConnectionStringFormat(pooledConnectionString!);
-            var unsupportedKeys = FindUnsupportedConnectionStringKeys(pooledConnectionString!);
-
             Assert.Fail(
-                unsupportedKeys.Count > 0
-                    ? $"The pooled Neon connection string could not be parsed by Npgsql. Detected format: {format}. Unsupported parameter(s): {string.Join(", ", unsupportedKeys)}."
-                    : $"The pooled Neon connection string could not be parsed by Npgsql. Detected format: {format}. No unsupported parameter name was isolated; check the connection-string syntax and quoting.");
+                $"The pooled Neon connection string could not be parsed by Npgsql. Detected format: {DescribeConnectionStringFormat(pooledConnectionString!)}.");
         }
 
         await using (var pooledDb = CreateDbContext(pooledConnectionString!))
@@ -137,43 +132,22 @@ public sealed class NeonDatabaseIntegrationTests
             return "PostgreSQL URI";
         }
 
+        if (value.StartsWith('"') && value.EndsWith('"'))
+        {
+            return "quoted Npgsql key-value";
+        }
+
+        if (value.StartsWith('"'))
+        {
+            return "Npgsql key-value with a leading quote";
+        }
+
         if (value.Contains('=') && value.Contains(';'))
         {
             return "Npgsql key-value";
         }
 
         return "unknown";
-    }
-
-    private static IReadOnlyList<string> FindUnsupportedConnectionStringKeys(string connectionString)
-    {
-        var unsupportedKeys = new List<string>();
-
-        foreach (var segment in connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries))
-        {
-            var separatorIndex = segment.IndexOf('=');
-
-            if (separatorIndex <= 0)
-            {
-                continue;
-            }
-
-            var key = segment[..separatorIndex].Trim();
-
-            try
-            {
-                var builder = new NpgsqlConnectionStringBuilder();
-                builder[key] = "placeholder";
-            }
-            catch (ArgumentException)
-            {
-                unsupportedKeys.Add(key);
-            }
-        }
-
-        return unsupportedKeys
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
     }
 
     private static AppDbContext CreateDbContext(string connectionString)
