@@ -2,6 +2,7 @@ using System.Net.WebSockets;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Text;
+using System.Text.Json;
 using Conversa.Application.Abstractions.Persistence;
 using Conversa.Application.Speech;
 using Conversa.Api.Realtime;
@@ -42,10 +43,13 @@ public sealed class DeepgramWebSocketIntegrationTests
         var first = await ReceiveTextAsync(socket);
         var second = await ReceiveTextAsync(socket);
 
-        Assert.Contains(""type":"partial_transcript"", first);
-        Assert.Contains(""text":"Hello"", first);
-        Assert.Contains(""type":"final_transcript"", second);
-        Assert.Contains(""text":"Hello, world."", second);
+        using var firstPayload = JsonDocument.Parse(first);
+        using var secondPayload = JsonDocument.Parse(second);
+
+        Assert.Equal("partial_transcript", firstPayload.RootElement.GetProperty("type").GetString());
+        Assert.Equal("Hello", firstPayload.RootElement.GetProperty("text").GetString());
+        Assert.Equal("final_transcript", secondPayload.RootElement.GetProperty("type").GetString());
+        Assert.Equal("Hello, world.", secondPayload.RootElement.GetProperty("text").GetString());
         Assert.Equal(1, session.ReceivedChunkCount);
 
         await socket.CloseAsync(
