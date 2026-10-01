@@ -38,6 +38,24 @@ public static class DependencyInjection
             client.Timeout = Timeout.InfiniteTimeSpan;
         });
 
+        services.Configure<DeepgramOptions>(configuration.GetSection(DeepgramOptions.SectionName));
+        var deepgramOptions =
+            configuration.GetSection(DeepgramOptions.SectionName).Get<DeepgramOptions>()
+            ?? new DeepgramOptions();
+
+        if (!string.IsNullOrWhiteSpace(deepgramOptions.ApiKey))
+        {
+            services.AddHttpClient<DeepgramSpeechToTextProvider>(client =>
+            {
+                client.Timeout = TimeSpan.FromMinutes(2);
+            });
+
+            services.AddScoped<ISpeechToTextProvider>(serviceProvider =>
+                serviceProvider.GetRequiredService<DeepgramSpeechToTextProvider>());
+
+            services.AddSingleton<ISpeechToTextSessionFactory, DeepgramSpeechToTextSessionFactory>();
+        }
+
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
