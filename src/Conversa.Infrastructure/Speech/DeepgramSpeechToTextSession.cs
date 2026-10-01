@@ -35,7 +35,7 @@ public sealed class DeepgramSpeechToTextSession : ISpeechToTextSession
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var parameters = DeepgramSpeechToTextProvider.BuildParameters(
+        var parameters = DeepgramSpeechToTextProvider.BuildStreamingParameters(
             _settings,
             _sessionOptions.Language,
             _sessionOptions.ContentType,
