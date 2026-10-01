@@ -22,6 +22,9 @@ public sealed class NeonDatabaseIntegrationTests
             string.IsNullOrWhiteSpace(migrationConnectionString),
             "NEON_DATABASE_URL_UNPOOLED must be provided by the GitHub Actions secret.");
 
+        pooledConnectionString = ConnectionStringNormalizer.Normalize(pooledConnectionString!);
+        migrationConnectionString = ConnectionStringNormalizer.Normalize(migrationConnectionString!);
+
         try
         {
             _ = new NpgsqlConnectionStringBuilder(pooledConnectionString!);
@@ -152,6 +155,7 @@ public sealed class NeonDatabaseIntegrationTests
 
     private static AppDbContext CreateDbContext(string connectionString)
     {
+        connectionString = ConnectionStringNormalizer.Normalize(connectionString);
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseNpgsql(
                 connectionString,
