@@ -179,8 +179,6 @@ public sealed class DeepgramSpeechToTextSession : ISpeechToTextSession
 
         try
         {
-            _disposeCts.Cancel();
-
             await _sendLock.WaitAsync();
             try
             {
@@ -205,6 +203,8 @@ public sealed class DeepgramSpeechToTextSession : ISpeechToTextSession
             {
                 _sendLock.Release();
             }
+
+            _disposeCts.Cancel();
 
             if (_receiveTask is not null)
             {
