@@ -277,19 +277,23 @@ Neither value belongs in the repository. GitHub Actions uses repository secrets 
 The Neon integration workflow runs on pull requests to `main`. It first checks the pooled connection, then applies the existing EF Core migrations through the unpooled connection and verifies conversation/message persistence against the real Neon database. The CRUD assertions run inside a transaction and roll back the test data after verification.
 
 The current schema is created by the existing `InitialCreate` migration; no new migration is required just to switch from local PostgreSQL to Neon.
+
 ## Database migration
 
 The initial migration is `src/Conversa.Infrastructure/Persistence/Migrations/20260922223000_InitialCreate.cs`.
 
-Development startup calls `Database.MigrateAsync()`. To apply it yourself later, add the EF Core design package to the startup project and install the tool:
+The Infrastructure project already references `Microsoft.EntityFrameworkCore.Design`, and the repository can use the `dotnet-ef` CLI for explicit migration operations. The design-time `AppDbContextFactory` reads only `ConnectionStrings__DefaultConnection`, so EF commands do not need to start the full API or expose application credentials in source code.
+
+For local development, point `ConnectionStrings__DefaultConnection` at the Docker PostgreSQL instance and run:
 
 ```bash
-dotnet add src/Conversa.Api package Microsoft.EntityFrameworkCore.Design --version 10.0.11
-dotnet tool install --global dotnet-ef
+dotnet tool install --global dotnet-ef --version 10.0.11
 dotnet ef database update --project src/Conversa.Infrastructure --startup-project src/Conversa.Api
 ```
 
-A model snapshot is not checked in. Generate one with `dotnet ef migrations add` after the design package is referenced, before adding a second migration. The first migration is still valid and creates the schema on its own.
+For hosted Neon, use the **Neon database migration** GitHub Actions workflow. It reads `NEON_DATABASE_URL_UNPOOLED` from repository secrets, applies the latest migration with `dotnet ef database update`, and then runs the existing Neon integration test to verify the migrated schema and conversation/message persistence. The workflow is manual by design so a schema-changing operation is explicit rather than triggered on every push.
+
+A model snapshot is not currently checked in. Before adding a second migration, the EF model/migration setup should be reviewed and the snapshot generated as part of that migration workflow.
 
 ## Replacing a provider
 
