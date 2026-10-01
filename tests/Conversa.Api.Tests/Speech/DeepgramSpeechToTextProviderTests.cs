@@ -30,12 +30,12 @@ public sealed class DeepgramSpeechToTextProviderTests
     }
 
     [Fact]
-    public void BuildParameters_requires_sample_rate_for_raw_pcm()
+    public void BuildStreamingParameters_requires_sample_rate_for_raw_pcm()
     {
         var settings = new DeepgramOptions { ApiKey = "test-key" };
 
         var exception = Assert.Throws<InvalidOperationException>(
-            () => DeepgramSpeechToTextProvider.BuildParameters(
+            () => DeepgramSpeechToTextProvider.BuildStreamingParameters(
                 settings,
                 "en-US",
                 "audio/pcm",
