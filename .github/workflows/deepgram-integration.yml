@@ -1,0 +1,48 @@
+name: Deepgram integration
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deepgram-integration
+  cancel-in-progress: true
+
+jobs:
+  deepgram-smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Restore
+        run: dotnet restore Conversa.slnx
+
+      - name: Build
+        run: dotnet build Conversa.slnx --no-restore --configuration Release
+
+      - name: Validate Deepgram secret
+        env:
+          DEEPGRAM_API_KEY: ${{ secrets.DEEPGRAM_API_KEY }}
+        run: |
+          if [ -z "$DEEPGRAM_API_KEY" ]; then
+            echo "::error::The DEEPGRAM_API_KEY repository secret is not configured."
+            exit 1
+          fi
+
+      - name: Run Deepgram smoke test
+        env:
+          Deepgram__ApiKey: ${{ secrets.DEEPGRAM_API_KEY }}
+          Deepgram__Model: nova-3
+          Deepgram__BaseUrl: https://api.deepgram.com
+          CONVERSA_RUN_DEEPGRAM_INTEGRATION: "true"
+        run: |
+          dotnet test tests/Conversa.Api.Tests/Conversa.Api.Tests.csproj             --no-build             --configuration Release             --filter "FullyQualifiedName~DeepgramSpeechToTextIntegrationTests"             --verbosity normal
