@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ConversationSidebar } from "../components/ConversationSidebar";
 import { ConversationStatus } from "../components/ConversationStatus";
 import { MicrophoneCapturePanel } from "../components/MicrophoneCapturePanel";
+import { TextAssistantPanel } from "../components/TextAssistantPanel";
 import { MessageHistory } from "../components/MessageHistory";
 import { InstructionEditor } from "../components/InstructionEditor";
 import { useAuth } from "../auth/AuthContext";
@@ -190,93 +191,10 @@ export function HomePage() {
           </div>
         )}
 
-        {activeConversation && (
-          <section className="text-assistant-panel" aria-labelledby="text-assistant-title">
-            <div className="text-assistant-header">
-              <div>
-                <span className="workspace-kicker">TEXT ASSISTANT</span>
-                <h3 id="text-assistant-title">Try a conversation turn</h3>
-              </div>
-              <span className="text-assistant-badge">Gemini</span>
-            </div>
-
-            <div className="text-assistant-mode" role="tablist" aria-label="Assistant input type">
-              <button
-                className={"text-assistant-mode-button" + (textInputKind === "heardSpeech" ? " text-assistant-mode-active" : "")}
-                type="button"
-                role="tab"
-                aria-selected={textInputKind === "heardSpeech"}
-                onClick={() => {
-                  setTextInputKind("heardSpeech");
-                  setTextInputError(null);
-                }}
-                disabled={isTextSubmitting}
-              >
-                English speech
-              </button>
-              <button
-                className={"text-assistant-mode-button" + (textInputKind === "userFormulationRequest" ? " text-assistant-mode-active" : "")}
-                type="button"
-                role="tab"
-                aria-selected={textInputKind === "userFormulationRequest"}
-                onClick={() => {
-                  setTextInputKind("userFormulationRequest");
-                  setTextInputError(null);
-                }}
-                disabled={isTextSubmitting}
-              >
-                Turkish request
-              </button>
-            </div>
-
-            <form
-              className="text-assistant-form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void handleTextSubmit();
-              }}
-            >
-              <label htmlFor="assistant-text-input">
-                {textInputKind === "heardSpeech"
-                  ? "What did they say?"
-                  : "What do you want to say?"}
-              </label>
-              <textarea
-                id="assistant-text-input"
-                value={textInput}
-                onChange={(event) => setTextInput(event.target.value)}
-                placeholder={
-                  textInputKind === "heardSpeech"
-                    ? "Type the English sentence you heard…"
-                    : "Türkçe olarak ne söylemek istediğini yaz…"
-                }
-                maxLength={10000}
-                rows={5}
-                disabled={isTextSubmitting}
-              />
-              <div className="text-assistant-footer">
-                <p>
-                  {textInputKind === "heardSpeech"
-                    ? "Conversa will translate and explain the sentence, and detect whether it is a question directed at you."
-                    : "Conversa will turn your Turkish request into a natural English response."}
-                </p>
-                <button
-                  className="primary-button text-assistant-submit"
-                  type="submit"
-                  disabled={!textInput.trim() || isTextSubmitting}
-                >
-                  {isTextSubmitting ? "Processing…" : "Send to assistant"}
-                </button>
-              </div>
-            </form>
-
-            {textInputError && (
-              <p className="text-assistant-error" role="alert">
-                {textInputError}
-              </p>
-            )}
-          </section>
-        )}
+        <TextAssistantPanel
+          conversationId={activeConversation?.id ?? null}
+          onProcessed={() => setRefreshToken((current) => current + 1)}
+        />
 
         <MicrophoneCapturePanel
           conversationId={activeConversation?.id ?? null}
