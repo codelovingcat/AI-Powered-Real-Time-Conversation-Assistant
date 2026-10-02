@@ -929,6 +929,82 @@ h1 {
 
 
 
+.live-transcript {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid rgba(166, 187, 217, 0.12);
+  border-radius: 16px;
+  background: rgba(7, 16, 29, 0.5);
+}
+
+.live-transcript-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.live-transcript-header h3 {
+  margin: 6px 0 0;
+  font-size: 1rem;
+}
+
+.transcript-confidence {
+  color: #7f91ab;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.live-transcript-empty {
+  margin: 14px 0 0;
+  color: #72839c;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.transcript-stream {
+  display: grid;
+  gap: 9px;
+  max-height: 240px;
+  overflow-y: auto;
+  margin-top: 14px;
+  padding-right: 4px;
+}
+
+.transcript-final,
+.transcript-partial {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.transcript-final {
+  color: #dfe8f5;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.transcript-partial {
+  color: #93a5bf;
+  border: 1px dashed rgba(133, 168, 255, 0.2);
+  background: rgba(133, 168, 255, 0.045);
+  font-style: italic;
+}
+
+@media (max-width: 560px) {
+  .live-transcript {
+    padding: 15px;
+  }
+
+  .live-transcript-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+
 .ai-result-card {
   width: min(860px, 94%);
   justify-self: start;
