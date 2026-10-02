@@ -813,3 +813,116 @@ h1 {
     width: 100%;
   }
 }
+
+
+
+.microphone-panel {
+  max-width: 1080px;
+  margin: 24px auto 0;
+  padding: 22px;
+  border: 1px solid rgba(166, 187, 217, 0.12);
+  border-radius: 20px;
+  background: rgba(12, 25, 44, 0.58);
+}
+
+.microphone-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.microphone-panel-header h3 {
+  margin: 6px 0 0;
+  font-size: 1.05rem;
+}
+
+.microphone-status {
+  padding: 6px 9px;
+  border: 1px solid rgba(166, 187, 217, 0.12);
+  border-radius: 999px;
+  color: #90a0b8;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.microphone-status-capturing {
+  border-color: rgba(88, 214, 141, 0.16);
+  color: #91d4ad;
+}
+
+.microphone-status-error {
+  border-color: rgba(255, 183, 183, 0.14);
+  color: #ffb7b7;
+}
+
+.microphone-description {
+  max-width: 720px;
+  margin: 12px 0 0;
+  color: #8d9db5;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.microphone-format {
+  display: inline-flex;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  color: #7d8da6;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.7rem;
+}
+
+.microphone-format strong {
+  color: #b0bfd3;
+  font-weight: 700;
+}
+
+.microphone-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.microphone-actions .primary-button,
+.microphone-actions .ghost-button {
+  min-width: 150px;
+  margin-top: 0;
+}
+
+.microphone-metrics {
+  color: #7688a1;
+  font-size: 0.72rem;
+}
+
+.microphone-error {
+  margin: 12px 0 0;
+  color: #ffb7b7;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 560px) {
+  .microphone-panel {
+    padding: 18px;
+  }
+
+  .microphone-panel-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .microphone-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .microphone-actions .primary-button,
+  .microphone-actions .ghost-button {
+    width: 100%;
+  }
+}
