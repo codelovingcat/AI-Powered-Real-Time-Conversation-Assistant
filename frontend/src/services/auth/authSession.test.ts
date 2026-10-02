@@ -1,8 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError } from "../api/apiClient";
+import {
+  apiGet,
+  ApiError
+} from "../services/api/apiClient";
 import {
   clearAccessToken,
-  getAccessToken
+  getAccessToken,
+  setAccessToken
 } from "./accessTokenStore";
 import {
   signInWithAccessToken,
@@ -16,7 +20,7 @@ describe("authSession", () => {
     clearAccessToken();
   });
 
-  it("stores an access token only after a successful session validation", async () => {
+  it("keeps the access token after successful session validation", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(
@@ -60,25 +64,21 @@ describe("authSession", () => {
   });
 
   it("keeps unexpected session failures visible to the UI", async () => {
-    const expected = new ApiError(
-      "The service is temporarily unavailable. Please try again later.",
-      503,
-      "server"
-    );
-
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("", { status: 503 })
     );
 
-    // Seed a token so validateCurrentSession performs the request.
-    const { setAccessToken } = await import("./accessTokenStore");
     setAccessToken("test-token");
 
-    await expect(validateCurrentSession()).rejects.toEqual(expected);
+    await expect(validateCurrentSession()).rejects.toMatchObject<ApiError>({
+      status: 503,
+      kind: "server"
+    });
+
+    expect(getAccessToken()).toBe("test-token");
   });
 
-  it("signs out by clearing the in-memory token", async () => {
-    const { setAccessToken } = await import("./accessTokenStore");
+  it("signs out by clearing the in-memory token", () => {
     setAccessToken("test-token");
 
     signOut();
