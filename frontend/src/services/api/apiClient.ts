@@ -1,5 +1,9 @@
 import { appConfig } from "../../config/env";
-import { getAccessToken } from "../auth/accessTokenStore";
+import {
+  clearAccessToken,
+  getAccessToken
+} from "../auth/accessTokenStore";
+import { notifyUnauthorized } from "../auth/authEvents";
 
 export type ApiErrorKind =
   | "unauthorized"
@@ -109,6 +113,9 @@ export async function apiRequest(
 
 function createApiError(response: Response): ApiError {
   if (response.status === 401) {
+    clearAccessToken();
+    notifyUnauthorized();
+
     return new ApiError(
       "Your session is no longer valid.",
       response.status,
