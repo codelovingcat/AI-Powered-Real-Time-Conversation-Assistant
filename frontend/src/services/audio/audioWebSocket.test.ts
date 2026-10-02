@@ -73,15 +73,22 @@ describe("audioWebSocket", () => {
     setAccessToken("eyJhbGciOiJIUzI1NiJ9.test.signature");
 
     const original = globalThis.WebSocket;
-    vi.stubGlobal("WebSocket", MockWebSocket);
+    let socket: MockWebSocket | null = null;
+    class CapturingWebSocket extends MockWebSocket {
+      constructor(url: string, protocols: string[]) {
+        super(url, protocols);
+        socket = this;
+      }
+    }
 
-    const client = openAudioWebSocket(
-      "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-    );
+    vi.stubGlobal("WebSocket", CapturingWebSocket);
 
-    const socket = client as unknown as MockWebSocket;
-    expect((socket as MockWebSocket).url).not.toContain("test.signature");
-    expect((socket as MockWebSocket).protocols).toEqual([
+    openAudioWebSocket("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+
+    expect(socket).not.toBeNull();
+    expect(socket?.url).not.toContain("test.signature");
+    expect(socket?.url).not.toContain("?");
+    expect(socket?.protocols).toEqual([
       WEBSOCKET_AUTH_SUBPROTOCOL,
       "eyJhbGciOiJIUzI1NiJ9.test.signature"
     ]);
@@ -94,17 +101,31 @@ describe("audioWebSocket", () => {
 
     const statuses: AudioWebSocketStatus[] = [];
     const original = globalThis.WebSocket;
-    vi.stubGlobal("WebSocket", MockWebSocket);
+    let socket: MockWebSocket | null = null;
+    class CapturingWebSocket extends MockWebSocket {
+      constructor(url: string, protocols: string[]) {
+        super(url, protocols);
+        socket = this;
+      }
+    }
 
-    openAudioWebSocket("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", {
-      onStatus: (status) => statuses.push(status)
-    });
+    vi.stubGlobal("WebSocket", CapturingWebSocket);
 
-    const socket = MockWebSocket.prototype;
+    const client = openAudioWebSocket(
+      "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      { onStatus: (status) => statuses.push(status) }
+    );
+
     expect(statuses).toContain("connecting");
+    expect(socket).not.toBeNull();
+
+    client.sendAudioChunk(new Uint8Array([1, 2, 3]).buffer);
+    expect(socket?.sent).toHaveLength(1);
+
+    socket?.onclose?.();
+    expect(statuses).toContain("closed");
 
     vi.stubGlobal("WebSocket", original);
-    expect(socket.readyState).toBe(MockWebSocket.OPEN);
   });
 
   it("parses transcript updates and ignores malformed messages", () => {
