@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ConversationSidebar } from "../components/ConversationSidebar";
+import { ConversationStatus } from "../components/ConversationStatus";
 import { MicrophoneCapturePanel } from "../components/MicrophoneCapturePanel";
 import { MessageHistory } from "../components/MessageHistory";
 import { InstructionEditor } from "../components/InstructionEditor";
@@ -15,6 +16,31 @@ export function HomePage() {
   const [health, setHealth] = useState<BackendHealth | null>(null);
   const [activeConversation, setActiveConversation] =
     useState<ConversationSummary | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [refreshToken, setRefreshToken] = useState(0);
+
+  async function handleFinalTranscript(text: string) {
+    if (!activeConversation || !text.trim()) {
+      return;
+    }
+
+    setIsAiLoading(true);
+    setAiError(null);
+
+    try {
+      await processAssistantInput(
+        activeConversation.id,
+        "heardSpeech",
+        text.trim()
+      );
+      setRefreshToken((current) => current + 1);
+    } catch (error: unknown) {
+      setAiError(getAssistantErrorMessage(error));
+    } finally {
+      setIsAiLoading(false);
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -37,7 +63,11 @@ export function HomePage() {
     <main className="app-shell">
       <ConversationSidebar
         activeConversationId={activeConversation?.id ?? null}
-        onSelect={setActiveConversation}
+        onSelect={(conversation) => {
+          setAiError(null);
+          setIsAiLoading(false);
+          setActiveConversation(conversation);
+        }}
       />
 
       <section className="workspace" aria-labelledby="page-title">
@@ -50,6 +80,30 @@ export function HomePage() {
             Sign out
           </button>
         </header>
+
+        {health?.status === "unavailable" && (
+          <ConversationStatus
+            tone="warning"
+            title="Backend unavailable"
+            detail="Conversa cannot reach the API right now. Check the connection and try again."
+          />
+        )}
+
+        {aiError && (
+          <ConversationStatus
+            tone="error"
+            title="AI response unavailable"
+            detail={aiError}
+          />
+        )}
+
+        {isAiLoading && (
+          <ConversationStatus
+            tone="info"
+            title="AI is processing"
+            detail="Your transcript was received. Translating and preparing conversation help…"
+          />
+        )}
 
         {activeConversation ? (
           <div className="workspace-card">
@@ -84,7 +138,10 @@ export function HomePage() {
               onSaved={setActiveConversation}
             />
 
-            <MessageHistory conversationId={activeConversation.id} />
+            <MessageHistory
+              conversationId={activeConversation.id}
+              refreshToken={refreshToken}
+            />
           </div>
         ) : (
           <div className="workspace-card">
@@ -99,6 +156,7 @@ export function HomePage() {
 
         <MicrophoneCapturePanel
           conversationId={activeConversation?.id ?? null}
+          onFinalTranscript={handleFinalTranscript}
         />
       </section>
     </main>

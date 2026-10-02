@@ -8,9 +8,13 @@ import {
 
 interface MessageHistoryProps {
   conversationId: string;
+  refreshToken?: number;
 }
 
-export function MessageHistory({ conversationId }: MessageHistoryProps) {
+export function MessageHistory({
+  conversationId,
+  refreshToken = 0
+}: MessageHistoryProps) {
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +45,7 @@ export function MessageHistory({ conversationId }: MessageHistoryProps) {
       });
 
     return () => controller.abort();
-  }, [conversationId]);
+  }, [conversationId, refreshToken]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "nearest" });

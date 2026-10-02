@@ -1150,3 +1150,78 @@ h1 {
     flex-direction: column;
   }
 }
+
+
+.conversation-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 18px auto 0;
+  max-width: 1080px;
+  padding: 13px 15px;
+  border: 1px solid rgba(166, 187, 217, 0.12);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.conversation-status-indicator {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: #8da0bd;
+}
+
+.conversation-status-content {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  flex: 1;
+}
+
+.conversation-status-content strong {
+  color: #d8e2f0;
+  font-size: 0.8rem;
+}
+
+.conversation-status-content span {
+  color: #899ab2;
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.conversation-status-info .conversation-status-indicator {
+  background: #85a8ff;
+}
+
+.conversation-status-success .conversation-status-indicator {
+  background: #58d68d;
+}
+
+.conversation-status-warning .conversation-status-indicator {
+  background: #f0a76a;
+}
+
+.conversation-status-error .conversation-status-indicator {
+  background: #ff8f8f;
+}
+
+.conversation-status-action {
+  flex: 0 0 auto;
+}
+
+.microphone-status-reconnecting {
+  border-color: rgba(240, 167, 106, 0.18);
+  color: #f0b57d;
+}
+
+@media (max-width: 560px) {
+  .conversation-status {
+    align-items: flex-start;
+  }
+
+  .conversation-status-action {
+    padding-top: 2px;
+  }
+}
