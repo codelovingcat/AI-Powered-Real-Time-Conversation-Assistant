@@ -8,17 +8,26 @@ import {
 import {
   openAudioWebSocket,
   type AudioWebSocketClient,
-  type AudioWebSocketStatus
+  type AudioWebSocketStatus,
+  type TranscriptUpdate
 } from "../services/audio/audioWebSocket";
+import {
+  applyTranscriptUpdate,
+  EMPTY_TRANSCRIPT,
+  type TranscriptSnapshot
+} from "../services/audio/transcriptState";
+import { LiveTranscript } from "./LiveTranscript";
 
 interface MicrophoneCapturePanelProps {
   conversationId: string | null;
+  onFinalTranscript?: (text: string) => void;
 }
 
 type PanelStatus = "idle" | "connecting" | "capturing" | "error";
 
 export function MicrophoneCapturePanel({
-  conversationId
+  conversationId,
+  onFinalTranscript
 }: MicrophoneCapturePanelProps) {
   const [status, setStatus] = useState<PanelStatus>("idle");
   const [socketStatus, setSocketStatus] =
@@ -26,6 +35,8 @@ export function MicrophoneCapturePanel({
   const [error, setError] = useState<string | null>(null);
   const [chunkCount, setChunkCount] = useState(0);
   const [bytesCaptured, setBytesCaptured] = useState(0);
+  const [transcript, setTranscript] =
+    useState<TranscriptSnapshot>(EMPTY_TRANSCRIPT);
   const sessionRef = useRef<MicrophoneCaptureSession | null>(null);
   const socketRef = useRef<AudioWebSocketClient | null>(null);
   const captureStartingRef = useRef(false);
@@ -61,9 +72,24 @@ export function MicrophoneCapturePanel({
     setError(null);
     setChunkCount(0);
     setBytesCaptured(0);
+    setTranscript(EMPTY_TRANSCRIPT);
 
     try {
       const socket = openAudioWebSocket(conversationId, {
+        onTranscript: (update: TranscriptUpdate) => {
+          setTranscript((current) => {
+            const next = applyTranscriptUpdate(current, update);
+
+            if (
+              update.type === "final_transcript" &&
+              next.finalTexts.length > current.finalTexts.length
+            ) {
+              onFinalTranscript?.(next.finalTexts.at(-1) ?? "");
+            }
+
+            return next;
+          });
+        },
         onStatus: (nextStatus) => {
           setSocketStatus(nextStatus);
 
@@ -182,6 +208,8 @@ export function MicrophoneCapturePanel({
                 : "Ready"}
         </span>
       </div>
+
+      <LiveTranscript transcript={transcript} />
 
       <p className="microphone-description">
         {conversationId
