@@ -190,7 +190,9 @@ public sealed class DeepgramWebSocketIntegrationTests
             => throw new NotSupportedException();
     }
 
-    private sealed class RecordingSpeechSessionFactory(RecordingSpeechSession session)
+    private sealed class RecordingSpeechSessionFactory(
+        RecordingSpeechSession session,
+        List<SpeechSessionOptions> sessionOptions)
         : ISpeechToTextSessionFactory
     {
         public string ProviderName => "test";
@@ -198,7 +200,10 @@ public sealed class DeepgramWebSocketIntegrationTests
         public Task<ISpeechToTextSession> OpenSessionAsync(
             SpeechSessionOptions options,
             CancellationToken cancellationToken)
-            => Task.FromResult<ISpeechToTextSession>(session);
+        {
+            sessionOptions.Add(options);
+            return Task.FromResult<ISpeechToTextSession>(session);
+        }
     }
 
     private sealed class RecordingSpeechSession : ISpeechToTextSession
