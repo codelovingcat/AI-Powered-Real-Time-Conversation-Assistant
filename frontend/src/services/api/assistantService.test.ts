@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clearAccessToken, setAccessToken } from "../auth/accessTokenStore";
+import { ApiError } from "./apiClient";
 import {
   getAssistantErrorMessage,
   processAssistantInput
@@ -64,12 +65,7 @@ describe("assistantService", () => {
 
   it("maps AI rate limits to a user-facing retry message", () => {
     expect(
-      getAssistantErrorMessage({
-        name: "ApiError",
-        kind: "rate_limit",
-        retryAfterSeconds: 9,
-        message: "Too many requests."
-      })
+      getAssistantErrorMessage(new ApiError("Too many requests.", 429, "rate_limit", 9))
     ).toContain("Too many requests");
   });
 });
