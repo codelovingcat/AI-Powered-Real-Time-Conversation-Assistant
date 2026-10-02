@@ -1,6 +1,7 @@
 using Conversa.Application.Abstractions.Identity;
 using Conversa.Application.Abstractions.Persistence;
 using Conversa.Application.Ai;
+using Conversa.Application.Common;
 using Conversa.Application.Conversations;
 using Conversa.Domain.Conversations;
 
@@ -45,8 +46,8 @@ public sealed class ConversationAssistantFlowTests
             "The speaker is directly asking whether you want coffee.",
             "Sure, I'd love some.",
             "Tabii, memnuniyetle.",
-            questionDetected: true,
-            questionDirectedAtUser: true));
+            QuestionDetected: true,
+            QuestionDirectedAtUser: true));
 
         var assistant = new ConversationAssistant(
             new TestCurrentUser(userId),
@@ -114,8 +115,8 @@ public sealed class ConversationAssistantFlowTests
             null,
             "I'm sorry I'm late.",
             "Geç kaldığım için üzgünüm.",
-            questionDetected: false,
-            questionDirectedAtUser: false));
+            QuestionDetected: false,
+            QuestionDirectedAtUser: false));
 
         var assistant = new ConversationAssistant(
             new TestCurrentUser(userId),
