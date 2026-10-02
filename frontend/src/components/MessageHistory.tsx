@@ -7,9 +7,13 @@ import {
 
 interface MessageHistoryProps {
   conversationId: string;
+  newMessage: ConversationMessage | null;
 }
 
-export function MessageHistory({ conversationId }: MessageHistoryProps) {
+export function MessageHistory({
+  conversationId,
+  newMessage
+}: MessageHistoryProps) {
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +45,23 @@ export function MessageHistory({ conversationId }: MessageHistoryProps) {
 
     return () => controller.abort();
   }, [conversationId]);
+
+  useEffect(() => {
+    if (
+      !newMessage ||
+      newMessage.conversationId !== conversationId
+    ) {
+      return;
+    }
+
+    setMessages((current) => {
+      if (current.some((message) => message.id === newMessage.id)) {
+        return current;
+      }
+
+      return [...current, newMessage];
+    });
+  }, [conversationId, newMessage]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "nearest" });
