@@ -7,6 +7,11 @@ import { InstructionEditor } from "../components/InstructionEditor";
 import { useAuth } from "../auth/AuthContext";
 import type { ConversationSummary } from "../services/api/conversationService";
 import {
+  getAssistantErrorMessage,
+  processAssistantInput,
+  type AssistantInputKind
+} from "../services/api/assistantService";
+import {
   checkBackendHealth,
   type BackendHealth
 } from "../services/api/healthService";
@@ -19,6 +24,11 @@ export function HomePage() {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
+  const [textInputKind, setTextInputKind] =
+    useState<AssistantInputKind>("heardSpeech");
+  const [textInput, setTextInput] = useState("");
+  const [isTextSubmitting, setIsTextSubmitting] = useState(false);
+  const [textInputError, setTextInputError] = useState<string | null>(null);
 
   async function handleFinalTranscript(text: string) {
     if (!activeConversation || !text.trim()) {
@@ -39,6 +49,32 @@ export function HomePage() {
       setAiError(getAssistantErrorMessage(error));
     } finally {
       setIsAiLoading(false);
+    }
+  }
+
+  async function handleTextSubmit() {
+    const trimmedText = textInput.trim();
+
+    if (!activeConversation || !trimmedText || isTextSubmitting) {
+      return;
+    }
+
+    setIsTextSubmitting(true);
+    setTextInputError(null);
+    setAiError(null);
+
+    try {
+      await processAssistantInput(
+        activeConversation.id,
+        textInputKind,
+        trimmedText
+      );
+      setTextInput("");
+      setRefreshToken((current) => current + 1);
+    } catch (error: unknown) {
+      setTextInputError(getAssistantErrorMessage(error));
+    } finally {
+      setIsTextSubmitting(false);
     }
   }
 
@@ -152,6 +188,94 @@ export function HomePage() {
               continue.
             </p>
           </div>
+        )}
+
+        {activeConversation && (
+          <section className="text-assistant-panel" aria-labelledby="text-assistant-title">
+            <div className="text-assistant-header">
+              <div>
+                <span className="workspace-kicker">TEXT ASSISTANT</span>
+                <h3 id="text-assistant-title">Try a conversation turn</h3>
+              </div>
+              <span className="text-assistant-badge">Gemini</span>
+            </div>
+
+            <div className="text-assistant-mode" role="tablist" aria-label="Assistant input type">
+              <button
+                className={"text-assistant-mode-button" + (textInputKind === "heardSpeech" ? " text-assistant-mode-active" : "")}
+                type="button"
+                role="tab"
+                aria-selected={textInputKind === "heardSpeech"}
+                onClick={() => {
+                  setTextInputKind("heardSpeech");
+                  setTextInputError(null);
+                }}
+                disabled={isTextSubmitting}
+              >
+                English speech
+              </button>
+              <button
+                className={"text-assistant-mode-button" + (textInputKind === "userFormulationRequest" ? " text-assistant-mode-active" : "")}
+                type="button"
+                role="tab"
+                aria-selected={textInputKind === "userFormulationRequest"}
+                onClick={() => {
+                  setTextInputKind("userFormulationRequest");
+                  setTextInputError(null);
+                }}
+                disabled={isTextSubmitting}
+              >
+                Turkish request
+              </button>
+            </div>
+
+            <form
+              className="text-assistant-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleTextSubmit();
+              }}
+            >
+              <label htmlFor="assistant-text-input">
+                {textInputKind === "heardSpeech"
+                  ? "What did they say?"
+                  : "What do you want to say?"}
+              </label>
+              <textarea
+                id="assistant-text-input"
+                value={textInput}
+                onChange={(event) => setTextInput(event.target.value)}
+                placeholder={
+                  textInputKind === "heardSpeech"
+                    ? "Type the English sentence you heard…"
+                    : "Türkçe olarak ne söylemek istediğini yaz…"
+                }
+                maxLength={10000}
+                rows={5}
+                disabled={isTextSubmitting}
+              />
+              <div className="text-assistant-footer">
+                <p>
+                  {textInputKind === "heardSpeech"
+                    ? "Conversa will translate and explain the sentence, and detect whether it is a question directed at you."
+                    : "Conversa will turn your Turkish request into a natural English response."}
+                </p>
+                <button
+                  className="primary-button text-assistant-submit"
+                  type="submit"
+                  disabled={!textInput.trim() || isTextSubmitting}
+                >
+                  {isTextSubmitting ? "Processing…" : "Send to assistant"}
+                </button>
+              </div>
+            </form>
+
+            {textInputError && (
+              <p className="text-assistant-error" role="alert">
+                {textInputError}
+              </p>
+            )}
+          </section>
         )}
 
         <MicrophoneCapturePanel
