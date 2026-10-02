@@ -101,7 +101,5 @@ export function getConversationErrorMessage(error: unknown): string {
     }
   }
 
-  return error instanceof Error
-    ? error.message
-    : "The conversation request could not be completed.";
+  return "The conversation request could not be completed.";
 }
