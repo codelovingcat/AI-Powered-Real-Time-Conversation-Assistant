@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ConversationSidebar } from "../components/ConversationSidebar";
+import { MicrophoneCapturePanel } from "../components/MicrophoneCapturePanel";
 import { MessageHistory } from "../components/MessageHistory";
 import { InstructionEditor } from "../components/InstructionEditor";
 import { useAuth } from "../auth/AuthContext";
@@ -95,6 +96,8 @@ export function HomePage() {
             </p>
           </div>
         )}
+
+        <MicrophoneCapturePanel />
       </section>
     </main>
   );
