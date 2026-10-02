@@ -813,3 +813,117 @@ h1 {
     width: 100%;
   }
 }
+
+
+
+.text-assistant {
+  margin-top: 30px;
+  padding-top: 28px;
+  border-top: 1px solid rgba(166, 187, 217, 0.12);
+}
+
+.text-assistant-header h3 {
+  margin: 6px 0 0;
+  font-size: 1.05rem;
+}
+
+.assistant-mode-switcher {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.assistant-mode {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid rgba(166, 187, 217, 0.14);
+  border-radius: 11px;
+  color: #9eafc7;
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.assistant-mode:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.assistant-mode-active {
+  border-color: rgba(133, 168, 255, 0.28);
+  color: #dce7f7;
+  background: rgba(133, 168, 255, 0.09);
+}
+
+.assistant-form {
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.assistant-form label {
+  color: #aebbd0;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.assistant-form textarea {
+  width: 100%;
+  min-height: 118px;
+  padding: 12px 13px;
+  border: 1px solid rgba(166, 187, 217, 0.16);
+  border-radius: 12px;
+  outline: none;
+  color: #e8eef8;
+  background: rgba(255, 255, 255, 0.035);
+  font: inherit;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.assistant-form textarea:focus {
+  border-color: #85a8ff;
+  box-shadow: 0 0 0 3px rgba(133, 168, 255, 0.12);
+}
+
+.assistant-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.assistant-helper {
+  max-width: 690px;
+  color: #71819a;
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.assistant-submit {
+  min-width: 160px;
+  margin-top: 0;
+}
+
+.assistant-error {
+  margin: 12px 0 0;
+  color: #ffb7b7;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 700px) {
+  .assistant-mode-switcher {
+    grid-template-columns: 1fr;
+  }
+
+  .assistant-form-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .assistant-submit {
+    width: 100%;
+  }
+}
