@@ -1,10 +1,16 @@
 # Frontend
 
-## 1. Frontend henüz uygulanmadı
+## 1. React web foundation hazır
 
-React web ve React Native mobile client planlandı, ancak repository'nin mevcut durumunda frontend client bulunmuyor.
+React web client artık repository içinde `frontend/` altında bulunuyor. React 19.3, TypeScript 7 ve Vite 8 ile oluşturuldu. Vite resmi olarak React + TypeScript template'ini destekliyor; local geliştirme için Vite'ın güncel dokümantasyonundaki standart akış kullanılıyor.
 
-Bu nedenle burada "yaptık" diye yazmak yerine, backend'i tasarlarken frontend'in ihtiyaçlarını hangi kararlarla desteklediğimizi kaydediyoruz.
+Temel komutlar:
+
+    cd frontend
+    npm install
+    npm run dev
+
+Vite geliştirme sunucusu varsayılan olarak 5173 portunda çalışıyor.
 
 ## 2. Conversation merkezli bir UI planladık
 
@@ -44,19 +50,25 @@ Frontend'in sadece bir "cevap metni" almasını istemedik. Backend şu tür bilg
 **Neden?**
 UI bu alanları ayrı gösterebilir: örneğin çeviri üstte, açıklama altında, kullanıcıya söylenebilecek İngilizce cevap ayrı bir kartta.
 
-## 5. Instruction değişimini frontend'de görünür yapacağız
+## 5. Backend bağlantı ve config ayrımı
+
+Frontend tarafında `VITE_API_BASE_URL` ile backend origin'i ayrı tutuluyor.
+
+Local geliştirmede:
+- `/api`
+- `/health`
+- `/ws`
+
+Vite dev server üzerinden backend'e proxy ediliyor. Böylece local geliştirmede frontend'in doğrudan provider veya database bilgisine ihtiyacı yok.
+
+Temel API client sadece ortak HTTP davranışını taşıyor; authenticated API sözleşmesi bir sonraki frontend adımında ele alınacak.
+
+## 6. Instruction değişimini frontend'de görünür yapacağız
 
 Kullanıcı aktif conversation'ın instruction'ını değiştirebilecek. Backend bunu kalıcı saklıyor ve değişikliği conversation geçmişinde system note olarak tutuyor.
 
 **Neden?**
 Kullanıcı "neden AI artık cevap önermeye başladı?" dediğinde bunun hangi talimat değişikliğiyle olduğunu görebilmeli.
-
-## 6. Güvenlik frontend'e bırakılmadı
-
-Frontend tarafında kullanıcıya güzel bir rate-limit mesajı, validation mesajı veya authentication akışı göstereceğiz; ancak güvenlik kontrolünü frontend'e emanet etmiyoruz.
-
-**Neden?**
-Frontend'deki bir kontrol tarayıcı dışında tekrar üretilebilir veya atlanabilir. Asıl güvenlik sınırları backend'de uygulanıyor.
 
 ## 7. Web ve mobile aynı backend sözleşmesini kullanacak
 
@@ -85,3 +97,5 @@ Bu sıra özellikle seçildi: önce backend sözleşmelerini kullanan basit text
 Frontend hiçbir zaman Gemini API key, database credential veya signing secret taşımayacak. AI çağrıları backend üzerinden yapılacak.
 
 Rate limit, input limitleri, authorization ve prompt security backend'de kalacak.
+
+Frontend CI ayrıca `typecheck` ve production build çalıştırıyor; external Gemini/Deepgram smoke çağrıları frontend CI'ına eklenmiyor.
