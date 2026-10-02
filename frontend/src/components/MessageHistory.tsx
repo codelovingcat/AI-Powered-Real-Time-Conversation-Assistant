@@ -91,13 +91,13 @@ export function MessageHistory({ conversationId }: MessageHistoryProps) {
         </div>
       ) : (
         <div className="message-stream" aria-live="polite">
-          {messages.map((message) => (
-            {message.role === "speaker" || message.role === "user" ? (
+          {messages.map((message) =>
+            message.role === "speaker" || message.role === "user" ? (
               <AiResultCard key={message.id} message={message} />
             ) : (
               <MessageBubble key={message.id} message={message} />
-            )}
-          ))}
+            )
+          )}
           <div ref={endRef} aria-hidden="true" />
         </div>
       )}
