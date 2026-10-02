@@ -1,4 +1,4 @@
-import { ApiError, apiGet } from "../api/apiClient";
+import { apiGet } from "../api/apiClient";
 import {
   clearAccessToken,
   getAccessToken,
@@ -45,16 +45,7 @@ export async function validateCurrentSession(
     return null;
   }
 
-  try {
-    return await fetchCurrentSession(signal);
-  } catch (error) {
-    if (error instanceof ApiError && error.kind === "unauthorized") {
-      clearAccessToken();
-      return null;
-    }
-
-    throw error;
-  }
+  return fetchCurrentSession(signal);
 }
 
 export function signOut(): void {
