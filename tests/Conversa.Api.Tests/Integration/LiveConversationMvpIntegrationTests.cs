@@ -112,7 +112,8 @@ public sealed class LiveConversationMvpIntegrationTests
         Assert.Equal("Would you like some coffee?", final.Text);
         Assert.Equal(1, speechSession.ReceivedChunkCount);
 
-        var assistant = app.Services.GetRequiredService<IConversationAssistant>();
+        await using var scope = app.Services.CreateAsyncScope();
+        var assistant = scope.ServiceProvider.GetRequiredService<IConversationAssistant>();
         var result = await assistant.ProcessAsync(
             new ProcessConversationInputCommand(
                 conversation.Id,
