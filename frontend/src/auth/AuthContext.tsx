@@ -7,13 +7,14 @@ import {
   useState,
   type ReactNode
 } from "react";
+import { ApiError } from "../services/api/apiClient";
+import { subscribeToUnauthorized } from "../services/auth/authEvents";
 import {
   signInWithAccessToken,
   signOut as clearSession,
   validateCurrentSession,
   type AuthSession
 } from "../services/auth/authSession";
-import { subscribeToUnauthorized } from "../services/auth/authEvents";
 
 type AuthState =
   | {
@@ -88,10 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setState({
           status: "unauthenticated",
           session: null,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Authentication could not be verified."
+          error: getAuthErrorMessage(error)
         });
       });
 
@@ -116,10 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setState({
         status: "unauthenticated",
         session: null,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Authentication could not be completed."
+        error: getAuthErrorMessage(error)
       });
 
       throw error;
@@ -151,4 +146,23 @@ export function useAuth(): AuthContextValue {
   }
 
   return value;
+}
+
+function getAuthErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    switch (error.kind) {
+      case "unauthorized":
+        return "The access token is invalid or expired.";
+      case "network":
+        return "The authentication service could not be reached.";
+      case "server":
+        return "The authentication service is temporarily unavailable.";
+      default:
+        return error.message;
+    }
+  }
+
+  return error instanceof Error
+    ? error.message
+    : "Authentication could not be completed.";
 }
