@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createConversation,
   deleteConversation,
+  updateConversationInstruction,
   getConversationErrorMessage,
   listConversations
 } from "./conversationService";
@@ -69,6 +70,56 @@ describe("conversationService", () => {
         instruction: "Translate English into natural Turkish."
       })
     );
+  });
+
+  it("updates the conversation instruction", async () => {
+    setAccessToken("test-token");
+
+    const updated = {
+      ...conversation,
+      instruction: "Only translate what is being said."
+    };
+
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(JSON.stringify(updated), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        })
+      );
+
+    await expect(
+      updateConversationInstruction(
+        conversation.id,
+        "Only translate what is being said."
+      )
+    ).resolves.toEqual(updated);
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "/api/conversations/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    );
+    expect(fetchMock.mock.calls[0][1]?.method).toBe("PATCH");
+    expect(fetchMock.mock.calls[0][1]?.body).toBe(
+      JSON.stringify({
+        instruction: "Only translate what is being said."
+      })
+    );
+  });
+
+  it("rejects an invalid instruction update response", async () => {
+    setAccessToken("test-token");
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ id: conversation.id }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      })
+    );
+
+    await expect(
+      updateConversationInstruction(conversation.id, "Only translate.")
+    ).rejects.toThrow("The updated conversation response is invalid.");
   });
 
   it("deletes a conversation by id", async () => {

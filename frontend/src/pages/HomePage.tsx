@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ConversationSidebar } from "../components/ConversationSidebar";
 import { MessageHistory } from "../components/MessageHistory";
+import { InstructionEditor } from "../components/InstructionEditor";
 import { useAuth } from "../auth/AuthContext";
 import type { ConversationSummary } from "../services/api/conversationService";
 import {
@@ -76,6 +77,11 @@ export function HomePage() {
                 </span>
               </div>
             </div>
+
+            <InstructionEditor
+              conversation={activeConversation}
+              onSaved={setActiveConversation}
+            />
 
             <MessageHistory conversationId={activeConversation.id} />
           </div>

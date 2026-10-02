@@ -1,6 +1,7 @@
 import {
   apiDelete,
   apiGet,
+  apiPatch,
   apiPost,
   ApiError
 } from "./apiClient";
@@ -68,6 +69,26 @@ export async function createConversation(
 
   if (!isConversationSummary(payload)) {
     throw new Error("The created conversation response is invalid.");
+  }
+
+  return payload;
+}
+
+export async function updateConversationInstruction(
+  conversationId: string,
+  instruction: string,
+  signal?: AbortSignal
+): Promise<ConversationSummary> {
+  const response = await apiPatch(
+    `/api/conversations/${encodeURIComponent(conversationId)}`,
+    { instruction },
+    signal
+  );
+
+  const payload: unknown = await response.json();
+
+  if (!isConversationSummary(payload)) {
+    throw new Error("The updated conversation response is invalid.");
   }
 
   return payload;
