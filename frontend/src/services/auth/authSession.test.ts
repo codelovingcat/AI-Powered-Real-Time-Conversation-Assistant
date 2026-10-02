@@ -66,7 +66,7 @@ describe("authSession", () => {
 
     setAccessToken("test-token");
 
-    await expect(validateCurrentSession()).rejects.toMatchObject<ApiError>({
+    await expect(validateCurrentSession()).rejects.toMatchObject({
       status: 503,
       kind: "server"
     });
