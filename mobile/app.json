@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Conversa",
+    "slug": "conversa-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "conversa",
+    "ios": { "supportsTablet": true },
+    "android": { "package": "com.conversa.mobile" },
+    "plugins": ["expo-secure-store"]
+  }
+}
