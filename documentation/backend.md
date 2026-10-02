@@ -56,7 +56,7 @@ Conversation endpoint'lerini authenticated user context üzerinden çalışacak 
 **Neden?**
 Bir kullanıcının başka bir kullanıcının conversation veya mesajlarına erişebilmesini istemiyoruz. Kullanıcı kimliği request'ten gelen sıradan bir değer olmaktan çıkıp güvenlik sınırının parçası olmalı.
 
-> Not: Repository'deki mevcut `Program.cs` kaydında `ICurrentUser` wiring'i ayrıca gözden geçirilmeli; authentication sınıfı mevcut olsa da composition root'ta eski identity kaydı görülüyor. Bu nedenle bu bölüm "hedeflenen güvenlik sınırı" olarak okunmalı, eksiksiz production authentication tamamlandı şeklinde değil.
+JWT Bearer authentication composition root'ta doğrulanıyor; issuer, audience, signing key ve token lifetime kontrol ediliyor. Conversation ve WebSocket erişimi authenticated user context üzerinden çalışıyor. Bu aşamada identity provider ve token issuance repository'nin sorumluluğu değil.
 
 ## 7. Hassas exception detaylarını loglamadık — Issue #4
 
@@ -164,4 +164,4 @@ Bu yaklaşımın temel fikri şu: **"Sisteme güveniyoruz" yerine, sistemin her 
 
 ## 16. Şu anki durum
 
-Backend foundation ve security hardening'in önemli kısmı tamamlandı. Ancak gerçek STT provider, production authentication wiring, deployment/multi-instance yapı ve web/mobile client henüz tamamlanmış ürün özellikleri değil.
+Backend foundation ve security hardening'in önemli kısmı tamamlandı. Ancak identity provider/token issuance, deployment/multi-instance yapı ve web/mobile ürün kapsamının tamamı henüz tamamlanmış değil.
