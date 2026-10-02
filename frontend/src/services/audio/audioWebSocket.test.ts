@@ -73,11 +73,11 @@ describe("audioWebSocket", () => {
     setAccessToken("eyJhbGciOiJIUzI1NiJ9.test.signature");
 
     const original = globalThis.WebSocket;
-    let socket: MockWebSocket | null = null;
+    const sockets: MockWebSocket[] = [];
     class CapturingWebSocket extends MockWebSocket {
       constructor(url: string, protocols: string[]) {
         super(url, protocols);
-        socket = this;
+        sockets.push(this);
       }
     }
 
@@ -85,10 +85,10 @@ describe("audioWebSocket", () => {
 
     openAudioWebSocket("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
-    expect(socket).not.toBeNull();
-    expect(socket?.url).not.toContain("test.signature");
-    expect(socket?.url).not.toContain("?");
-    expect(socket?.protocols).toEqual([
+    expect(sockets).toHaveLength(1);
+    expect(sockets[0].url).not.toContain("test.signature");
+    expect(sockets[0].url).not.toContain("?");
+    expect(sockets[0].protocols).toEqual([
       WEBSOCKET_AUTH_SUBPROTOCOL,
       "eyJhbGciOiJIUzI1NiJ9.test.signature"
     ]);
@@ -101,11 +101,11 @@ describe("audioWebSocket", () => {
 
     const statuses: AudioWebSocketStatus[] = [];
     const original = globalThis.WebSocket;
-    let socket: MockWebSocket | null = null;
+    const sockets: MockWebSocket[] = [];
     class CapturingWebSocket extends MockWebSocket {
       constructor(url: string, protocols: string[]) {
         super(url, protocols);
-        socket = this;
+        sockets.push(this);
       }
     }
 
@@ -117,12 +117,12 @@ describe("audioWebSocket", () => {
     );
 
     expect(statuses).toContain("connecting");
-    expect(socket).not.toBeNull();
+    expect(sockets).toHaveLength(1);
 
     client.sendAudioChunk(new Uint8Array([1, 2, 3]).buffer);
-    expect(socket?.sent).toHaveLength(1);
+    expect(sockets[0].sent).toHaveLength(1);
 
-    socket?.onclose?.();
+    sockets[0].onclose?.();
     expect(statuses).toContain("closed");
 
     vi.stubGlobal("WebSocket", original);
