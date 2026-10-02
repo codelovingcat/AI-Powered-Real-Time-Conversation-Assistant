@@ -35,6 +35,7 @@ public sealed class DeepgramWebSocketIntegrationTests
             DateTimeOffset.UtcNow);
 
         var session = new RecordingSpeechSession();
+        var sessionOptions = new List<SpeechSessionOptions>();
 
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -53,7 +54,7 @@ public sealed class DeepgramWebSocketIntegrationTests
             new RecordingConversationRepository(conversation));
 
         builder.Services.AddSingleton<ISpeechToTextSessionFactory>(
-            new RecordingSpeechSessionFactory(session));
+            new RecordingSpeechSessionFactory(session, sessionOptions));
 
         builder.Services
             .AddAuthentication(options =>
@@ -109,6 +110,11 @@ public sealed class DeepgramWebSocketIntegrationTests
             "Hello, world.",
             secondPayload.RootElement.GetProperty("text").GetString());
         Assert.Equal(1, session.ReceivedChunkCount);
+        Assert.Single(sessionOptions);
+        Assert.Equal(conversation.Id, sessionOptions[0].ConversationId);
+        Assert.Equal("en", sessionOptions[0].Language);
+        Assert.Equal("audio/raw", sessionOptions[0].ContentType);
+        Assert.Equal(16000, sessionOptions[0].SampleRateHertz);
 
         socket.Abort();
 
