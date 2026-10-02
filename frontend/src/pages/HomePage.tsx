@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ConversationSidebar } from "../components/ConversationSidebar";
+import { MessageHistory } from "../components/MessageHistory";
 import { useAuth } from "../auth/AuthContext";
 import type { ConversationSummary } from "../services/api/conversationService";
 import {
@@ -48,52 +49,46 @@ export function HomePage() {
           </button>
         </header>
 
-        <div className="workspace-card">
-          {activeConversation ? (
-            <>
-              <span className="workspace-kicker">ACTIVE CONVERSATION</span>
-              <h2>{activeConversation.title}</h2>
-              <p>
-                {activeConversation.sourceLanguage.toUpperCase()} →{" "}
-                {activeConversation.targetLanguage.toUpperCase()}
-              </p>
-              <div className="status-card" role="status">
-                <div>
-                  <span className="status-label">Backend status</span>
-                  <strong>
-                    {health?.status === "available"
-                      ? "Connected"
-                      : health?.status === "unavailable"
-                        ? "Unavailable"
-                        : "Checking…"}
-                  </strong>
-                  {health && (
-                    <span className="status-detail">{health.detail}</span>
-                  )}
-                </div>
+        {activeConversation ? (
+          <div className="workspace-card">
+            <div className="active-conversation-header">
+              <div>
+                <span className="workspace-kicker">ACTIVE CONVERSATION</span>
+                <h2>{activeConversation.title}</h2>
+                <p>
+                  {activeConversation.sourceLanguage.toUpperCase()} →{" "}
+                  {activeConversation.targetLanguage.toUpperCase()}
+                </p>
+              </div>
+              <div className="status-compact" role="status">
                 <span
                   className={
                     "status-dot status-" + (health?.status ?? "checking")
                   }
                   aria-hidden="true"
                 />
+                <span>
+                  {health?.status === "available"
+                    ? "Connected"
+                    : health?.status === "unavailable"
+                      ? "Unavailable"
+                      : "Checking…"}
+                </span>
               </div>
-              <p className="workspace-note">
-                Message history and conversation editing will be connected in
-                the next steps.
-              </p>
-            </>
-          ) : (
-            <>
-              <span className="workspace-kicker">GET STARTED</span>
-              <h2>Select a conversation</h2>
-              <p>
-                Choose a conversation from the sidebar or create a new one to
-                continue.
-              </p>
-            </>
-          )}
-        </div>
+            </div>
+
+            <MessageHistory conversationId={activeConversation.id} />
+          </div>
+        ) : (
+          <div className="workspace-card">
+            <span className="workspace-kicker">GET STARTED</span>
+            <h2>Select a conversation</h2>
+            <p>
+              Choose a conversation from the sidebar or create a new one to
+              continue.
+            </p>
+          </div>
+        )}
       </section>
     </main>
   );
