@@ -9,7 +9,7 @@ import {
 
 interface ConversationSidebarProps {
   activeConversationId: string | null;
-  onSelect: (conversation: ConversationSummary) => void;
+  onSelect: (conversation: ConversationSummary | null) => void;
 }
 
 const DEFAULT_INSTRUCTION =
@@ -106,7 +106,7 @@ export function ConversationSidebar({
       );
 
       if (activeConversationId === conversation.id) {
-        onSelect(null as unknown as ConversationSummary);
+        onSelect(null);
       }
     } catch (deleteError) {
       setError(getConversationErrorMessage(deleteError));
