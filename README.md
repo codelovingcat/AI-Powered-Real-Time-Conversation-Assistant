@@ -28,7 +28,7 @@ This repository is the first foundation step. It is a modular monolith, not a se
 
 Working now:
 
-- Conversation create, read, update, and delete, scoped to a user id
+- Conversation create, read, update, and delete, scoped to an authenticated user id
 - Persistent instruction, title, and language pair on each conversation
 - Changing the instruction during a conversation, with a system note in the transcript
 - Message history that can be reopened later
@@ -38,11 +38,13 @@ Working now:
 - PostgreSQL persistence through Entity Framework Core, including the initial migration
 - Deepgram speech-to-text provider with one-shot transcription and a streaming session adapter
 - WebSocket entry point for continuous listening that reports when speech-to-text is not configured
+- JWT Bearer validation and an authenticated session endpoint for web clients
+- React web authentication/session flow with memory-only access tokens
 
 Not implemented yet:
 
-- Authentication. `X-User-Id` is a temporary request header, not a security boundary
-- Web and React Native clients
+- Identity provider / user credential issuance
+- React Native client
 - A full microphone pipeline in the web client
 - Production deployment, background workers, and multi-instance hosting
 - A model snapshot for later `dotnet ef migrations add` diffs (see below)
@@ -68,7 +70,7 @@ Feature boundaries inside those projects:
 | AI | Provider-neutral request and structured response |
 | Speech-to-text | One-shot and streaming transcription contracts |
 | Audio | Chunk shape used by the streaming boundary |
-| Authentication | Not implemented. `ICurrentUser` is the seam |
+| Authentication | JWT validation, authenticated current-user context, and session endpoint |
 
 Provider-specific prompt text and HTTP calls stay in `Conversa.Infrastructure`. Application code depends on `IAiProvider`, not on Gemini types.
 
@@ -93,7 +95,7 @@ The WebSocket does not invent transcripts. Until a speech-to-text provider is re
 - .NET 10 / ASP.NET Core Web API
 - C# with nullable reference types
 - Entity Framework Core 10 and Npgsql for PostgreSQL
-- React and React Native are planned, not in this repository
+- React web client is present; React Native is planned
 - Gemini as the first `IAiProvider`
 - Speech-to-text is an interface only, so the vendor can be chosen later
 
@@ -160,7 +162,7 @@ The WebSocket route is:
 
 The real Deepgram provider smoke test is manual because it makes a live external API request. It uses Deepgram's published English WAV sample and requires the `DEEPGRAM_API_KEY` GitHub Actions secret. citeturn635016search0turn667825search0
 
-Pass the user id as the `X-User-Id` header or the `userId` query parameter. Binary frames are audio chunks. They are not transcribed until a session factory is registered.
+Authentication uses a validated Bearer JWT. The authenticated user id is taken from the token's `NameIdentifier`/`sub` claim. Binary WebSocket frames are audio chunks. They are not transcribed until a session factory is registered.
 
 ## How to run the backend
 
@@ -195,15 +197,26 @@ Build without running:
 dotnet build Conversa.slnx
 ```
 
-### Temporary user header
+### Authentication
 
-Authentication is not implemented. Every conversation route requires:
+Conversation and assistant routes require a valid JWT Bearer token. The repository validates issuer, audience, signing key, and token lifetime; it does not issue user credentials itself.
+
+The frontend sign-in screen accepts an access token issued by the configured identity system and validates it with:
 
 ```text
-X-User-Id: 11111111-1111-1111-1111-111111111111
+GET /api/auth/session
+Authorization: Bearer <access-token>
 ```
 
-Use any GUID. Requests are filtered by that value so one caller cannot read another's conversations. Do not treat this as authentication.
+Access tokens in the web client are kept in memory only. They are not stored in localStorage or sessionStorage. A page reload therefore ends the client session until the user signs in again.
+
+For the command examples below, set an externally issued token first:
+
+```bash
+export ACCESS_TOKEN="issued-by-your-identity-system"
+```
+
+Do not commit or print a real token.
 
 ### Example calls
 
@@ -212,7 +225,7 @@ Create a conversation:
 ```bash
 curl -X POST http://localhost:5080/api/conversations \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: 11111111-1111-1111-1111-111111111111" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -d '{
     "title": "Hotel check-in",
     "instruction": "During this conversation, translate the English speaker'\''s speech into natural and accurate Turkish. Unless I explicitly ask otherwise, only translate and explain what is being said.",
@@ -226,7 +239,7 @@ Change the instruction:
 ```bash
 curl -X PATCH http://localhost:5080/api/conversations/{id} \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: 11111111-1111-1111-1111-111111111111" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -d '{"instruction":"From now on, also detect questions directed at me and suggest natural English answers."}'
 ```
 
@@ -235,7 +248,7 @@ Send overheard English:
 ```bash
 curl -X POST http://localhost:5080/api/conversations/{id}/assistant \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: 11111111-1111-1111-1111-111111111111" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -d '{"inputKind":"heardSpeech","text":"Could you tell me a bit about yourself?"}'
 ```
 
@@ -244,7 +257,7 @@ Ask for an English formulation from Turkish:
 ```bash
 curl -X POST http://localhost:5080/api/conversations/{id}/assistant \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: 11111111-1111-1111-1111-111111111111" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -d '{"inputKind":"userFormulationRequest","text":"Geç çıkış yapmak istiyorum, nazikçe sor."}'
 ```
 
