@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ConversationSidebar } from "../components/ConversationSidebar";
 import { ConversationStatus } from "../components/ConversationStatus";
 import { MicrophoneCapturePanel } from "../components/MicrophoneCapturePanel";
+import { TextAssistantPanel } from "../components/TextAssistantPanel";
 import { MessageHistory } from "../components/MessageHistory";
 import { InstructionEditor } from "../components/InstructionEditor";
 import { useAuth } from "../auth/AuthContext";
@@ -153,6 +154,11 @@ export function HomePage() {
             </p>
           </div>
         )}
+
+        <TextAssistantPanel
+          conversationId={activeConversation?.id ?? null}
+          onProcessed={() => setRefreshToken((current) => current + 1)}
+        />
 
         <MicrophoneCapturePanel
           conversationId={activeConversation?.id ?? null}
