@@ -97,7 +97,9 @@ export function HomePage() {
           </div>
         )}
 
-        <MicrophoneCapturePanel />
+        <MicrophoneCapturePanel
+          conversationId={activeConversation?.id ?? null}
+        />
       </section>
     </main>
   );

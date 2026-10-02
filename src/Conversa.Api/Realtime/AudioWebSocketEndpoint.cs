@@ -66,7 +66,12 @@ public static class AudioWebSocketEndpoint
         var cancellationToken = lifetimeCts.Token;
 
         var factory = services.GetService<ISpeechToTextSessionFactory>();
-        using var socket = await context.WebSockets.AcceptWebSocketAsync();
+        var useAuthSubProtocol = WebSocketAuthentication.RequestedSubProtocol(
+            context.Request.Headers);
+
+        using var socket = useAuthSubProtocol
+            ? await context.WebSockets.AcceptWebSocketAsync(WebSocketAuthentication.SubProtocol)
+            : await context.WebSockets.AcceptWebSocketAsync();
 
         if (factory is null)
         {
@@ -85,7 +90,11 @@ public static class AudioWebSocketEndpoint
         }
 
         await using var session = await factory.OpenSessionAsync(
-            new SpeechSessionOptions(conversation.Id, conversation.SourceLanguage, null, null),
+            new SpeechSessionOptions(
+                conversation.Id,
+                conversation.SourceLanguage,
+                "audio/raw",
+                16000),
             cancellationToken);
 
         try
