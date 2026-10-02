@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ConversationSidebar } from "../components/ConversationSidebar";
 import { MessageHistory } from "../components/MessageHistory";
 import { InstructionEditor } from "../components/InstructionEditor";
+import { TextAssistant } from "../components/TextAssistant";
 import { useAuth } from "../auth/AuthContext";
 import type { ConversationSummary } from "../services/api/conversationService";
 import {
@@ -12,6 +13,7 @@ import {
 export function HomePage() {
   const { signOut } = useAuth();
   const [health, setHealth] = useState<BackendHealth | null>(null);
+  const [latestMessage, setLatestMessage] = useState<import("../services/api/messageService").ConversationMessage | null>(null);
   const [activeConversation, setActiveConversation] =
     useState<ConversationSummary | null>(null);
 
@@ -36,7 +38,10 @@ export function HomePage() {
     <main className="app-shell">
       <ConversationSidebar
         activeConversationId={activeConversation?.id ?? null}
-        onSelect={setActiveConversation}
+        onSelect={(conversation) => {
+          setActiveConversation(conversation);
+          setLatestMessage(null);
+        }}
       />
 
       <section className="workspace" aria-labelledby="page-title">
@@ -83,7 +88,15 @@ export function HomePage() {
               onSaved={setActiveConversation}
             />
 
-            <MessageHistory conversationId={activeConversation.id} />
+            <TextAssistant
+              conversationId={activeConversation.id}
+              onMessageCreated={setLatestMessage}
+            />
+
+            <MessageHistory
+              conversationId={activeConversation.id}
+              newMessage={latestMessage}
+            />
           </div>
         ) : (
           <div className="workspace-card">
