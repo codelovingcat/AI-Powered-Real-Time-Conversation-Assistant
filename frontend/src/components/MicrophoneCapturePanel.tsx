@@ -32,11 +32,14 @@ export function MicrophoneCapturePanel({
   const manualStopRef = useRef(false);
 
   useEffect(() => {
+    manualStopRef.current = true;
+    void stopStreaming();
+
     return () => {
       manualStopRef.current = true;
       void stopStreaming();
     };
-  }, []);
+  }, [conversationId]);
 
   async function handleStart() {
     if (!conversationId) {
