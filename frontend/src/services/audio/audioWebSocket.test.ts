@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildAudioWebSocketUrl,
   openAudioWebSocket,
@@ -43,8 +43,18 @@ class MockWebSocket {
 }
 
 describe("audioWebSocket", () => {
+  beforeEach(() => {
+    vi.stubGlobal("window", {
+      location: {
+        protocol: "https:",
+        host: "localhost"
+      }
+    });
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     clearAccessToken();
   });
 
