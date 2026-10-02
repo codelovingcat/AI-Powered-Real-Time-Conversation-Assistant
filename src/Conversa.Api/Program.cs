@@ -67,6 +67,22 @@ builder.Services
             ClockSkew = TimeSpan.FromMinutes(1),
             NameClaimType = ClaimTypes.NameIdentifier
         };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                if (context.Request.Path.StartsWithSegments("/ws/conversations")
+                    && WebSocketAuthentication.TryGetAccessToken(
+                        context.Request.Headers,
+                        out var token))
+                {
+                    context.Token = token;
+                }
+
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddAuthorization();
