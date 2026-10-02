@@ -14,6 +14,9 @@ using Conversa.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -92,6 +95,7 @@ builder.Configuration.GetSection(RateLimitOptions.SectionName).Bind(rateLimitOpt
 rateLimitOptions.Validate();
 
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database", failureStatus: HealthStatus.Unhealthy, tags: new[] { "ready" });
 builder.Services.Configure<AudioWebSocketOptions>(builder.Configuration.GetSection(AudioWebSocketOptions.SectionName));
 builder.Services.Configure<RateLimitOptions>(builder.Configuration.GetSection(RateLimitOptions.SectionName));
 builder.Services.AddHttpContextAccessor();
@@ -172,7 +176,29 @@ app.UseAuthorization();
 app.UseRateLimiter();
 app.UseWebSockets();
 app.MapControllers();
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = _ => false
+});
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        context.Response.StatusCode = report.Status == HealthStatus.Healthy
+            ? StatusCodes.Status200OK
+            : StatusCodes.Status503ServiceUnavailable;
+
+        await context.Response.WriteAsync(JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString().ToLowerInvariant(),
+            checks = report.Entries.ToDictionary(
+                entry => entry.Key,
+                entry => entry.Value.Status.ToString().ToLowerInvariant())
+        }));
+    }
+});
 app.MapAudioWebSocket();
 app.MapGet("/", () => Results.Json(new
 {
@@ -180,6 +206,7 @@ app.MapGet("/", () => Results.Json(new
     message = "Conversa API is running.",
     status = "ok",
     health = "/health",
+    readiness = "/health/ready",
     conversations = "/api/conversations",
     assistant = "/api/conversations/{id}/assistant",
     speech = "/api/speech/provider",
