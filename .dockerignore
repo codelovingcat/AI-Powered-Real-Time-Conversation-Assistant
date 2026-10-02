@@ -1,0 +1,9 @@
+**/.bin/
+**/.obj/
+**/node_modules/
+.git/
+.github/
+.vscode/
+.env
+*.user
+*.suo
