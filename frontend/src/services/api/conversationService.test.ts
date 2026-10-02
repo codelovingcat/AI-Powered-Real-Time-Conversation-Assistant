@@ -76,7 +76,7 @@ describe("conversationService", () => {
 
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValue(new Response("", { status: 204 }));
+      .mockResolvedValue(new Response(null, { status: 204 }));
 
     await expect(
       deleteConversation("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
