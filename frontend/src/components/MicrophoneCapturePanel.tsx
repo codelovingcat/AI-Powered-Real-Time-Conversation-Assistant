@@ -28,9 +28,12 @@ export function MicrophoneCapturePanel({
   const [bytesCaptured, setBytesCaptured] = useState(0);
   const sessionRef = useRef<MicrophoneCaptureSession | null>(null);
   const socketRef = useRef<AudioWebSocketClient | null>(null);
+  const captureStartingRef = useRef(false);
+  const manualStopRef = useRef(false);
 
   useEffect(() => {
     return () => {
+      manualStopRef.current = true;
       void stopStreaming();
     };
   }, []);
@@ -48,6 +51,8 @@ export function MicrophoneCapturePanel({
       return;
     }
 
+    manualStopRef.current = false;
+    captureStartingRef.current = false;
     setStatus("connecting");
     setSocketStatus("connecting");
     setError(null);
@@ -59,56 +64,84 @@ export function MicrophoneCapturePanel({
         onStatus: (nextStatus) => {
           setSocketStatus(nextStatus);
 
-          if (nextStatus === "error") {
-            setStatus("error");
+          if (nextStatus === "open") {
+            void beginCapture(socket);
+            return;
           }
 
-          if (nextStatus === "closed" && status !== "idle") {
-            void stopStreaming();
+          if (
+            (nextStatus === "error" || nextStatus === "closed") &&
+            !manualStopRef.current
+          ) {
+            void cleanupCapture();
+            setError(
+              "The audio WebSocket connection was closed before streaming could continue."
+            );
+            setStatus("error");
           }
         },
         onError: (nextError) => {
-          setError(nextError.message);
-          setStatus("error");
+          if (!manualStopRef.current) {
+            setError(nextError.message);
+            setStatus("error");
+          }
         }
       });
 
       socketRef.current = socket;
-
-      const originalOpen = socket;
-      await waitForSocketReady(originalOpen);
-
-      if (socketStatus === "closed") {
-        throw new Error("The audio WebSocket connection could not be opened.");
-      }
-
-      const session = await startMicrophoneCapture((chunk) => {
-        originalOpen.sendAudioChunk(chunk);
-        setChunkCount((count) => count + 1);
-        setBytesCaptured((bytes) => bytes + chunk.byteLength);
-      });
-
-      sessionRef.current = session;
-      setStatus("capturing");
-      setSocketStatus("open");
     } catch (streamError: unknown) {
-      await stopStreaming();
+      await cleanupCapture();
       setError(
         streamError instanceof Error
           ? streamError.message
           : "Microphone streaming could not be started."
       );
       setStatus("error");
+      setSocketStatus("closed");
     }
   }
 
-  async function stopStreaming() {
+  async function beginCapture(socket: AudioWebSocketClient) {
+    if (captureStartingRef.current || sessionRef.current) {
+      return;
+    }
+
+    captureStartingRef.current = true;
+
+    try {
+      const session = await startMicrophoneCapture((chunk) => {
+        socket.sendAudioChunk(chunk);
+        setChunkCount((count) => count + 1);
+        setBytesCaptured((bytes) => bytes + chunk.byteLength);
+      });
+
+      if (manualStopRef.current || socketRef.current !== socket) {
+        await session.stop();
+        return;
+      }
+
+      sessionRef.current = session;
+      setStatus("capturing");
+    } catch (captureError: unknown) {
+      socket.close();
+      setError(getMicrophoneErrorMessage(captureError));
+      setStatus("error");
+    } finally {
+      captureStartingRef.current = false;
+    }
+  }
+
+  async function cleanupCapture() {
     const session = sessionRef.current;
     sessionRef.current = null;
 
     if (session) {
       await session.stop().catch(() => undefined);
     }
+  }
+
+  async function stopStreaming() {
+    await cleanupCapture();
 
     const socket = socketRef.current;
     socketRef.current = null;
@@ -121,8 +154,10 @@ export function MicrophoneCapturePanel({
     setSocketStatus("closed");
   }
 
-  const disabled =
-    !conversationId || status === "connecting" || status === "capturing";
+  const startDisabled =
+    !conversationId ||
+    status === "connecting" ||
+    status === "capturing";
 
   return (
     <section className="microphone-panel" aria-labelledby="microphone-panel-title">
@@ -161,7 +196,10 @@ export function MicrophoneCapturePanel({
           <button
             className="ghost-button"
             type="button"
-            onClick={() => void stopStreaming()}
+            onClick={() => {
+              manualStopRef.current = true;
+              void stopStreaming();
+            }}
           >
             Stop streaming
           </button>
@@ -170,11 +208,9 @@ export function MicrophoneCapturePanel({
             className="primary-button"
             type="button"
             onClick={() => void handleStart()}
-            disabled={disabled}
+            disabled={startDisabled}
           >
-            {status === "connecting"
-              ? "Connecting…"
-              : "Start microphone"}
+            {status === "connecting" ? "Connecting…" : "Start microphone"}
           </button>
         )}
 
@@ -192,40 +228,4 @@ export function MicrophoneCapturePanel({
       )}
     </section>
   );
-}
-
-function waitForSocketReady(socket: AudioWebSocketClient): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const startedAt = Date.now();
-    const timeoutMs = 10000;
-
-    const poll = () => {
-      const state = getClientSocketState(socket);
-
-      if (state === "open") {
-        resolve();
-        return;
-      }
-
-      if (state === "error" || state === "closed") {
-        reject(new Error("The audio WebSocket connection could not be opened."));
-        return;
-      }
-
-      if (Date.now() - startedAt >= timeoutMs) {
-        reject(new Error("The audio WebSocket connection timed out."));
-        return;
-      }
-
-      window.setTimeout(poll, 25);
-    };
-
-    poll();
-  });
-}
-
-function getClientSocketState(
-  _socket: AudioWebSocketClient
-): "connecting" | "open" | "error" | "closed" {
-  return "open";
 }
