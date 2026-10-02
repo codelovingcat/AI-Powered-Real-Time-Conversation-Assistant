@@ -21,6 +21,19 @@ body {
     linear-gradient(160deg, #081221 0%, #0b1627 48%, #0d1c31 100%);
 }
 
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
 #root {
   min-height: 100vh;
 }
@@ -32,7 +45,8 @@ body {
   padding: 32px 20px;
 }
 
-.hero-card {
+.hero-card,
+.auth-card {
   width: min(760px, 100%);
   padding: clamp(28px, 6vw, 56px);
   border: 1px solid rgba(166, 187, 217, 0.16);
@@ -40,6 +54,10 @@ body {
   background: rgba(12, 25, 44, 0.84);
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.34);
   backdrop-filter: blur(18px);
+}
+
+.auth-card {
+  width: min(520px, 100%);
 }
 
 .eyebrow {
@@ -56,12 +74,95 @@ h1 {
   line-height: 0.95;
 }
 
-.hero-copy {
+.auth-card h1 {
+  font-size: clamp(2.8rem, 9vw, 4.5rem);
+}
+
+.hero-copy,
+.auth-copy {
   max-width: 620px;
   margin: 24px 0 0;
   color: #aebbd0;
   font-size: clamp(1rem, 2.1vw, 1.2rem);
   line-height: 1.7;
+}
+
+.auth-copy {
+  font-size: 1rem;
+}
+
+.auth-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 32px;
+}
+
+.auth-form label {
+  color: #d8e2f0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.auth-form input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgba(166, 187, 217, 0.2);
+  border-radius: 12px;
+  outline: none;
+  color: #e8eef8;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.auth-form input:focus {
+  border-color: #85a8ff;
+  box-shadow: 0 0 0 3px rgba(133, 168, 255, 0.14);
+}
+
+.primary-button,
+.ghost-button {
+  min-height: 44px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.primary-button {
+  margin-top: 8px;
+  border: 1px solid rgba(133, 168, 255, 0.35);
+  color: #0b1627;
+  background: #a8c0ff;
+}
+
+.primary-button:disabled {
+  opacity: 0.5;
+}
+
+.ghost-button {
+  padding: 0 14px;
+  border: 1px solid rgba(166, 187, 217, 0.18);
+  color: #c9d5e7;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.auth-error {
+  margin: 16px 0 0;
+  color: #ffb7b7;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.security-note {
+  margin: 22px 0 0;
+  color: #7f8fa7;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.top-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
 }
 
 .status-card {
@@ -109,4 +210,15 @@ h1 {
 .status-unavailable {
   background: #f0a76a;
   box-shadow: 0 0 0 5px rgba(240, 167, 106, 0.12);
+}
+
+@media (max-width: 560px) {
+  .top-row {
+    align-items: flex-start;
+  }
+
+  .top-row .eyebrow {
+    max-width: 220px;
+    line-height: 1.4;
+  }
 }
