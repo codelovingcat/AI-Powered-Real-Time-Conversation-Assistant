@@ -2,7 +2,7 @@
 
 ## 1. React web foundation hazır
 
-React web client artık repository içinde `frontend/` altında bulunuyor. React 19.3, TypeScript 7 ve Vite 8 ile oluşturuldu. Vite resmi olarak React + TypeScript template'ini destekliyor; local geliştirme için Vite'ın güncel dokümantasyonundaki standart akış kullanılıyor. citeturn406216search3turn406216search5
+React web client artık repository içinde `frontend/` altında bulunuyor. React 19.3, TypeScript 7 ve Vite 8 ile oluşturuldu. Vite resmi olarak React + TypeScript template'ini destekliyor; local geliştirme için Vite'ın güncel dokümantasyonundaki standart akış kullanılıyor.
 
 Temel komutlar:
 
