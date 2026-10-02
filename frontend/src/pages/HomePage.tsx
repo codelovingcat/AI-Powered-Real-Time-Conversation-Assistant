@@ -1,20 +1,27 @@
 import { useEffect, useState } from "react";
-import { checkBackendHealth, type BackendHealth } from "../services/api/healthService";
+import { useAuth } from "../auth/AuthContext";
+import {
+  checkBackendHealth,
+  type BackendHealth
+} from "../services/api/healthService";
 
 export function HomePage() {
+  const { signOut } = useAuth();
   const [health, setHealth] = useState<BackendHealth | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
 
-    void checkBackendHealth(controller.signal).then(setHealth).catch(() => {
-      if (!controller.signal.aborted) {
-        setHealth({
-          status: "unavailable",
-          detail: "Backend connection is unavailable."
-        });
-      }
-    });
+    void checkBackendHealth(controller.signal)
+      .then(setHealth)
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setHealth({
+            status: "unavailable",
+            detail: "Backend connection is unavailable."
+          });
+        }
+      });
 
     return () => controller.abort();
   }, []);
@@ -22,11 +29,17 @@ export function HomePage() {
   return (
     <main className="page-shell">
       <section className="hero-card" aria-labelledby="page-title">
-        <p className="eyebrow">REAL-TIME CONVERSATION ASSISTANT</p>
+        <div className="top-row">
+          <p className="eyebrow">REAL-TIME CONVERSATION ASSISTANT</p>
+          <button className="ghost-button" type="button" onClick={signOut}>
+            Sign out
+          </button>
+        </div>
+
         <h1 id="page-title">Conversa</h1>
         <p className="hero-copy">
-          Understand what is being said, keep conversation context close, and prepare
-          natural responses without exposing provider credentials to the browser.
+          Your authenticated session is active. Conversation features will
+          be connected in the next step.
         </p>
 
         <div className="status-card" role="status" aria-live="polite">
