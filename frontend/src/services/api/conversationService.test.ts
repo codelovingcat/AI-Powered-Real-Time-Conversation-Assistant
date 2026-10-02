@@ -108,6 +108,6 @@ describe("conversationService", () => {
       getConversationErrorMessage(
         new Error("Unexpected internal implementation detail")
       )
-    ).toBe("Unexpected internal implementation detail");
+    ).toBe("The conversation request could not be completed.");
   });
 });
