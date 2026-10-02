@@ -1,9 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  apiGet,
-  ApiError
-} from "../services/api/apiClient";
-import {
   clearAccessToken,
   getAccessToken,
   setAccessToken
