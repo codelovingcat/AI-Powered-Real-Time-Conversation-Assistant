@@ -5,6 +5,7 @@ import { InstructionEditor } from "../components/InstructionEditor";
 import { TextAssistant } from "../components/TextAssistant";
 import { useAuth } from "../auth/AuthContext";
 import type { ConversationSummary } from "../services/api/conversationService";
+import type { ConversationMessage } from "../services/api/messageService";
 import {
   checkBackendHealth,
   type BackendHealth
@@ -13,7 +14,8 @@ import {
 export function HomePage() {
   const { signOut } = useAuth();
   const [health, setHealth] = useState<BackendHealth | null>(null);
-  const [latestMessage, setLatestMessage] = useState<import("../services/api/messageService").ConversationMessage | null>(null);
+  const [latestMessage, setLatestMessage] =
+    useState<ConversationMessage | null>(null);
   const [activeConversation, setActiveConversation] =
     useState<ConversationSummary | null>(null);
 
