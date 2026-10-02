@@ -3,13 +3,14 @@ import {
   apiDelete,
   apiGet,
   apiPatch,
-  apiPost,
-  ApiError
+  apiPost
 } from "./apiClient";
 import {
   clearAccessToken,
+  getAccessToken,
   setAccessToken
 } from "../auth/accessTokenStore";
+import { subscribeToUnauthorized } from "../auth/authEvents";
 
 describe("apiClient", () => {
   afterEach(() => {
@@ -47,7 +48,11 @@ describe("apiClient", () => {
     expect(headers.has("Authorization")).toBe(false);
   });
 
-  it("classifies 401 as unauthorized", async () => {
+  it("classifies 401 as unauthorized and clears the active session", async () => {
+    setAccessToken("expired-token");
+    const unauthorized = vi.fn();
+    const unsubscribe = subscribeToUnauthorized(unauthorized);
+
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("", { status: 401 })
     );
@@ -56,6 +61,11 @@ describe("apiClient", () => {
       status: 401,
       kind: "unauthorized"
     });
+
+    expect(getAccessToken()).toBeNull();
+    expect(unauthorized).toHaveBeenCalledTimes(1);
+
+    unsubscribe();
   });
 
   it("classifies 429 and parses Retry-After", async () => {
