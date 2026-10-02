@@ -8,11 +8,6 @@ import { InstructionEditor } from "../components/InstructionEditor";
 import { useAuth } from "../auth/AuthContext";
 import type { ConversationSummary } from "../services/api/conversationService";
 import {
-  getAssistantErrorMessage,
-  processAssistantInput,
-  type AssistantInputKind
-} from "../services/api/assistantService";
-import {
   checkBackendHealth,
   type BackendHealth
 } from "../services/api/healthService";
@@ -25,11 +20,6 @@ export function HomePage() {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
-  const [textInputKind, setTextInputKind] =
-    useState<AssistantInputKind>("heardSpeech");
-  const [textInput, setTextInput] = useState("");
-  const [isTextSubmitting, setIsTextSubmitting] = useState(false);
-  const [textInputError, setTextInputError] = useState<string | null>(null);
 
   async function handleFinalTranscript(text: string) {
     if (!activeConversation || !text.trim()) {
@@ -50,32 +40,6 @@ export function HomePage() {
       setAiError(getAssistantErrorMessage(error));
     } finally {
       setIsAiLoading(false);
-    }
-  }
-
-  async function handleTextSubmit() {
-    const trimmedText = textInput.trim();
-
-    if (!activeConversation || !trimmedText || isTextSubmitting) {
-      return;
-    }
-
-    setIsTextSubmitting(true);
-    setTextInputError(null);
-    setAiError(null);
-
-    try {
-      await processAssistantInput(
-        activeConversation.id,
-        textInputKind,
-        trimmedText
-      );
-      setTextInput("");
-      setRefreshToken((current) => current + 1);
-    } catch (error: unknown) {
-      setTextInputError(getAssistantErrorMessage(error));
-    } finally {
-      setIsTextSubmitting(false);
     }
   }
 
