@@ -32,6 +32,33 @@ interface AudioContextWindow extends Window {
   webkitAudioContext?: typeof AudioContext;
 }
 
+export function isMicrophoneCaptureSupported(): boolean {
+  return hasMicrophoneSupport();
+}
+
+export function getMicrophoneErrorMessage(
+  error: unknown | MicrophoneCaptureErrorCode
+): string {
+  if (typeof error === "string") {
+    switch (error) {
+      case "unsupported":
+        return "Microphone capture is not supported by this browser or context.";
+      case "permission_denied":
+        return "Microphone permission was denied. Allow microphone access and try again.";
+      case "device_unavailable":
+        return "No microphone device is available.";
+      default:
+        return "Microphone audio capture could not be started.";
+    }
+  }
+
+  if (error instanceof MicrophoneCaptureError) {
+    return error.message;
+  }
+
+  return "Microphone audio capture could not be started.";
+}
+
 export async function startMicrophoneCapture(
   onChunk: AudioChunkHandler
 ): Promise<MicrophoneCaptureSession> {
