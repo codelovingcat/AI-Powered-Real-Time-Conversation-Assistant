@@ -1225,3 +1225,136 @@ h1 {
     padding-top: 2px;
   }
 }
+
+.text-assistant-panel {
+  max-width: 1080px;
+  margin: 24px auto 0;
+  padding: 22px;
+  border: 1px solid rgba(166, 187, 217, 0.12);
+  border-radius: 20px;
+  background: rgba(12, 25, 44, 0.58);
+}
+
+.text-assistant-header,
+.text-assistant-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.text-assistant-header h3 {
+  margin: 6px 0 0;
+  font-size: 1.05rem;
+}
+
+.text-assistant-badge {
+  padding: 6px 9px;
+  border: 1px solid rgba(133, 168, 255, 0.15);
+  border-radius: 999px;
+  color: #9db5e8;
+  background: rgba(133, 168, 255, 0.045);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.text-assistant-mode {
+  display: inline-flex;
+  gap: 5px;
+  margin-top: 18px;
+  padding: 4px;
+  border: 1px solid rgba(166, 187, 217, 0.11);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.text-assistant-mode-button {
+  min-height: 36px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 9px;
+  color: #8d9db5;
+  background: transparent;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.text-assistant-mode-active {
+  color: #dce6f4;
+  background: rgba(133, 168, 255, 0.11);
+}
+
+.text-assistant-form {
+  display: grid;
+  gap: 9px;
+  margin-top: 16px;
+}
+
+.text-assistant-form label {
+  color: #aebbd0;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.text-assistant-form textarea {
+  width: 100%;
+  min-height: 130px;
+  padding: 12px 13px;
+  border: 1px solid rgba(166, 187, 217, 0.16);
+  border-radius: 12px;
+  outline: none;
+  color: #e8eef8;
+  background: rgba(255, 255, 255, 0.035);
+  font: inherit;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.text-assistant-form textarea:focus {
+  border-color: #85a8ff;
+  box-shadow: 0 0 0 3px rgba(133, 168, 255, 0.12);
+}
+
+.text-assistant-footer {
+  align-items: flex-end;
+}
+
+.text-assistant-footer p {
+  max-width: 680px;
+  margin: 0;
+  color: #71819a;
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.text-assistant-submit {
+  min-width: 160px;
+  margin-top: 0;
+}
+
+.text-assistant-error {
+  margin: 12px 0 0;
+  color: #ffb7b7;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 700px) {
+  .text-assistant-header,
+  .text-assistant-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .text-assistant-submit {
+    width: 100%;
+  }
+
+  .text-assistant-mode {
+    display: flex;
+  }
+
+  .text-assistant-mode-button {
+    flex: 1;
+  }
+}
