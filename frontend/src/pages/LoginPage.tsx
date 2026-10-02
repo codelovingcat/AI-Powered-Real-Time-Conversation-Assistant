@@ -1,5 +1,4 @@
-import { FormEvent, useState } from "react";
-import { ApiError } from "../services/api/apiClient";
+import { useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 
 export function LoginPage() {
@@ -21,19 +20,13 @@ export function LoginPage() {
 
     try {
       await signIn(token);
-      setToken("");
     } catch {
-      setToken("");
+      // The authentication context exposes a user-safe error message.
     } finally {
+      setToken("");
       setIsSubmitting(false);
     }
   }
-
-  const displayError = error
-    ? error instanceof ApiError
-      ? getAuthErrorMessage(error)
-      : error
-    : null;
 
   return (
     <main className="page-shell">
@@ -68,9 +61,9 @@ export function LoginPage() {
           </button>
         </form>
 
-        {displayError && (
+        {error && (
           <p className="auth-error" role="alert">
-            {displayError}
+            {error}
           </p>
         )}
 
@@ -80,17 +73,4 @@ export function LoginPage() {
       </section>
     </main>
   );
-}
-
-function getAuthErrorMessage(error: ApiError): string {
-  switch (error.kind) {
-    case "unauthorized":
-      return "The access token is invalid or expired.";
-    case "network":
-      return "The authentication service could not be reached.";
-    case "server":
-      return "The authentication service is temporarily unavailable.";
-    default:
-      return error.message;
-  }
 }
