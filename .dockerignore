@@ -5,5 +5,10 @@
 .github/
 .vscode/
 .env
+.env.*
+**/appsettings.*.local.json
+**/secrets.json
+**/*.pem
+**/*.key
 *.user
 *.suo

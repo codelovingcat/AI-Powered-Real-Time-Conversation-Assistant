@@ -13,7 +13,9 @@ Production secrets must be supplied by the deployment platform or secret store:
 - Gemini__ApiKey
 - Deepgram__ApiKey
 
-Never commit these values to the repository. appsettings.Production.json contains logging defaults only.
+Never commit these values to the repository. appsettings.Production.json contains logging defaults only. Local overrides belong in ignored appsettings.*.local.json files or environment variables.
+
+The container build context excludes local environment files, local settings, secret files and private key material through .dockerignore. Keep provider credentials and database connection strings out of Docker build arguments, image layers and logs.
 
 ## Health endpoints
 
