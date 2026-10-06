@@ -73,6 +73,11 @@ if (sessionLifetimeDays is < 1 or > 30)
 var allowedCorsOrigins = (builder.Configuration["Cors:AllowedOrigins"] ?? string.Empty)
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+if (allowedCorsOrigins.Length == 0 && builder.Environment.IsDevelopment())
+{
+    allowedCorsOrigins = ["http://localhost:5173"];
+}
+
 var signingKey = new SymmetricSecurityKey(signingKeyBytes);
 
 builder.Services.AddCors(options =>
