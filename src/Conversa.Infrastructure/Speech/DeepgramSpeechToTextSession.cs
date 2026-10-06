@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using System.Net.WebSockets;
 using System.Text;
+using Conversa.Application.Observability;
 using System.Text.Json;
 using System.Threading.Channels;
 using Conversa.Application.Speech;
@@ -35,6 +37,15 @@ public sealed class DeepgramSpeechToTextSession : ISpeechToTextSession
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        using var activity = ConversaTelemetry.ActivitySource.StartActivity(
+            "conversa.stt.streaming.start");
+        var stopwatch = Stopwatch.StartNew();
+        var outcome = "error";
+        activity?.SetTag("conversa.provider", "deepgram");
+        activity?.SetTag("conversa.operation", "stt.streaming.start");
+
+        try
+        {
         var parameters = DeepgramSpeechToTextProvider.BuildStreamingParameters(
             _settings,
             _sessionOptions.Language,
@@ -60,6 +71,31 @@ public sealed class DeepgramSpeechToTextSession : ISpeechToTextSession
         }
 
         _receiveTask = ReceiveLoopAsync(_disposeCts.Token);
+        outcome = "success";
+        activity?.SetStatus(ActivityStatusCode.Ok);
+        }
+        catch (OperationCanceledException)
+        {
+            outcome = "cancelled";
+            activity?.SetStatus(ActivityStatusCode.Error, "cancelled");
+            throw;
+        }
+        catch (Exception exception)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
+            throw;
+        }
+        finally
+        {
+            stopwatch.Stop();
+            ConversaTelemetry.SttRequests.Add(
+                1,
+                ConversaTelemetry.Tags("deepgram", "streaming.start", outcome));
+            ConversaTelemetry.SttDuration.Record(
+                stopwatch.Elapsed.TotalMilliseconds,
+                ConversaTelemetry.Tags("deepgram", "streaming.start", outcome));
+            activity?.SetTag("conversa.outcome", outcome);
+        }
     }
 
     public async ValueTask AppendAudioAsync(

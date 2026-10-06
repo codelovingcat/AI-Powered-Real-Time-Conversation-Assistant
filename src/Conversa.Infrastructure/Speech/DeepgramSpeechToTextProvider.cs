@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Net.Http.Headers;
+using Conversa.Application.Observability;
 using System.Text.Json;
 using Conversa.Application.Speech;
 using Microsoft.Extensions.Options;
@@ -18,11 +20,23 @@ public sealed class DeepgramSpeechToTextProvider(
         SpeechAudio audio,
         CancellationToken cancellationToken)
     {
+        using var activity = ConversaTelemetry.ActivitySource.StartActivity(
+            "conversa.stt.transcribe");
+        var stopwatch = Stopwatch.StartNew();
+        var outcome = "error";
+
+        activity?.SetTag("conversa.provider", ProviderName);
+        activity?.SetTag("conversa.operation", "stt.transcribe");
+
+        try
+        {
         var settings = options.Value;
         settings.Validate();
 
         if (audio.Content.IsEmpty)
         {
+            outcome = "error";
+            activity?.SetStatus(ActivityStatusCode.Error, "empty_audio");
             return new SpeechRecognitionResult(
                 string.Empty,
                 true,
@@ -54,6 +68,9 @@ public sealed class DeepgramSpeechToTextProvider(
 
             if (!response.IsSuccessStatusCode)
             {
+                activity?.SetStatus(
+                    ActivityStatusCode.Error,
+                    $"http_{(int)response.StatusCode}");
                 return new SpeechRecognitionResult(
                     string.Empty,
                     true,
@@ -67,10 +84,25 @@ public sealed class DeepgramSpeechToTextProvider(
             await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
             using var document = await JsonDocument.ParseAsync(responseStream, cancellationToken: cancellationToken);
 
-            return DeepgramTranscriptParser.ParsePreRecordedResult(document.RootElement.GetRawText());
+            var result = DeepgramTranscriptParser.ParsePreRecordedResult(
+                document.RootElement.GetRawText());
+
+            outcome = result.Status == SpeechRecognitionStatus.Completed
+                ? "success"
+                : "error";
+
+            activity?.SetStatus(
+                outcome == "success"
+                    ? ActivityStatusCode.Ok
+                    : ActivityStatusCode.Error,
+                outcome == "success" ? null : "invalid_provider_response");
+
+            return result;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            outcome = "cancelled";
+            activity?.SetStatus(ActivityStatusCode.Error, "cancelled");
             return new SpeechRecognitionResult(
                 string.Empty,
                 true,
@@ -80,6 +112,7 @@ public sealed class DeepgramSpeechToTextProvider(
         }
         catch (HttpRequestException)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "provider_unavailable");
             return new SpeechRecognitionResult(
                 string.Empty,
                 true,
@@ -89,12 +122,30 @@ public sealed class DeepgramSpeechToTextProvider(
         }
         catch (JsonException)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, "invalid_provider_response");
             return new SpeechRecognitionResult(
                 string.Empty,
                 true,
                 null,
                 SpeechRecognitionStatus.Failed,
                 new SpeechError("invalid_provider_response", "The speech-to-text provider returned an invalid response."));
+        }
+        }
+        catch (Exception exception)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
+            throw;
+        }
+        finally
+        {
+            stopwatch.Stop();
+            ConversaTelemetry.SttRequests.Add(
+                1,
+                ConversaTelemetry.Tags(ProviderName, "transcribe", outcome));
+            ConversaTelemetry.SttDuration.Record(
+                stopwatch.Elapsed.TotalMilliseconds,
+                ConversaTelemetry.Tags(ProviderName, "transcribe", outcome));
+            activity?.SetTag("conversa.outcome", outcome);
         }
     }
 

@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using Conversa.Application.Abstractions.Identity;
 using Conversa.Application.Abstractions.Persistence;
 using Conversa.Application.Ai;
 using Conversa.Application.Common;
 using Conversa.Application.Conversations;
+using Conversa.Application.Observability;
 using Conversa.Domain.Conversations;
 
 namespace Conversa.Api.Tests.Conversations;
@@ -12,6 +14,16 @@ public sealed class ConversationAssistantFlowTests
     [Fact]
     public async Task ProcessAsync_BuildsContext_CallsAiProvider_AndPersistsResult()
     {
+        var activities = new List<Activity>();
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == ConversaTelemetry.ActivitySourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
+                ActivitySamplingResult.AllData,
+            ActivityStopped = activity => activities.Add(activity)
+        };
+        ActivitySource.AddActivityListener(listener);
+
         var userId = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
         var conversation = Conversation.Create(
@@ -93,6 +105,18 @@ public sealed class ConversationAssistantFlowTests
         Assert.Equal("gemini", persisted.ProviderName);
         Assert.Equal(1, unitOfWork.SaveCalls);
         Assert.True(conversation.UpdatedAt >= now);
+
+        var telemetryActivity = Assert.Single(
+            activities,
+            activity => activity.OperationName == "conversa.assistant.process");
+        Assert.Equal(ActivityStatusCode.Ok, telemetryActivity.Status);
+        Assert.Equal("success", telemetryActivity.GetTagItem("conversa.outcome"));
+        Assert.Equal(AiInputKind.HeardSpeech.ToString(), telemetryActivity.GetTagItem("conversa.input_kind"));
+        Assert.DoesNotContain(
+            telemetryActivity.TagObjects,
+            tag => tag.Key.Contains("text", StringComparison.OrdinalIgnoreCase)
+                || tag.Key.Contains("instruction", StringComparison.OrdinalIgnoreCase)
+                || tag.Key.Contains("conversation", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

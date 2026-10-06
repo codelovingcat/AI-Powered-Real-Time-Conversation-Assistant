@@ -46,6 +46,12 @@ Authenticated partitions use validated JWT identity claims, not client-supplied 
 
 At startup, non-development/non-testing environments reject missing required values, weak authentication signing keys, embedded credentials in provider URLs, insecure CORS origins and known local database defaults. Validation errors name configuration keys only; secret values are never included.
 
+## OpenTelemetry
+
+P26 adds optional OpenTelemetry tracing and metrics. When enabled, HTTP requests are instrumented automatically and custom telemetry covers assistant, AI, STT and audio WebSocket operations. Export is OTLP-based and can be disabled or redirected through `Observability__Enabled` and `Observability__OtlpEndpoint`.
+
+Custom telemetry is deliberately free of prompts, transcripts, tokens, API keys, database credentials and conversation identifiers. Use low-cardinality operational tags for dashboards and alerting.
+
 ## Container deployment
 
 container.yml builds and publishes the API image to GitHub Container Registry after the main branch build and test suite passes. The immutable SHA-tagged image can be consumed by a deployment platform.

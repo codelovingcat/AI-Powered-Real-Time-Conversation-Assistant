@@ -301,9 +301,18 @@ ASP.NET Core maps `__` to configuration sections. See `.env.example`.
 | `Authentication__Audience` | Yes outside Development/Testing | JWT audience |
 | `Authentication__SigningKey` | Yes outside Development/Testing | Base64 signing secret, at least 32 bytes |
 | `Cors__AllowedOrigins` | Yes outside Development/Testing | Exact HTTPS browser origins, comma-separated |
+| `Observability__Enabled` | No | Enables OpenTelemetry export; defaults to `false` |
+| `Observability__ServiceName` | When observability is enabled | OTLP resource service name |
+| `Observability__OtlpEndpoint` | No | OTLP collector endpoint; HTTPS required outside Development/Testing when set |
 
 
 `appsettings.json` contains only non-secret defaults. `appsettings.Development.json` is intentionally empty so local credentials cannot live in source control. Local secrets belong in `.env`/user-secrets or environment variables. Production must provide all required settings and must not run as Development.
+
+### OpenTelemetry
+
+Conversa uses OpenTelemetry for HTTP request tracing/metrics and custom AI, speech-to-text, and audio WebSocket telemetry. Set `Observability__Enabled=true` and `Observability__OtlpEndpoint` to an OTLP collector endpoint to export telemetry. The same endpoint is used for traces and metrics. Telemetry tags contain only low-cardinality operational metadata such as provider, operation and outcome; prompts, transcripts, tokens, API keys, credentials and conversation identifiers are not added to custom telemetry.
+
+The application also enables HttpClient instrumentation when observability is enabled, so outbound provider calls can be correlated with the incoming request trace without recording request or response bodies.
 
 ### GitHub Actions Gemini secret
 

@@ -200,3 +200,19 @@ When the limit is exceeded, the API returns HTTP 429 with a `Retry-After` header
 For local development and isolated unit tests, the API uses an in-memory store. Production and staging require `RateLimiting__RedisConnectionString`.
 
 The Render production Blueprint provisions the shared Valkey instance in Frankfurt and injects its connection string into the API service.
+
+
+## OpenTelemetry observability
+
+P26 adds configurable OpenTelemetry tracing and metrics.
+
+- ASP.NET Core HTTP requests produce automatic traces and metrics.
+- Outbound HttpClient calls are traced when observability is enabled, including Gemini and Deepgram provider calls.
+- Custom AI metrics record request count and duration by provider, operation and outcome.
+- Custom STT metrics record request count and duration by provider, operation and outcome.
+- Audio WebSocket metrics record active connections, connection duration and failures.
+- Custom Activities provide provider-level spans for assistant, AI, STT and WebSocket operations.
+
+Observability is disabled by default in committed configuration. Enable it with `Observability__Enabled=true` and direct the OTLP exporter with `Observability__OtlpEndpoint`. Outside Development and Testing, configured OTLP endpoints must use HTTPS and cannot contain embedded credentials.
+
+Telemetry intentionally excludes prompts, transcripts, access tokens, API keys, database credentials and conversation identifiers. Correlation is provided by the standard W3C trace context and the trace ID already returned by the API error model.
