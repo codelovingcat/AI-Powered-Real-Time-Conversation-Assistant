@@ -26,7 +26,7 @@ public static class PaginationCursor
         try
         {
             var normalized = value.Replace('-', '+').Replace('_', '/');
-            normalized += normalized.Length % 4 switch
+            normalized += (normalized.Length % 4) switch
             {
                 0 => string.Empty,
                 2 => "==",
