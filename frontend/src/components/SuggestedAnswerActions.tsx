@@ -13,6 +13,8 @@ export function SuggestedAnswerActions({
   isRegenerating = false
 }: SuggestedAnswerActionsProps) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
+  const [regenerationState, setRegenerationState] =
+    useState<"idle" | "success" | "error">("idle");
 
   async function handleCopy() {
     try {
@@ -20,6 +22,21 @@ export function SuggestedAnswerActions({
       setCopyState("copied");
     } catch {
       setCopyState("error");
+    }
+  }
+
+  async function handleRegenerate() {
+    if (!onRegenerate) {
+      return;
+    }
+
+    setRegenerationState("idle");
+
+    try {
+      await onRegenerate();
+      setRegenerationState("success");
+    } catch {
+      setRegenerationState("error");
     }
   }
 
@@ -38,7 +55,7 @@ export function SuggestedAnswerActions({
         <button
           className="text-button suggested-answer-action"
           type="button"
-          onClick={() => void onRegenerate()}
+          onClick={() => void handleRegenerate()}
           disabled={isRegenerating}
           aria-label="Regenerate suggested English reply"
         >
@@ -51,7 +68,11 @@ export function SuggestedAnswerActions({
           ? "Copied."
           : copyState === "error"
             ? "Copy failed. Please try again."
-            : ""}
+            : regenerationState === "success"
+              ? "Regenerated."
+              : regenerationState === "error"
+                ? "Regeneration failed."
+                : ""}
       </span>
     </div>
   );
