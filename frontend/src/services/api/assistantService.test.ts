@@ -66,6 +66,6 @@ describe("assistantService", () => {
   it("maps AI rate limits to a user-facing retry message", () => {
     expect(
       getAssistantErrorMessage(new ApiError("Too many requests.", 429, "rate_limit", 9))
-    ).toContain("Too many requests");
+    ).toBe("AI rate limit reached. Try again in 9 seconds.");
   });
 });
