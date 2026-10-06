@@ -133,6 +133,7 @@ export function MessageHistory({
       ]);
     } catch (regenerateError: unknown) {
       setError(getAssistantErrorMessage(regenerateError));
+      throw regenerateError;
     } finally {
       setRegeneratingMessageId(null);
     }
