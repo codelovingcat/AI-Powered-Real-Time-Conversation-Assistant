@@ -48,9 +48,9 @@ return {1, ttl}
             IncrementScript,
             [new RedisKey(key)],
             [
-                new RedisValue(permitCount),
-                new RedisValue(Math.Max(1, (long)window.TotalMilliseconds)),
-                new RedisValue(permitLimit)
+                (RedisValue)permitCount,
+                (RedisValue)Math.Max(1, (long)window.TotalMilliseconds),
+                (RedisValue)permitLimit
             ]);
 
         cancellationToken.ThrowIfCancellationRequested();
