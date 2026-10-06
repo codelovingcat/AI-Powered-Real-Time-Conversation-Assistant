@@ -159,7 +159,7 @@ public sealed class ConversationService(
         _ = await RequireAsync(conversationId, cancellationToken);
 
         var bounded = limit <= 0 ? DefaultPageSize : Math.Min(limit, MaxPageSize);
-        var decoded = cursor is null
+        (DateTimeOffset Timestamp, Guid Id)? decoded = cursor is null
             ? null
             : PaginationCursor.Decode(cursor);
 
