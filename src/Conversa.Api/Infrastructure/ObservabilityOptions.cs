@@ -12,6 +12,9 @@ public sealed class ObservabilityOptions
 
     public void Validate(bool requireSecureEndpoint)
     {
+        if (!Enabled)
+            return;
+
         if (string.IsNullOrWhiteSpace(ServiceName))
         {
             throw new InvalidOperationException(
