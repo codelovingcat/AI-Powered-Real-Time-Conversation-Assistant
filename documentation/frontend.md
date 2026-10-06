@@ -18,22 +18,22 @@ Frontend authenticated session için ortak bir auth context ve session service k
 
 Akış:
 
-**Access token → memory-only token store → `GET /api/auth/session` → authenticated UI**
+**Externally issued access token → `POST /api/auth/session` → short-lived in-memory token + HttpOnly session cookie → authenticated UI**
 
-Backend'deki `/api/auth/session` endpoint'i mevcut Bearer token'ın geçerli bir JWT olarak doğrulanmasını ve geçerli bir user identifier taşımasını kontrol ediyor.
-
-Şu an repository bir identity provider veya kullanıcı/parola login sistemi üretmiyor. Frontend bu nedenle yapılandırılmış dış identity sisteminden alınmış access token'ı alıp backend'e doğrulatıyor. Bu ayrım bilinçli: sahte veya sabit kullanıcı hesabı oluşturmak production authentication yerine geçmez.
+Repository hâlâ kullanıcı/parola veya identity-provider credential issuance yapmıyor. Dış identity sisteminin verdiği ilk access token yalnızca oturumu başlatmak için kullanılıyor.
 
 Session davranışı:
 
-- Access token sadece JavaScript belleğinde tutuluyor.
+- Conversa access token sadece JavaScript belleğinde tutuluyor.
+- Persistent session `HttpOnly` cookie ile tutuluyor; JavaScript cookie değerini okuyamıyor.
 - `localStorage` veya `sessionStorage` kullanılmıyor.
-- Sign out token'ı bellekten temizliyor.
-- API'den HTTP 401 geldiğinde token temizleniyor ve UI tekrar sign-in ekranına dönüyor.
-- Sayfa yenilendiğinde memory-only token kaybolduğu için session otomatik olarak geri yüklenmiyor.
+- Sayfa yenilendiğinde `POST /api/auth/refresh` ile session cookie doğrulanıp yeni access token alınıyor.
+- Protected API isteği HTTP 401 dönerse client tek bir refresh denemesi yapıp isteği bir kez tekrar ediyor.
+- Refresh başarısızsa access token temizleniyor ve UI sign-in ekranına dönüyor.
+- Sign out hem sunucu session cookie'sini temizliyor hem de in-memory access token'ı siliyor.
 - Token değerleri loglanmıyor veya frontend environment değişkenlerine konulmuyor.
 
-Bu yapı ileride gerçek identity provider/refresh-cookie akışına geçerken frontend conversation kodunun token yönetiminden ayrışmasını sağlıyor.
+Access token kısa ömürlüdür; persistent session daha uzun ömürlüdür. Bu ayrım reload rahatlığını sağlarken uzun ömürlü credential'ı browser JavaScript storage'ından uzak tutar.
 
 ## 3. Conversation merkezli bir UI planladık
 
