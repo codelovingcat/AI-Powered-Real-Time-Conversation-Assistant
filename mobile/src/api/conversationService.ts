@@ -25,15 +25,33 @@ function isConversationSummary(value: unknown): value is ConversationSummary {
   );
 }
 
-export async function listConversations(): Promise<ConversationSummary[]> {
-  const response = await apiGet("/api/conversations");
+export interface ConversationPage {
+  items: ConversationSummary[];
+  nextCursor: string | null;
+}
+
+export async function listConversations(): Promise<ConversationPage> {
+  const response = await apiGet("/api/conversations?limit=50");
   const payload: unknown = await response.json();
 
-  if (!Array.isArray(payload) || !payload.every(isConversationSummary)) {
+  if (typeof payload !== "object" || payload === null) {
     throw new Error("The conversation list response is invalid.");
   }
 
-  return payload;
+  const candidate = payload as Record<string, unknown>;
+
+  if (
+    !Array.isArray(candidate.items) ||
+    !candidate.items.every(isConversationSummary) ||
+    (candidate.nextCursor !== null && typeof candidate.nextCursor !== "string")
+  ) {
+    throw new Error("The conversation list response is invalid.");
+  }
+
+  return {
+    items: candidate.items,
+    nextCursor: candidate.nextCursor
+  };
 }
 
 export async function createConversation(
