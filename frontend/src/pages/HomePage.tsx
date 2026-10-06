@@ -185,6 +185,7 @@ export function HomePage() {
               liveTranscript={liveTranscript}
               liveConnectionState={liveConnectionState}
               latestAiResult={latestAiResult}
+              onAiResultRegenerated={setLatestAiResult}
               onHistorySynchronized={handleHistorySynchronized}
             />
           </div>

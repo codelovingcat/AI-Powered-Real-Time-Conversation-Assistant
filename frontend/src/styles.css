@@ -1588,3 +1588,34 @@ h1 {
     width: 100%;
   }
 }
+
+
+.suggested-answer-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-top: 13px;
+}
+
+.suggested-answer-action {
+  min-height: 32px;
+}
+
+.suggested-answer-feedback {
+  min-width: 110px;
+  color: #91d4ad;
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 560px) {
+  .suggested-answer-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .suggested-answer-feedback {
+    min-width: 0;
+  }
+}

@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { AiResultCard } from "./AiResultCard";
+import { SuggestedAnswerActions } from "./SuggestedAnswerActions";
+import {
+  getAssistantErrorMessage,
+  processAssistantInput
+} from "../services/api/assistantService";
+import { getRegenerationInputKind } from "../services/api/regeneration";
 import {
   getLiveFinalText,
   shouldRenderLivePartial,
@@ -19,6 +25,7 @@ interface MessageHistoryProps {
   liveTranscript?: TranscriptSnapshot;
   liveConnectionState?: LiveConnectionState;
   latestAiResult?: ConversationMessage | null;
+  onAiResultRegenerated?: (message: ConversationMessage) => void;
   onHistorySynchronized?: () => void;
 }
 
@@ -28,12 +35,14 @@ export function MessageHistory({
   liveTranscript,
   liveConnectionState = "idle",
   latestAiResult = null,
+  onAiResultRegenerated,
   onHistorySynchronized
 }: MessageHistoryProps) {
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const streamRef = useRef<HTMLDivElement | null>(null);
@@ -92,6 +101,45 @@ export function MessageHistory({
       endRef.current?.scrollIntoView({ block: "nearest" });
     }
   }, [isLoading]);
+
+  async function handleRegenerate(message: ConversationMessage) {
+    if (!message.suggestedAnswer || regeneratingMessageId !== null) {
+      return;
+    }
+
+    const inputKind = getRegenerationInputKind(message.role);
+    const isLiveResult = latestAiResult?.id === message.id;
+
+    setRegeneratingMessageId(message.id);
+    setError(null);
+
+    try {
+      const regenerated = await processAssistantInput(
+        message.conversationId,
+        inputKind,
+        message.originalText
+      );
+
+      if (isLiveResult) {
+        onAiResultRegenerated?.(regenerated);
+        return;
+      }
+
+      setMessages((current) => [
+        ...current,
+        ...(
+          current.some((item) => item.id === regenerated.id)
+            ? []
+            : [regenerated]
+        )
+      ]);
+    } catch (regenerateError: unknown) {
+      setError(getAssistantErrorMessage(regenerateError));
+      throw regenerateError;
+    } finally {
+      setRegeneratingMessageId(null);
+    }
+  }
 
   async function loadOlderMessages() {
     if (!nextCursor || isLoadingOlder || isLoading) {
@@ -189,7 +237,16 @@ export function MessageHistory({
               }
 
               return message.role === "speaker" || message.role === "user" ? (
-                <AiResultCard key={message.id} message={message} />
+                <AiResultCard
+                  key={message.id}
+                  message={message}
+                  onRegenerate={
+                    message.suggestedAnswer
+                      ? () => handleRegenerate(message)
+                      : undefined
+                  }
+                  isRegenerating={regeneratingMessageId === message.id}
+                />
               ) : (
                 <MessageBubble key={message.id} message={message} />
               );
@@ -210,7 +267,11 @@ export function MessageHistory({
             )}
 
             {latestAiResult && (
-              <LiveAiAssistanceCard message={latestAiResult} />
+              <LiveAiAssistanceCard
+                message={latestAiResult}
+                onRegenerate={() => handleRegenerate(latestAiResult)}
+                isRegenerating={regeneratingMessageId === latestAiResult.id}
+              />
             )}
 
             <div ref={endRef} aria-hidden="true" />
@@ -288,9 +349,13 @@ function LiveTranscriptTurn({
 }
 
 function LiveAiAssistanceCard({
-  message
+  message,
+  onRegenerate,
+  isRegenerating = false
 }: {
   message: ConversationMessage;
+  onRegenerate?: () => Promise<void>;
+  isRegenerating?: boolean;
 }) {
   return (
     <article className="timeline-ai-assistance">
@@ -320,6 +385,11 @@ function LiveAiAssistanceCard({
           {message.suggestedAnswerTranslation && (
             <small>{message.suggestedAnswerTranslation}</small>
           )}
+          <SuggestedAnswerActions
+            suggestedAnswer={message.suggestedAnswer}
+            onRegenerate={onRegenerate}
+            isRegenerating={isRegenerating}
+          />
         </section>
       )}
 
