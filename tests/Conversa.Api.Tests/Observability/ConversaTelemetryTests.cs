@@ -31,8 +31,8 @@ public sealed class ConversaTelemetryTests
         var tags = ConversaTelemetry.Tags("gemini", "process", "success");
 
         Assert.Equal(3, tags.Count);
-        Assert.Equal("gemini", tags.GetTagValue("provider"));
-        Assert.Equal("process", tags.GetTagValue("operation"));
-        Assert.Equal("success", tags.GetTagValue("outcome"));
+        Assert.Contains(tags, tag => tag.Key == "provider" && Equals(tag.Value, "gemini"));
+        Assert.Contains(tags, tag => tag.Key == "operation" && Equals(tag.Value, "process"));
+        Assert.Contains(tags, tag => tag.Key == "outcome" && Equals(tag.Value, "success"));
     }
 }
