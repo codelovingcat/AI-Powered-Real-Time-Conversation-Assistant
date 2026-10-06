@@ -1,3 +1,4 @@
+using System.Text;
 using Conversa.Api.Infrastructure;
 using Microsoft.Extensions.Configuration;
 
