@@ -129,7 +129,10 @@ describe("authSession", () => {
       new Error("network failure")
     );
 
-    await expect(signOut()).rejects.toThrow("network failure");
+    await expect(signOut()).rejects.toMatchObject({
+      status: 0,
+      kind: "network"
+    });
     expect(getAccessToken()).toBeNull();
   });
 });
