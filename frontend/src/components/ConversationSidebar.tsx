@@ -251,7 +251,7 @@ export function ConversationSidebar({
           onChange={(event) => setSearchDraft(event.target.value)}
           maxLength={100}
           placeholder="Title or language"
-          disabled={isLoading || isReloading}
+          disabled={isLoading || isReloading || isLoadingMore}
         />
 
         <div className="conversation-search-dates">
@@ -261,7 +261,7 @@ export function ConversationSidebar({
             type="date"
             value={updatedFromDraft}
             onChange={(event) => setUpdatedFromDraft(event.target.value)}
-            disabled={isLoading || isReloading}
+            disabled={isLoading || isReloading || isLoadingMore}
           />
 
           <label htmlFor="conversation-updated-to">Updated to</label>
@@ -286,7 +286,12 @@ export function ConversationSidebar({
             className="text-button"
             type="button"
             onClick={handleClearSearch}
-            disabled={isLoading || isReloading || !hasActiveFilters && !searchDraft && !updatedFromDraft && !updatedToDraft}
+            disabled={
+              isLoading ||
+              isReloading ||
+              isLoadingMore ||
+              (!hasActiveFilters && !searchDraft && !updatedFromDraft && !updatedToDraft)
+            }
           >
             Clear
           </button>
@@ -302,7 +307,7 @@ export function ConversationSidebar({
           className="text-button"
           type="button"
           onClick={() => void loadConversations(filters, true)}
-          disabled={isReloading || isLoading}
+          disabled={isReloading || isLoading || isLoadingMore}
         >
           {isReloading ? "Refreshing…" : "Refresh"}
         </button>
