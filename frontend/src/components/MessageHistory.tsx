@@ -482,62 +482,6 @@ function LiveAiAssistanceCard({
   );
 }
 
-function LiveAiAssistanceCard({
-  message,
-  onRegenerate,
-  isRegenerating = false
-}: {
-  message: ConversationMessage;
-  onRegenerate?: () => Promise<void>;
-  isRegenerating?: boolean;
-}) {
-  return (
-    <article className="timeline-ai-assistance">
-      <header>
-        <span>AI ASSISTANCE</span>
-        <time dateTime={message.createdAt}>{formatMessageTime(message.createdAt)}</time>
-      </header>
-
-      {message.translation && (
-        <section>
-          <span>Turkish translation</span>
-          <p>{message.translation}</p>
-        </section>
-      )}
-
-      {message.explanation && (
-        <section>
-          <span>Explanation</span>
-          <p>{message.explanation}</p>
-        </section>
-      )}
-
-      {message.suggestedAnswer && (
-        <section>
-          <span>Suggested answer</span>
-          <p>{message.suggestedAnswer}</p>
-          {message.suggestedAnswerTranslation && (
-            <small>{message.suggestedAnswerTranslation}</small>
-          )}
-          <SuggestedAnswerActions
-            suggestedAnswer={message.suggestedAnswer}
-            onRegenerate={onRegenerate}
-            isRegenerating={isRegenerating}
-          />
-        </section>
-      )}
-
-      {message.role === "speaker" && message.questionDetected && (
-        <div className="timeline-ai-question">
-          {message.questionDirectedAtUser
-            ? "Question detected and directed at you."
-            : "Question detected."}
-        </div>
-      )}
-    </article>
-  );
-}
-
 function MessageBubble({ message }: { message: ConversationMessage }) {
   const roleLabel = getRoleLabel(message.role);
 
