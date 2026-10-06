@@ -1,4 +1,4 @@
-using System.IdentityModel.Tokens.Jwt;
+using System.IdentityModel.Tokens.Jwt;\nusing System.Security.Claims;
 using Conversa.Api.Identity;
 using Microsoft.IdentityModel.Tokens;
 
