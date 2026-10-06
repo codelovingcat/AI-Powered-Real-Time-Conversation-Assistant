@@ -16,9 +16,12 @@ export function MessageHistory({
   refreshToken = 0
 }: MessageHistoryProps) {
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
+  const streamRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -28,9 +31,10 @@ export function MessageHistory({
     setError(null);
 
     void listMessages(conversationId, controller.signal)
-      .then((items) => {
+      .then((page) => {
         if (!controller.signal.aborted) {
-          setMessages(items);
+          setMessages(page.items);
+          setNextCursor(page.nextCursor);
         }
       })
       .catch((loadError: unknown) => {
@@ -50,6 +54,38 @@ export function MessageHistory({
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "nearest" });
   }, [messages]);
+
+  async function loadOlderMessages() {
+    if (!nextCursor || isLoadingOlder || isLoading) {
+      return;
+    }
+
+    const stream = streamRef.current;
+    const previousHeight = stream?.scrollHeight ?? 0;
+    const previousTop = stream?.scrollTop ?? 0;
+
+    setIsLoadingOlder(true);
+    setError(null);
+
+    try {
+      const page = await listMessages(conversationId, nextCursor);
+      setMessages((current) => [...page.items, ...current]);
+      setNextCursor(page.nextCursor);
+
+      requestAnimationFrame(() => {
+        if (!stream) {
+          return;
+        }
+
+        stream.scrollTop =
+          stream.scrollHeight - previousHeight + previousTop;
+      });
+    } catch (loadError: unknown) {
+      setError(getMessageErrorMessage(loadError));
+    } finally {
+      setIsLoadingOlder(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -94,7 +130,7 @@ export function MessageHistory({
           </span>
         </div>
       ) : (
-        <div className="message-stream" aria-live="polite">
+        <div className="message-stream" ref={streamRef} aria-live="polite">
           {messages.map((message) =>
             message.role === "speaker" || message.role === "user" ? (
               <AiResultCard key={message.id} message={message} />
@@ -103,7 +139,8 @@ export function MessageHistory({
             )
           )}
           <div ref={endRef} aria-hidden="true" />
-        </div>
+          </div>
+        </>
       )}
     </section>
   );
