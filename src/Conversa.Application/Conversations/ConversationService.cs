@@ -13,18 +13,43 @@ public sealed class ConversationService(
     TimeProvider timeProvider,
     ConversationInputValidator validator) : IConversationService
 {
-    public const int DefaultListSize = 50;
-    public const int MaxListSize = 200;
-    public const int MaxMessages = 1000;
+    public const int DefaultPageSize = 50;
+    public const int MaxPageSize = 100;
     private const string InstructionUpdatedNote = "Instruction updated.";
     private const string DefaultSourceLanguage = "en";
     private const string DefaultTargetLanguage = "tr";
 
-    public async Task<IReadOnlyList<ConversationSummaryDto>> ListAsync(int take, CancellationToken cancellationToken)
+    public async Task<CursorPageDto<ConversationSummaryDto>> ListAsync(
+        int limit,
+        string? cursor,
+        CancellationToken cancellationToken)
     {
-        var bounded = take <= 0 ? DefaultListSize : Math.Min(take, MaxListSize);
-        var items = await conversations.ListByUserAsync(currentUser.UserId, bounded, cancellationToken);
-        return items.Select(item => item.ToSummary()).ToArray();
+        var bounded = limit <= 0 ? DefaultPageSize : Math.Min(limit, MaxPageSize);
+        var decoded = cursor is null
+            ? null
+            : PaginationCursor.Decode(cursor);
+
+        var items = await conversations.ListByUserPageAsync(
+            currentUser.UserId,
+            bounded + 1,
+            decoded?.Timestamp,
+            decoded?.Id,
+            cancellationToken);
+
+        var hasMore = items.Count > bounded;
+        var pageItems = hasMore
+            ? items.Take(bounded).ToArray()
+            : items.ToArray();
+
+        var nextCursor = hasMore && pageItems.Length > 0
+            ? PaginationCursor.Encode(
+                pageItems[^1].UpdatedAt,
+                pageItems[^1].Id)
+            : null;
+
+        return new CursorPageDto<ConversationSummaryDto>(
+            pageItems.Select(item => item.ToSummary()).ToArray(),
+            nextCursor);
     }
 
     public async Task<ConversationSummaryDto> GetAsync(Guid conversationId, CancellationToken cancellationToken)
@@ -125,13 +150,42 @@ public sealed class ConversationService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<MessageDto>> ListMessagesAsync(
+    public async Task<CursorPageDto<MessageDto>> ListMessagesAsync(
         Guid conversationId,
+        int limit,
+        string? cursor,
         CancellationToken cancellationToken)
     {
         _ = await RequireAsync(conversationId, cancellationToken);
-        var items = await messages.ListByConversationAsync(conversationId, MaxMessages, cancellationToken);
-        return items.Select(item => item.ToDto()).ToArray();
+
+        var bounded = limit <= 0 ? DefaultPageSize : Math.Min(limit, MaxPageSize);
+        var decoded = cursor is null
+            ? null
+            : PaginationCursor.Decode(cursor);
+
+        var items = await messages.ListByConversationPageAsync(
+            conversationId,
+            bounded + 1,
+            decoded?.Timestamp,
+            decoded?.Id,
+            cancellationToken);
+
+        var hasMore = items.Count > bounded;
+        var pageItems = hasMore
+            ? items.Take(bounded).ToArray()
+            : items.ToArray();
+
+        Array.Reverse(pageItems);
+
+        var nextCursor = hasMore && pageItems.Length > 0
+            ? PaginationCursor.Encode(
+                pageItems[0].CreatedAt,
+                pageItems[0].Id)
+            : null;
+
+        return new CursorPageDto<MessageDto>(
+            pageItems.Select(item => item.ToDto()).ToArray(),
+            nextCursor);
     }
 
     private static ValidationException ToValidation(ArgumentException exception)
