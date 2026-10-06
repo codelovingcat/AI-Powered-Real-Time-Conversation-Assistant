@@ -16,8 +16,10 @@ public sealed class JwtAccessTokenFactory(
 
     public AccessTokenResult Create(Guid userId)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(issuer);
-        ArgumentException.ThrowIfNullOrWhiteSpace(audience);
+        if (userId == Guid.Empty)
+        {
+            throw new ArgumentException("A valid user id is required.", nameof(userId));
+        }
 
         var now = timeProvider.GetUtcNow();
         var expiresAt = now.Add(lifetime);
