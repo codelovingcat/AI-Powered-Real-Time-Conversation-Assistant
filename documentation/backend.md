@@ -56,9 +56,24 @@ Conversation endpoint'lerini authenticated user context üzerinden çalışacak 
 **Neden?**
 Bir kullanıcının başka bir kullanıcının conversation veya mesajlarına erişebilmesini istemiyoruz. Kullanıcı kimliği request'ten gelen sıradan bir değer olmaktan çıkıp güvenlik sınırının parçası olmalı.
 
-JWT Bearer authentication composition root'ta doğrulanıyor; issuer, audience, signing key ve token lifetime kontrol ediliyor. Conversation ve WebSocket erişimi authenticated user context üzerinden çalışıyor. Bu aşamada identity provider ve token issuance repository'nin sorumluluğu değil.
+JWT Bearer authentication composition root'ta doğrulanıyor; issuer, audience, signing key ve token lifetime kontrol ediliyor. Conversation ve WebSocket erişimi authenticated user context üzerinden çalışıyor. P22 ile web için kısa ömürlü access JWT üretimi ve HttpOnly persistent session cookie eklendi; ilk kullanıcı credential'ı yine repository dışında çalışan identity system tarafından sağlanıyor.
 
-## 7. Hassas exception detaylarını loglamadık — Issue #4
+## 7. Persistent web session ekledik — P22
+
+**Ne yaptık?**
+- Dış identity sisteminden gelen ilk Bearer token'ı doğrulayıp Conversa için kısa ömürlü access JWT üreten session endpoint'i ekledik.
+- Uzun ömürlü session bilgisini `HttpOnly` cookie olarak ASP.NET Core Cookie Authentication ticket'ında tuttuk.
+- Browser reload sonrası cookie üzerinden access token yenileyen refresh endpoint'i ekledik.
+- Logout ile persistent session cookie'sini invalidate ettik.
+- Cookie tabanlı POST endpoint'lerinde Origin kontrolü ve frontend için credentials-enabled CORS sınırı ekledik.
+- Access token JavaScript belleğinde kalmaya devam ediyor; browser storage kullanılmıyor.
+
+**Neden?**
+Access token'ı localStorage'a taşımadan reload sonrası oturumu korumak istedik. Persistent credential'ın JavaScript tarafından okunamaması XSS etkisini azaltan önemli bir sınır oluşturuyor. Session süresi ve access token süresi configuration üzerinden kontrol ediliyor.
+
+Production hosting'de persistent session cookie'lerinin uygulama yeniden başlatmaları/instance değişimleri arasında geçerli kalması için ASP.NET Core Data Protection key ring'inin kalıcı ve güvenli biçimde saklanması gerekir.
+
+## 8. Hassas exception detaylarını loglamadık — Issue #4
 
 **Ne yaptık?**
 API exception handler normal loglarda exception message/stack trace gibi hassas ayrıntıları yazmıyor; response tarafında da kullanıcıya güvenli, genel hata mesajları dönüyor.
@@ -162,6 +177,6 @@ Buradaki düşünce "kullanıcıyı engellemek" değil; **kaynak tüketimini kon
 
 Bu yaklaşımın temel fikri şu: **"Sisteme güveniyoruz" yerine, sistemin her sınırında kötü veya hatalı girdiyi kontrol ediyoruz.**
 
-## 16. Şu anki durum
+## 17. Şu anki durum
 
-Backend foundation ve security hardening'in önemli kısmı tamamlandı. Ancak identity provider/token issuance, deployment/multi-instance yapı ve web/mobile ürün kapsamının tamamı henüz tamamlanmış değil.
+Backend foundation ve security hardening'in önemli kısmı tamamlandı; web persistent session akışı da P22 kapsamında eklendi. Ancak identity provider/token issuance, deployment/multi-instance yapı ve web/mobile ürün kapsamının tamamı henüz tamamlanmış değil.
