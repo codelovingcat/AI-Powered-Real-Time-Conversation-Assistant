@@ -197,6 +197,14 @@ public sealed class LiveConversationMvpIntegrationTests
             CancellationToken cancellationToken)
             => Task.FromResult<IReadOnlyList<Conversation>>([conversation]);
 
+        public Task<IReadOnlyList<Conversation>> ListByUserPageAsync(
+            Guid userId,
+            int take,
+            DateTimeOffset? beforeUpdatedAt,
+            Guid? beforeId,
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
         public Task AddAsync(Conversation conversation, CancellationToken cancellationToken)
             => throw new NotSupportedException();
 
@@ -220,6 +228,14 @@ public sealed class LiveConversationMvpIntegrationTests
                     .OrderBy(message => message.CreatedAt)
                     .Take(take)
                     .ToArray());
+
+        public Task<IReadOnlyList<Message>> ListByConversationPageAsync(
+            Guid conversationId,
+            int take,
+            DateTimeOffset? beforeCreatedAt,
+            Guid? beforeId,
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
 
         public Task<IReadOnlyList<Message>> ListRecentAsync(
             Guid conversationId,

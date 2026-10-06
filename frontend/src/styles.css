@@ -1358,3 +1358,14 @@ h1 {
     flex: 1;
   }
 }
+
+
+.message-history-load-more {
+  align-self: flex-start;
+  margin-top: 12px;
+}
+
+.conversation-list > .text-button {
+  width: 100%;
+  margin-top: 8px;
+}

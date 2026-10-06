@@ -16,21 +16,26 @@ export function MessageHistory({
   refreshToken = 0
 }: MessageHistoryProps) {
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
+  const streamRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
 
     setMessages([]);
+    setNextCursor(null);
     setIsLoading(true);
     setError(null);
 
-    void listMessages(conversationId, controller.signal)
-      .then((items) => {
+    void listMessages(conversationId, undefined, controller.signal)
+      .then((page) => {
         if (!controller.signal.aborted) {
-          setMessages(items);
+          setMessages(page.items);
+          setNextCursor(page.nextCursor);
         }
       })
       .catch((loadError: unknown) => {
@@ -48,8 +53,42 @@ export function MessageHistory({
   }, [conversationId, refreshToken]);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "nearest" });
-  }, [messages]);
+    if (!isLoading) {
+      endRef.current?.scrollIntoView({ block: "nearest" });
+    }
+  }, [isLoading]);
+
+  async function loadOlderMessages() {
+    if (!nextCursor || isLoadingOlder || isLoading) {
+      return;
+    }
+
+    const stream = streamRef.current;
+    const previousHeight = stream?.scrollHeight ?? 0;
+    const previousTop = stream?.scrollTop ?? 0;
+
+    setIsLoadingOlder(true);
+    setError(null);
+
+    try {
+      const page = await listMessages(conversationId, nextCursor);
+      setMessages((current) => [...page.items, ...current]);
+      setNextCursor(page.nextCursor);
+
+      requestAnimationFrame(() => {
+        if (!stream) {
+          return;
+        }
+
+        stream.scrollTop =
+          stream.scrollHeight - previousHeight + previousTop;
+      });
+    } catch (loadError: unknown) {
+      setError(getMessageErrorMessage(loadError));
+    } finally {
+      setIsLoadingOlder(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -74,7 +113,7 @@ export function MessageHistory({
           <span className="workspace-kicker">MESSAGE HISTORY</span>
           <h3 id="message-history-title">Conversation</h3>
         </div>
-        <span className="message-count" aria-label={`${messages.length} messages`}>
+        <span className="message-count" aria-label={`${messages.length} messages loaded`}>
           {messages.length}
         </span>
       </div>
@@ -94,16 +133,29 @@ export function MessageHistory({
           </span>
         </div>
       ) : (
-        <div className="message-stream" aria-live="polite">
-          {messages.map((message) =>
-            message.role === "speaker" || message.role === "user" ? (
-              <AiResultCard key={message.id} message={message} />
-            ) : (
-              <MessageBubble key={message.id} message={message} />
-            )
+        <>
+          {nextCursor && (
+            <button
+              className="text-button message-history-load-more"
+              type="button"
+              onClick={() => void loadOlderMessages()}
+              disabled={isLoadingOlder}
+            >
+              {isLoadingOlder ? "Loading older messages…" : "Load older messages"}
+            </button>
           )}
-          <div ref={endRef} aria-hidden="true" />
-        </div>
+
+          <div className="message-stream" ref={streamRef} aria-live="polite">
+            {messages.map((message) =>
+              message.role === "speaker" || message.role === "user" ? (
+                <AiResultCard key={message.id} message={message} />
+              ) : (
+                <MessageBubble key={message.id} message={message} />
+              )
+            )}
+            <div ref={endRef} aria-hidden="true" />
+          </div>
+        </>
       )}
     </section>
   );

@@ -15,8 +15,11 @@ public sealed class ConversationsController(
     IConversationAssistant assistant) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> List([FromQuery] int take = ConversationService.DefaultListSize, CancellationToken cancellationToken = default)
-        => Ok(await conversations.ListAsync(take, cancellationToken));
+    public async Task<IActionResult> List(
+        [FromQuery] int limit = ConversationService.DefaultPageSize,
+        [FromQuery] string? cursor = null,
+        CancellationToken cancellationToken = default)
+        => Ok(await conversations.ListAsync(limit, cursor, cancellationToken));
 
     [HttpPost]
     [RequestSizeLimit(ConversationInputValidator.MaxRequestBodyBytes)]
@@ -52,8 +55,12 @@ public sealed class ConversationsController(
     }
 
     [HttpGet("{id:guid}/messages")]
-    public async Task<IActionResult> ListMessages(Guid id, CancellationToken cancellationToken)
-        => Ok(await conversations.ListMessagesAsync(id, cancellationToken));
+    public async Task<IActionResult> ListMessages(
+        Guid id,
+        [FromQuery] int limit = ConversationService.DefaultPageSize,
+        [FromQuery] string? cursor = null,
+        CancellationToken cancellationToken = default)
+        => Ok(await conversations.ListMessagesAsync(id, limit, cursor, cancellationToken));
 
     [HttpPost("{id:guid}/assistant")]
     [EnableRateLimiting("ai")]

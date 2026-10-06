@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   createConversation,
   deleteConversation,
@@ -20,7 +20,9 @@ export function ConversationSidebar({
   onSelect
 }: ConversationSidebarProps) {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -39,8 +41,9 @@ export function ConversationSidebar({
     setError(null);
 
     try {
-      const items = await listConversations();
-      setConversations(items);
+      const page = await listConversations();
+      setConversations(page.items);
+      setNextCursor(page.nextCursor);
     } catch (loadError) {
       setError(getConversationErrorMessage(loadError));
     } finally {
@@ -49,19 +52,30 @@ export function ConversationSidebar({
     }
   }, []);
 
+  async function loadMoreConversations() {
+    if (!nextCursor || isLoadingMore || isLoading || isReloading) {
+      return;
+    }
+
+    setIsLoadingMore(true);
+    setError(null);
+
+    try {
+      const page = await listConversations(nextCursor);
+      setConversations((current) => [...current, ...page.items]);
+      setNextCursor(page.nextCursor);
+    } catch (loadError) {
+      setError(getConversationErrorMessage(loadError));
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }
+
   useEffect(() => {
     void loadConversations();
   }, [loadConversations]);
 
-  const sortedConversations = useMemo(
-    () =>
-      [...conversations].sort(
-        (left, right) =>
-          new Date(right.updatedAt).getTime() -
-          new Date(left.updatedAt).getTime()
-      ),
-    [conversations]
-  );
+  const sortedConversations = conversations;
 
   async function handleCreate() {
     if (!title.trim() || !instruction.trim()) {
@@ -195,7 +209,8 @@ export function ConversationSidebar({
             No conversations yet. Create one to get started.
           </p>
         ) : (
-          sortedConversations.map((conversation) => (
+          <>
+            {sortedConversations.map((conversation) => (
             <div
               className={
                 "conversation-item" +
@@ -230,7 +245,18 @@ export function ConversationSidebar({
                 {deletingId === conversation.id ? "…" : "Delete"}
               </button>
             </div>
-          ))
+            ))}
+            {nextCursor && (
+              <button
+                className="text-button"
+                type="button"
+                onClick={() => void loadMoreConversations()}
+                disabled={isLoadingMore || isReloading}
+              >
+                {isLoadingMore ? "Loading older conversations…" : "Load older conversations"}
+              </button>
+            )}
+          </>
         )}
       </div>
     </aside>

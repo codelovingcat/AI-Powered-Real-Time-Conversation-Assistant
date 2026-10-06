@@ -34,16 +34,34 @@ function isConversationSummary(value: unknown): value is ConversationSummary {
   );
 }
 
-function parseConversationList(value: unknown): ConversationSummary[] {
-  if (!Array.isArray(value)) {
+export interface CursorPage<T> {
+  items: T[];
+  nextCursor: string | null;
+}
+
+function parseConversationPage(value: unknown): CursorPage<ConversationSummary> {
+  if (typeof value !== "object" || value === null) {
     throw new Error("The conversation list response is invalid.");
   }
 
-  if (!value.every(isConversationSummary)) {
+  const candidate = value as Record<string, unknown>;
+
+  if (!Array.isArray(candidate.items)) {
+    throw new Error("The conversation list response is invalid.");
+  }
+
+  if (!candidate.items.every(isConversationSummary)) {
     throw new Error("The conversation list contains invalid data.");
   }
 
-  return value;
+  if (candidate.nextCursor !== null && typeof candidate.nextCursor !== "string") {
+    throw new Error("The conversation list response is invalid.");
+  }
+
+  return {
+    items: candidate.items,
+    nextCursor: candidate.nextCursor
+  };
 }
 
 export interface CreateConversationInput {
@@ -54,10 +72,17 @@ export interface CreateConversationInput {
 }
 
 export async function listConversations(
+  cursor?: string,
   signal?: AbortSignal
-): Promise<ConversationSummary[]> {
-  const response = await apiGet("/api/conversations", signal);
-  return parseConversationList(await response.json());
+): Promise<CursorPage<ConversationSummary>> {
+  const params = new URLSearchParams({ limit: "50" });
+
+  if (cursor) {
+    params.set("cursor", cursor);
+  }
+
+  const response = await apiGet("/api/conversations?" + params.toString(), signal);
+  return parseConversationPage(await response.json());
 }
 
 export async function createConversation(

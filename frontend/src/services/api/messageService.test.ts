@@ -34,7 +34,7 @@ describe("messageService", () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(
-        new Response(JSON.stringify([message]), {
+        new Response(JSON.stringify({ items: [message], nextCursor: null }), {
           status: 200,
           headers: { "Content-Type": "application/json" }
         })
@@ -42,10 +42,13 @@ describe("messageService", () => {
 
     await expect(
       listMessages(message.conversationId)
-    ).resolves.toEqual([message]);
+    ).resolves.toEqual({
+      items: [message],
+      nextCursor: null
+    });
 
     expect(fetchMock.mock.calls[0][0]).toBe(
-      "/api/conversations/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/messages"
+      "/api/conversations/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/messages?limit=50"
     );
 
     const [, init] = fetchMock.mock.calls[0];
@@ -54,11 +57,35 @@ describe("messageService", () => {
     );
   });
 
+  it("passes the cursor to the paginated message endpoint", async () => {
+    setAccessToken("test-token");
+
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(JSON.stringify({ items: [message], nextCursor: "next-cursor" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        })
+      );
+
+    await expect(
+      listMessages(message.conversationId, "cursor-value")
+    ).resolves.toEqual({
+      items: [message],
+      nextCursor: "next-cursor"
+    });
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "/api/conversations/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/messages?limit=50&cursor=cursor-value"
+    );
+  });
+
   it("rejects malformed message history", async () => {
     setAccessToken("test-token");
 
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify([{ id: "missing-fields" }]), {
+      new Response(JSON.stringify({ items: [{ id: "missing-fields" }], nextCursor: null }), {
         status: 200,
         headers: { "Content-Type": "application/json" }
       })

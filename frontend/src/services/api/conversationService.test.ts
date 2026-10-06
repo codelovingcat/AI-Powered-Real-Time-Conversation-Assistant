@@ -30,17 +30,44 @@ describe("conversationService", () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(
-        new Response(JSON.stringify([conversation]), {
+        new Response(JSON.stringify({ items: [conversation], nextCursor: null }), {
           status: 200,
           headers: { "Content-Type": "application/json" }
         })
       );
 
-    await expect(listConversations()).resolves.toEqual([conversation]);
+    await expect(listConversations()).resolves.toEqual({
+      items: [conversation],
+      nextCursor: null
+    });
+
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/conversations?limit=50");
 
     const [, init] = fetchMock.mock.calls[0];
     expect(new Headers(init?.headers).get("Authorization")).toBe(
       "Bearer test-token"
+    );
+  });
+
+  it("passes the cursor to the paginated conversation endpoint", async () => {
+    setAccessToken("test-token");
+
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(JSON.stringify({ items: [conversation], nextCursor: "next-cursor" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        })
+      );
+
+    await expect(listConversations("cursor-value")).resolves.toEqual({
+      items: [conversation],
+      nextCursor: "next-cursor"
+    });
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "/api/conversations?limit=50&cursor=cursor-value"
     );
   });
 
@@ -143,7 +170,7 @@ describe("conversationService", () => {
     setAccessToken("test-token");
 
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify([{ id: "missing-fields" }]), {
+      new Response(JSON.stringify({ items: [{ id: "missing-fields" }], nextCursor: null }), {
         status: 200,
         headers: { "Content-Type": "application/json" }
       })

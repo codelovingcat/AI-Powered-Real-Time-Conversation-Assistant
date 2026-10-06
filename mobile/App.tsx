@@ -39,7 +39,7 @@ export default function App() {
     if (!session) return;
 
     void listConversations()
-      .then(setConversations)
+      .then((page) => setConversations(page.items))
       .catch((reason: unknown) =>
         setError(
           reason instanceof Error

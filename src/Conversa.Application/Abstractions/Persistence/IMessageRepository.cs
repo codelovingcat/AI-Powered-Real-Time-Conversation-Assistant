@@ -9,6 +9,13 @@ public interface IMessageRepository
         int take,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<Message>> ListByConversationPageAsync(
+        Guid conversationId,
+        int take,
+        DateTimeOffset? beforeCreatedAt,
+        Guid? beforeId,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<Message>> ListRecentAsync(
         Guid conversationId,
         int take,
