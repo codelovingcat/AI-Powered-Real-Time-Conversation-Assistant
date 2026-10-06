@@ -39,7 +39,7 @@ public sealed class JwtAccessTokenFactoryTests
             },
             out var validatedToken);
 
-        Assert.Equal(userId.ToString(), principal.FindFirstValue(JwtRegisteredClaimNames.Sub));
+        Assert.Equal(userId.ToString(), principal.FindFirstValue(ClaimTypes.NameIdentifier));
         Assert.Equal(SecurityAlgorithms.HmacSha256, ((JwtSecurityToken)validatedToken).Header.Alg);
         Assert.Equal(
             new DateTimeOffset(2026, 10, 6, 11, 15, 0, TimeSpan.Zero),
