@@ -68,6 +68,9 @@ public sealed class DeepgramSpeechToTextProvider(
 
             if (!response.IsSuccessStatusCode)
             {
+                activity?.SetStatus(
+                    ActivityStatusCode.Error,
+                    $"http_{(int)response.StatusCode}");
                 return new SpeechRecognitionResult(
                     string.Empty,
                     true,
@@ -81,9 +84,20 @@ public sealed class DeepgramSpeechToTextProvider(
             await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
             using var document = await JsonDocument.ParseAsync(responseStream, cancellationToken: cancellationToken);
 
-            outcome = "success";
-            activity?.SetStatus(ActivityStatusCode.Ok);
-            return DeepgramTranscriptParser.ParsePreRecordedResult(document.RootElement.GetRawText());
+            var result = DeepgramTranscriptParser.ParsePreRecordedResult(
+                document.RootElement.GetRawText());
+
+            outcome = result.Status == SpeechRecognitionStatus.Completed
+                ? "success"
+                : "error";
+
+            activity?.SetStatus(
+                outcome == "success"
+                    ? ActivityStatusCode.Ok
+                    : ActivityStatusCode.Error,
+                outcome == "success" ? null : "invalid_provider_response");
+
+            return result;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
