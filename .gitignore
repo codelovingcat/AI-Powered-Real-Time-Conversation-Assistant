@@ -5,13 +5,19 @@ obj/
 *.user
 *.suo
 .DS_Store
+
 .env
 .env.*
 !.env.example
+
 appsettings.*.local.json
 **/secrets.json
+**/*.pem
+**/*.key
+**/*.pfx
+**/*.p12
+
 TestResults/
 *.log
 .nuget/
 packages/
-\n# Local configuration and secret files\nappsettings.local.json\nappsettings.*.local.json\n*.pem\n*.key\n
