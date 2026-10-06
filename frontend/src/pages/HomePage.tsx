@@ -8,6 +8,10 @@ import { InstructionEditor } from "../components/InstructionEditor";
 import { useAuth } from "../auth/AuthContext";
 import type { ConversationSummary } from "../services/api/conversationService";
 import {
+  getAssistantErrorMessage,
+  processAssistantInput
+} from "../services/api/assistantService";
+import {
   checkBackendHealth,
   type BackendHealth
 } from "../services/api/healthService";
