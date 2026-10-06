@@ -1,0 +1,48 @@
+name: Container Validation
+
+on:
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "src/**"
+      - "tests/**"
+      - "*.slnx"
+      - "Directory.Build.props"
+      - "global.json"
+      - ".github/workflows/container-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Build and test production image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.x"
+
+      - name: Restore
+        run: dotnet restore Conversa.slnx
+
+      - name: Build
+        run: dotnet build Conversa.slnx --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test Conversa.slnx --no-build --configuration Release --verbosity normal
+
+      - name: Build production Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: false
+          platforms: linux/amd64
+          tags: conversa-api:pull-request-validation
