@@ -65,28 +65,49 @@ function isConversationMessage(value: unknown): value is ConversationMessage {
   );
 }
 
-function parseMessageList(value: unknown): ConversationMessage[] {
-  if (!Array.isArray(value)) {
+export interface MessagePage {
+  items: ConversationMessage[];
+  nextCursor: string | null;
+}
+
+function parseMessagePage(value: unknown): MessagePage {
+  if (typeof value !== "object" || value === null) {
     throw new Error("The message history response is invalid.");
   }
 
-  if (!value.every(isConversationMessage)) {
-    throw new Error("The message history contains invalid data.");
+  const candidate = value as Record<string, unknown>;
+
+  if (
+    !Array.isArray(candidate.items) ||
+    !candidate.items.every(isConversationMessage) ||
+    (candidate.nextCursor !== null && typeof candidate.nextCursor !== "string")
+  ) {
+    throw new Error("The message history response is invalid.");
   }
 
-  return value;
+  return {
+    items: candidate.items,
+    nextCursor: candidate.nextCursor
+  };
 }
 
 export async function listMessages(
   conversationId: string,
+  cursor?: string,
   signal?: AbortSignal
-): Promise<ConversationMessage[]> {
+): Promise<MessagePage> {
+  const params = new URLSearchParams({ limit: "50" });
+
+  if (cursor) {
+    params.set("cursor", cursor);
+  }
+
   const response = await apiGet(
-    `/api/conversations/${encodeURIComponent(conversationId)}/messages`,
+    "/api/conversations/" + encodeURIComponent(conversationId) + "/messages?" + params.toString(),
     signal
   );
 
-  return parseMessageList(await response.json());
+  return parseMessagePage(await response.json());
 }
 
 export function getMessageErrorMessage(error: unknown): string {
