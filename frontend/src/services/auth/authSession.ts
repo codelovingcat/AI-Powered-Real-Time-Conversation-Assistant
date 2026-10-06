@@ -54,7 +54,7 @@ function isTokenResponse(value: unknown): value is TokenResponse {
     return false;
   }
 
-  const candidate = value as Record<string, unknown>;
+  const candidate = value as AuthSession & Record<string, unknown>;
 
   return (
     typeof candidate.accessToken === "string" &&
