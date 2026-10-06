@@ -55,7 +55,12 @@ return {1, ttl}
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        var values = (RedisResult[])result;
+        var values = (RedisResult[])result!;
+        if (values.Length < 2)
+        {
+            throw new InvalidOperationException("Rate-limit store returned an invalid response.");
+        }
+
         var isAcquired = (long)values[0] == 1;
         var retryAfterMilliseconds = (long)values[1];
 
