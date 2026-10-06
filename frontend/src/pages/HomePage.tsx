@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ConversationSidebar } from "../components/ConversationSidebar";
 import { ConversationStatus } from "../components/ConversationStatus";
 import { MicrophoneCapturePanel } from "../components/MicrophoneCapturePanel";
