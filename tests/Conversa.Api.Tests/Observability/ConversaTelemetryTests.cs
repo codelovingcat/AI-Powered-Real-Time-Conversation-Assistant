@@ -16,7 +16,7 @@ public sealed class ConversaTelemetryTests
                 ActivitySamplingResult.AllData,
             ActivityStopped = activity => activities.Add(activity)
         };
-        ConversaTelemetry.ActivitySource.AddActivityListener(listener);
+        ActivitySource.AddActivityListener(listener);
 
         using (ConversaTelemetry.ActivitySource.StartActivity("conversa.test"))
         {
