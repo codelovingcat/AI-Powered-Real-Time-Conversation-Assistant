@@ -16,12 +16,14 @@ import {
   EMPTY_TRANSCRIPT,
   type TranscriptSnapshot
 } from "../services/audio/transcriptState";
-import { LiveTranscript } from "./LiveTranscript";
+import type { LiveConnectionState } from "../services/audio/conversationTimelineState";
 import { ConversationStatus } from "./ConversationStatus";
 
 interface MicrophoneCapturePanelProps {
   conversationId: string | null;
   onFinalTranscript?: (text: string) => void;
+  onTranscriptChange?: (transcript: TranscriptSnapshot) => void;
+  onConnectionStateChange?: (state: LiveConnectionState) => void;
 }
 
 type PanelStatus = "idle" | "connecting" | "reconnecting" | "capturing" | "error";
@@ -31,7 +33,9 @@ const RECONNECT_DELAY_MS = 1200;
 
 export function MicrophoneCapturePanel({
   conversationId,
-  onFinalTranscript
+  onFinalTranscript,
+  onTranscriptChange,
+  onConnectionStateChange
 }: MicrophoneCapturePanelProps) {
   const [status, setStatus] = useState<PanelStatus>("idle");
   const [socketStatus, setSocketStatus] = useState<AudioWebSocketStatus>("closed");
@@ -82,10 +86,12 @@ export function MicrophoneCapturePanel({
     captureStartingRef.current = false;
     setStatus("connecting");
     setSocketStatus("connecting");
+    onConnectionStateChange?.("connecting");
     setError(null);
     setChunkCount(0);
     setBytesCaptured(0);
     setTranscript(EMPTY_TRANSCRIPT);
+    onTranscriptChange?.(EMPTY_TRANSCRIPT);
     clearReconnectTimer();
 
     await connectSocket(conversationId);
@@ -99,6 +105,7 @@ export function MicrophoneCapturePanel({
         onTranscript: (update: TranscriptUpdate) => {
           setTranscript((current) => {
             const next = applyTranscriptUpdate(current, update);
+            onTranscriptChange?.(next);
             if (
               update.type === "final_transcript" &&
               next.finalTexts.length > current.finalTexts.length
@@ -112,6 +119,7 @@ export function MicrophoneCapturePanel({
           setSocketStatus(nextStatus);
 
           if (nextStatus === "open") {
+            onConnectionStateChange?.("connected");
             reconnectAttemptRef.current = 0;
             setReconnectAttempt(0);
             setError(null);
@@ -120,10 +128,12 @@ export function MicrophoneCapturePanel({
           }
 
           if (nextStatus === "error" && !manualStopRef.current) {
+            onConnectionStateChange?.("error");
             setError("The audio connection was interrupted.");
           }
 
           if (nextStatus === "closed" && !manualStopRef.current) {
+            onConnectionStateChange?.("disconnected");
             void cleanupCapture();
             scheduleReconnect(targetConversationId);
           }
@@ -153,6 +163,7 @@ export function MicrophoneCapturePanel({
   function scheduleReconnect(targetConversationId: string) {
     if (reconnectAttemptRef.current >= MAX_RECONNECT_ATTEMPTS) {
       setStatus("error");
+      onConnectionStateChange?.("error");
       setError("The audio connection could not be restored. Start the microphone again.");
       return;
     }
@@ -160,6 +171,7 @@ export function MicrophoneCapturePanel({
     reconnectAttemptRef.current += 1;
     setReconnectAttempt(reconnectAttemptRef.current);
     setStatus("reconnecting");
+    onConnectionStateChange?.("reconnecting");
     clearReconnectTimer();
 
     reconnectTimerRef.current = window.setTimeout(() => {
@@ -189,6 +201,7 @@ export function MicrophoneCapturePanel({
       setStatus("capturing");
     } catch (captureError: unknown) {
       socket.close();
+      onConnectionStateChange?.("error");
       setError(getMicrophoneErrorMessage(captureError));
       setStatus("error");
     } finally {
@@ -214,6 +227,7 @@ export function MicrophoneCapturePanel({
 
     setStatus("idle");
     setSocketStatus("closed");
+    onConnectionStateChange?.("idle");
   }
 
   const startDisabled =
@@ -259,8 +273,6 @@ export function MicrophoneCapturePanel({
           onAction={() => void handleStart()}
         />
       )}
-
-      <LiveTranscript transcript={transcript} />
 
       <p className="microphone-description">
         {conversationId

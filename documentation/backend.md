@@ -246,3 +246,15 @@ Conversation listing remains cursor-paginated and now supports server-side searc
 - Pagination remains deterministic with `UpdatedAt` and `Id`, and filtered results use the same cursor contract.
 
 The web sidebar applies filters on submit rather than on every keystroke, then keeps loading older pages within the active filter scope.
+
+
+## P29 — Rich live conversation timeline
+
+The web conversation view now treats live speech and saved history as one timeline:
+
+- Partial transcript updates replace the current active speech preview instead of creating permanent entries.
+- A final transcript resolves the active preview into a final heard-speech turn.
+- The API result is shown immediately after that live heard-speech turn as AI assistance.
+- Once the refreshed message history contains the saved result, the transient live turn is cleared so the persisted timeline becomes authoritative.
+- Connection, reconnecting, disconnected, and error states are rendered separately from message content so reconnects do not clear or reorder saved history.
+- Transcript, message, and AI content is rendered as React text content; the timeline does not introduce HTML injection or client-side credential rendering.

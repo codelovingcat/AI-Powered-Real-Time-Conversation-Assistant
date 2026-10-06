@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { AiResultCard } from "./AiResultCard";
 import {
+  getLiveFinalText,
+  shouldRenderLivePartial,
+  type LiveConnectionState,
+  type LiveTimelineSnapshot
+} from "../services/audio/conversationTimelineState";
+import type { TranscriptSnapshot } from "../services/audio/transcriptState";
+import {
   getMessageErrorMessage,
   listMessages,
   type ConversationMessage
@@ -9,11 +16,19 @@ import {
 interface MessageHistoryProps {
   conversationId: string;
   refreshToken?: number;
+  liveTranscript?: TranscriptSnapshot;
+  liveConnectionState?: LiveConnectionState;
+  latestAiResult?: ConversationMessage | null;
+  onHistorySynchronized?: () => void;
 }
 
 export function MessageHistory({
   conversationId,
-  refreshToken = 0
+  refreshToken = 0,
+  liveTranscript,
+  liveConnectionState = "idle",
+  latestAiResult = null,
+  onHistorySynchronized
 }: MessageHistoryProps) {
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -24,10 +39,15 @@ export function MessageHistory({
   const streamRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const controller = new AbortController();
-
     setMessages([]);
     setNextCursor(null);
+    setError(null);
+    setIsLoading(true);
+  }, [conversationId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
     setIsLoading(true);
     setError(null);
 
@@ -36,6 +56,7 @@ export function MessageHistory({
         if (!controller.signal.aborted) {
           setMessages(page.items);
           setNextCursor(page.nextCursor);
+          onHistorySynchronized?.();
         }
       })
       .catch((loadError: unknown) => {
@@ -50,7 +71,21 @@ export function MessageHistory({
       });
 
     return () => controller.abort();
-  }, [conversationId, refreshToken]);
+  }, [conversationId, refreshToken, onHistorySynchronized]);
+
+  const timelineSnapshot: LiveTimelineSnapshot = {
+    transcript: liveTranscript ?? {
+      finalTexts: [],
+      partialText: "",
+      confidence: null
+    },
+    latestAiResult
+  };
+  const liveFinalText = getLiveFinalText(timelineSnapshot);
+  const showLivePartial = shouldRenderLivePartial(timelineSnapshot);
+  const liveHasContent = Boolean(liveFinalText || showLivePartial);
+  const hasTimelineContent =
+    messages.length > 0 || liveHasContent || Boolean(latestAiResult);
 
   useEffect(() => {
     if (!isLoading) {
@@ -90,7 +125,7 @@ export function MessageHistory({
     }
   }
 
-  if (isLoading) {
+  if (isLoading && messages.length === 0 && !hasTimelineContent) {
     return (
       <section className="message-history" aria-labelledby="message-history-title">
         <div className="message-history-header">
@@ -124,7 +159,7 @@ export function MessageHistory({
         </div>
       )}
 
-      {!error && messages.length === 0 ? (
+      {!error && !hasTimelineContent ? (
         <div className="message-history-empty">
           <strong>No messages yet.</strong>
           <span>
@@ -134,6 +169,8 @@ export function MessageHistory({
         </div>
       ) : (
         <>
+          <LiveConnectionIndicator state={liveConnectionState} />
+
           {nextCursor && (
             <button
               className="text-button message-history-load-more"
@@ -146,18 +183,154 @@ export function MessageHistory({
           )}
 
           <div className="message-stream" ref={streamRef} aria-live="polite">
-            {messages.map((message) =>
-              message.role === "speaker" || message.role === "user" ? (
+            {messages.map((message) => {
+              if (latestAiResult?.id === message.id) {
+                return null;
+              }
+
+              return message.role === "speaker" || message.role === "user" ? (
                 <AiResultCard key={message.id} message={message} />
               ) : (
                 <MessageBubble key={message.id} message={message} />
-              )
+              );
+            })}
+
+            {showLivePartial && (
+              <LiveTranscriptTurn
+                text={timelineSnapshot.transcript.partialText}
+                final={false}
+              />
             )}
+
+            {liveFinalText && (
+              <LiveTranscriptTurn
+                text={liveFinalText}
+                final
+              />
+            )}
+
+            {latestAiResult && (
+              <LiveAiAssistanceCard message={latestAiResult} />
+            )}
+
             <div ref={endRef} aria-hidden="true" />
           </div>
         </>
       )}
     </section>
+  );
+}
+
+function LiveConnectionIndicator({
+  state
+}: {
+  state: LiveConnectionState;
+}) {
+  if (
+    state === "idle" ||
+    state === "connected"
+  ) {
+    return null;
+  }
+
+  const content = (() => {
+    switch (state) {
+      case "connecting":
+        return ["Connecting live audio…", "The timeline will continue updating when the connection opens."];
+      case "reconnecting":
+        return ["Reconnecting live audio…", "Your conversation history remains intact while the connection is restored."];
+      case "error":
+        return ["Live audio connection unavailable", "The timeline remains available and no saved messages are removed."];
+      case "disconnected":
+        return ["Live audio disconnected", "Start the microphone again to continue the live turn."];
+      default:
+        return null;
+    }
+  })();
+
+  if (!content) {
+    return null;
+  }
+
+  const tone = state === "error" ? "error" : state === "reconnecting" ? "warning" : "info";
+
+  return (
+    <div
+      className={"timeline-connection timeline-connection-" + tone}
+      role={state === "error" ? "alert" : "status"}
+      aria-live={state === "error" ? "assertive" : "polite"}
+    >
+      <span className="timeline-connection-dot" aria-hidden="true" />
+      <div>
+        <strong>{content[0]}</strong>
+        <span>{content[1]}</span>
+      </div>
+    </div>
+  );
+}
+
+function LiveTranscriptTurn({
+  text,
+  final
+}: {
+  text: string;
+  final: boolean;
+}) {
+  return (
+    <article className={"timeline-live-turn" + (final ? " timeline-live-turn-final" : " timeline-live-turn-partial")}>
+      <header className="timeline-live-header">
+        <span>HEARD SPEECH</span>
+        <span>{final ? "Final" : "Partial"}</span>
+      </header>
+      <p>{text}</p>
+    </article>
+  );
+}
+
+function LiveAiAssistanceCard({
+  message
+}: {
+  message: ConversationMessage;
+}) {
+  return (
+    <article className="timeline-ai-assistance">
+      <header>
+        <span>AI ASSISTANCE</span>
+        <time dateTime={message.createdAt}>{formatMessageTime(message.createdAt)}</time>
+      </header>
+
+      {message.translation && (
+        <section>
+          <span>Turkish translation</span>
+          <p>{message.translation}</p>
+        </section>
+      )}
+
+      {message.explanation && (
+        <section>
+          <span>Explanation</span>
+          <p>{message.explanation}</p>
+        </section>
+      )}
+
+      {message.suggestedAnswer && (
+        <section>
+          <span>Suggested answer</span>
+          <p>{message.suggestedAnswer}</p>
+          {message.suggestedAnswerTranslation && (
+            <small>{message.suggestedAnswerTranslation}</small>
+          )}
+        </section>
+      )}
+
+      {message.role === "speaker" && message.questionDetected && (
+        <div className="timeline-ai-question">
+          {message.questionDirectedAtUser
+            ? "Question detected and directed at you."
+            : "Question detected."}
+        </div>
+      )}
+    </article>
   );
 }
 
