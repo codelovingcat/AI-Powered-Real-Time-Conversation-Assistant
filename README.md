@@ -39,7 +39,7 @@ Working now:
 - Deepgram speech-to-text provider with one-shot transcription and a streaming session adapter
 - WebSocket entry point for continuous listening that reports when speech-to-text is not configured
 - JWT Bearer validation and an authenticated session endpoint for web clients
-- React web authentication/session flow with memory-only access tokens
+- React web authentication/session flow with short-lived memory-only access tokens and a persistent HttpOnly browser session
 
 Not implemented yet:
 
@@ -199,16 +199,32 @@ dotnet build Conversa.slnx
 
 ### Authentication
 
-Conversation and assistant routes require a valid JWT Bearer token. The repository validates issuer, audience, signing key, and token lifetime; it does not issue user credentials itself.
+Conversation and assistant routes require a valid short-lived JWT access token. The repository validates issuer, audience, signing key, and token lifetime; it does not issue the user's original identity credentials.
 
-The frontend sign-in screen accepts an access token issued by the configured identity system and validates it with:
+The web client accepts an access token issued by the configured identity system and exchanges it with:
 
 ```text
-GET /api/auth/session
-Authorization: Bearer <access-token>
+POST /api/auth/session
+Authorization: Bearer <externally-issued-token>
 ```
 
-Access tokens in the web client are kept in memory only. They are not stored in localStorage or sessionStorage. A page reload therefore ends the client session until the user signs in again.
+The API then returns a short-lived Conversa access token and sets a persistent `HttpOnly` session cookie. The access token stays in JavaScript memory only; it is never written to `localStorage` or `sessionStorage`.
+
+After a page reload, the web client calls:
+
+```text
+POST /api/auth/refresh
+```
+
+using the browser-managed cookie and receives a fresh short-lived access token. When a protected API call receives HTTP 401, the client performs one bounded refresh attempt and retries the original request once.
+
+Signing out calls:
+
+```text
+POST /api/auth/logout
+```
+
+which clears the persistent session cookie and the in-memory access token.
 
 For the command examples below, set an externally issued token first:
 
