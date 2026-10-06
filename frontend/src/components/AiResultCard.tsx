@@ -5,28 +5,32 @@ interface AiResultCardProps {
   message: ConversationMessage;
   onRegenerate?: () => Promise<void>;
   isRegenerating?: boolean;
+  showHeader?: boolean;
 }
 
 export function AiResultCard({
   message,
   onRegenerate,
-  isRegenerating = false
+  isRegenerating = false,
+  showHeader = true
 }: AiResultCardProps) {
   const isUserRequest = message.role === "user";
 
   return (
     <article className={`ai-result-card${isUserRequest ? " ai-result-card-user" : ""}`}>
-      <header className="ai-result-header">
-        <div>
-          <span className="ai-result-kicker">
-            {isUserRequest ? "YOUR REQUEST" : "HEARD SPEECH"}
-          </span>
-          <h4>{isUserRequest ? "English formulation" : "AI conversation result"}</h4>
-        </div>
-        <time dateTime={message.createdAt}>
-          {formatMessageTime(message.createdAt)}
-        </time>
-      </header>
+      {showHeader && (
+        <header className="ai-result-header">
+          <div>
+            <span className="ai-result-kicker">
+              {isUserRequest ? "YOUR REQUEST" : "HEARD SPEECH"}
+            </span>
+            <h4>{isUserRequest ? "English formulation" : "AI conversation result"}</h4>
+          </div>
+          <time dateTime={message.createdAt}>
+            {formatMessageTime(message.createdAt)}
+          </time>
+        </header>
+      )}
 
       <section className="ai-result-section ai-result-original">
         <span className="ai-result-label">
