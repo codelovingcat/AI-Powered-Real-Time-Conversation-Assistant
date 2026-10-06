@@ -1,10 +1,11 @@
 using System.Globalization;
 using System.Security.Claims;
-using System.Threading.RateLimiting;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Conversa.Api.Identity;
 using Conversa.Api.Infrastructure;
+using Conversa.Api.Infrastructure.RateLimiting;
 using Conversa.Api.Realtime;
 using Conversa.Application.Abstractions.Identity;
 using Conversa.Application.Conversations;
@@ -17,6 +18,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
+using StackExchange.Redis;
 
 const string PersistentSessionScheme = "Conversa.Session";
 
@@ -163,10 +165,46 @@ var rateLimitOptions = new RateLimitOptions();
 builder.Configuration.GetSection(RateLimitOptions.SectionName).Bind(rateLimitOptions);
 rateLimitOptions.Validate();
 
+IDistributedRateLimitStore rateLimitStore;
+
+if (!string.IsNullOrWhiteSpace(rateLimitOptions.RedisConnectionString))
+{
+    var redisOptions = RedisConnectionOptionsFactory.Create(
+        rateLimitOptions.RedisConnectionString);
+
+    var connectionMultiplexer = ConnectionMultiplexer.Connect(redisOptions);
+    rateLimitStore = new RedisDistributedRateLimitStore(connectionMultiplexer);
+
+    builder.Services.AddSingleton(connectionMultiplexer);
+    builder.Services.AddSingleton(rateLimitStore);
+    builder.Services.AddHealthChecks()
+        .AddCheck<RedisRateLimitHealthCheck>(
+            "rate-limiter",
+            failureStatus: HealthStatus.Unhealthy,
+            tags: new[] { "ready" });
+}
+else if (builder.Environment.IsDevelopment()
+    || builder.Environment.IsEnvironment("Testing"))
+{
+    // Local development/test fallback only. Production and staging require shared state.
+    rateLimitStore = new InMemoryRateLimitStore();
+    builder.Services.AddSingleton(rateLimitStore);
+}
+else
+{
+    throw new InvalidOperationException(
+        "RateLimiting:RedisConnectionString is required outside Development and Testing.");
+}
+
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database", failureStatus: HealthStatus.Unhealthy, tags: new[] { "ready" });
-builder.Services.Configure<AudioWebSocketOptions>(builder.Configuration.GetSection(AudioWebSocketOptions.SectionName));
-builder.Services.Configure<RateLimitOptions>(builder.Configuration.GetSection(RateLimitOptions.SectionName));
+builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>(
+    "database",
+    failureStatus: HealthStatus.Unhealthy,
+    tags: new[] { "ready" });
+builder.Services.Configure<AudioWebSocketOptions>(
+    builder.Configuration.GetSection(AudioWebSocketOptions.SectionName));
+builder.Services.Configure<RateLimitOptions>(
+    builder.Configuration.GetSection(RateLimitOptions.SectionName));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, AuthenticatedCurrentUser>();
 builder.Services.AddScoped<IConversationService, ConversationService>();
@@ -185,10 +223,33 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.OnRejected = async (context, cancellationToken) =>
     {
-        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        if (context.Lease.TryGetMetadata(
+            MetadataName.ReasonPhrase,
+            out string? reason)
+            && reason == DistributedRateLimitLease.StoreUnavailableReason)
+        {
+            context.HttpContext.Response.StatusCode =
+                StatusCodes.Status503ServiceUnavailable;
+            context.HttpContext.Response.Headers.RetryAfter = "1";
+
+            await context.HttpContext.Response.WriteAsJsonAsync(
+                new
+                {
+                    error = "rate_limit_unavailable",
+                    message = "Rate limiting service is temporarily unavailable."
+                },
+                cancellationToken);
+
+            return;
+        }
+
+        if (context.Lease.TryGetMetadata(
+            MetadataName.RetryAfter,
+            out TimeSpan retryAfter))
         {
             context.HttpContext.Response.Headers.RetryAfter =
-                ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+                ((int)Math.Ceiling(retryAfter.TotalSeconds))
+                    .ToString(CultureInfo.InvariantCulture);
         }
 
         await context.HttpContext.Response.WriteAsJsonAsync(
@@ -200,38 +261,36 @@ builder.Services.AddRateLimiter(options =>
             cancellationToken);
     };
 
-    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            GetRateLimitPartitionKey(httpContext),
-            _ => new FixedWindowRateLimiterOptions
-            {
-                AutoReplenishment = true,
-                PermitLimit = rateLimitOptions.GlobalPermitLimit,
-                QueueLimit = 0,
-                Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds)
-            }));
+    options.GlobalLimiter =
+        PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+            RateLimitPartition.Get(
+                RateLimitPartitionKey.Create(httpContext),
+                partitionKey => new DistributedFixedWindowRateLimiter(
+                    "global",
+                    partitionKey,
+                    rateLimitStore,
+                    rateLimitOptions.GlobalPermitLimit,
+                    TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds))));
 
     options.AddPolicy("ai", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            GetRateLimitPartitionKey(httpContext),
-            _ => new FixedWindowRateLimiterOptions
-            {
-                AutoReplenishment = true,
-                PermitLimit = rateLimitOptions.AiPermitLimit,
-                QueueLimit = 0,
-                Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds)
-            }));
+        RateLimitPartition.Get(
+            RateLimitPartitionKey.Create(httpContext),
+            partitionKey => new DistributedFixedWindowRateLimiter(
+                "ai",
+                partitionKey,
+                rateLimitStore,
+                rateLimitOptions.AiPermitLimit,
+                TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds))));
 
     options.AddPolicy("audio", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            GetRateLimitPartitionKey(httpContext),
-            _ => new FixedWindowRateLimiterOptions
-            {
-                AutoReplenishment = true,
-                PermitLimit = rateLimitOptions.AudioPermitLimit,
-                QueueLimit = 0,
-                Window = TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds)
-            }));
+        RateLimitPartition.Get(
+            RateLimitPartitionKey.Create(httpContext),
+            partitionKey => new DistributedFixedWindowRateLimiter(
+                "audio",
+                partitionKey,
+                rateLimitStore,
+                rateLimitOptions.AudioPermitLimit,
+                TimeSpan.FromSeconds(rateLimitOptions.WindowSeconds))));
 });
 
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
@@ -239,7 +298,8 @@ builder.Services.AddProblemDetails();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+        options.JsonSerializerOptions.Converters.Add(
+            new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
     });
 
 var app = builder.Build();
@@ -252,29 +312,37 @@ app.UseAuthorization();
 app.UseRateLimiter();
 app.UseWebSockets();
 app.MapControllers();
-app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-{
-    Predicate = _ => false
-});
-app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-{
-    Predicate = check => check.Tags.Contains("ready"),
-    ResponseWriter = async (context, report) =>
+app.MapHealthChecks(
+    "/health",
+    new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
     {
-        context.Response.ContentType = "application/json";
-        context.Response.StatusCode = report.Status == HealthStatus.Healthy
-            ? StatusCodes.Status200OK
-            : StatusCodes.Status503ServiceUnavailable;
-
-        await context.Response.WriteAsync(JsonSerializer.Serialize(new
+        Predicate = _ => false
+    });
+app.MapHealthChecks(
+    "/health/ready",
+    new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("ready"),
+        ResponseWriter = async (context, report) =>
         {
-            status = report.Status.ToString().ToLowerInvariant(),
-            checks = report.Entries.ToDictionary(
-                entry => entry.Key,
-                entry => entry.Value.Status.ToString().ToLowerInvariant())
-        }));
-    }
-});
+            context.Response.ContentType = "application/json";
+            context.Response.StatusCode = report.Status == HealthStatus.Healthy
+                ? StatusCodes.Status200OK
+                : StatusCodes.Status503ServiceUnavailable;
+
+            await context.Response.WriteAsync(
+                JsonSerializer.Serialize(
+                    new
+                    {
+                        status = report.Status.ToString().ToLowerInvariant(),
+                        checks = report.Entries.ToDictionary(
+                            entry => entry.Key,
+                            entry => entry.Value.Status
+                                .ToString()
+                                .ToLowerInvariant())
+                    }));
+        }
+    });
 app.MapAudioWebSocket();
 app.MapGet("/", () => Results.Json(new
 {
@@ -297,16 +365,5 @@ if (app.Environment.IsDevelopment())
 }
 
 app.Run();
-
-static string GetRateLimitPartitionKey(HttpContext context)
-{
-    var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
-        ?? context.User.FindFirstValue("sub");
-
-    if (!string.IsNullOrWhiteSpace(userId))
-        return $"user:{userId}";
-
-    return $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
-}
 
 public partial class Program;

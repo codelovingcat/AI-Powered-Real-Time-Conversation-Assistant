@@ -180,3 +180,23 @@ Bu yaklaşımın temel fikri şu: **"Sisteme güveniyoruz" yerine, sistemin her 
 ## 17. Şu anki durum
 
 Backend foundation ve security hardening'in önemli kısmı tamamlandı; web persistent session akışı da P22 kapsamında eklendi. Ancak identity provider/token issuance, deployment/multi-instance yapı ve web/mobile ürün kapsamının tamamı henüz tamamlanmış değil.
+
+
+## Distributed rate limiting
+
+Rate limiting is backed by a shared Valkey/Redis store in production so multiple API instances consume the same counters.
+
+Configured policies:
+- Global: 120 requests / 60 seconds
+- AI assistant: 20 requests / 60 seconds
+- Audio WebSocket: 10 connections / 60 seconds
+
+Authenticated requests are partitioned by the validated JWT `sub`/`NameIdentifier` claim. Client-supplied user identifiers are never used for abuse-control keys. Anonymous requests use the connection IP address.
+
+Rate-limit keys contain a SHA-256 hash of the partition identity, so raw user identifiers are not stored in the rate-limit backend.
+
+When the limit is exceeded, the API returns HTTP 429 with a `Retry-After` header and the existing `rate_limit_exceeded` response shape. If the shared rate-limit store is unavailable, the API fails closed with HTTP 503 rather than silently falling back to process-local protection.
+
+For local development and isolated unit tests, the API uses an in-memory store. Production and staging require `RateLimiting__RedisConnectionString`.
+
+The Render production Blueprint provisions the shared Valkey instance in Frankfurt and injects its connection string into the API service.

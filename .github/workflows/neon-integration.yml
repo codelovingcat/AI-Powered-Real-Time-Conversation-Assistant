@@ -46,6 +46,10 @@ jobs:
       - name: Run unit tests
         run: dotnet test tests/Conversa.Api.Tests/Conversa.Api.Tests.csproj --no-build --configuration Release --verbosity normal
 
+      - name: Run distributed rate-limit unit and concurrency tests
+        run: |
+          dotnet test tests/Conversa.Api.Tests/Conversa.Api.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~DistributedRateLimitingTests" --verbosity normal
+
       - name: Run Neon PostgreSQL integration test
         env:
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
