@@ -9,6 +9,7 @@ using Conversa.Api.Infrastructure.RateLimiting;
 using Conversa.Api.Realtime;
 using Conversa.Application.Abstractions.Identity;
 using Conversa.Application.Conversations;
+using Conversa.Application.Observability;
 using Conversa.Infrastructure;
 using Conversa.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
@@ -18,11 +19,61 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using StackExchange.Redis;
 
 const string PersistentSessionScheme = "Conversa.Session";
 
 var builder = WebApplication.CreateBuilder(args);
+
+var observabilityOptions = new ObservabilityOptions();
+builder.Configuration
+    .GetSection(ObservabilityOptions.SectionName)
+    .Bind(observabilityOptions);
+observabilityOptions.Validate(
+    requireSecureEndpoint: !builder.Environment.IsDevelopment()
+        && !builder.Environment.IsEnvironment("Testing"));
+
+if (observabilityOptions.Enabled)
+{
+    var openTelemetry = builder.Services
+        .AddOpenTelemetry()
+        .ConfigureResource(resource =>
+            resource.AddService(observabilityOptions.ServiceName));
+
+    openTelemetry.WithTracing(tracing =>
+    {
+        tracing
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddSource(ConversaTelemetry.ActivitySourceName);
+
+        tracing.AddOtlpExporter(exporter =>
+        {
+            if (!string.IsNullOrWhiteSpace(observabilityOptions.OtlpEndpoint))
+            {
+                exporter.Endpoint = new Uri(observabilityOptions.OtlpEndpoint);
+            }
+        });
+    });
+
+    openTelemetry.WithMetrics(metrics =>
+    {
+        metrics
+            .AddAspNetCoreInstrumentation()
+            .AddMeter(ConversaTelemetry.MeterName);
+
+        metrics.AddOtlpExporter(exporter =>
+        {
+            if (!string.IsNullOrWhiteSpace(observabilityOptions.OtlpEndpoint))
+            {
+                exporter.Endpoint = new Uri(observabilityOptions.OtlpEndpoint);
+            }
+        });
+    });
+}
 
 var enforceProductionRules = !builder.Environment.IsDevelopment()
     && !builder.Environment.IsEnvironment("Testing");
