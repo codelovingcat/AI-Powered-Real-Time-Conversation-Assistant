@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode
 } from "react";
-import { ApiError } from "../services/api/apiClient";
+import { AuthRequestError } from "../services/auth/authSession";
 import { subscribeToUnauthorized } from "../services/auth/authEvents";
 import {
   signInWithAccessToken,
@@ -36,7 +36,7 @@ type AuthState =
 interface AuthContextValue {
   state: AuthState;
   signIn: (token: string) => Promise<void>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -121,13 +121,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const signOut = useCallback(() => {
-    clearSession();
-    setState({
-      status: "unauthenticated",
-      session: null,
-      error: null
-    });
+  const signOut = useCallback(async () => {
+    try {
+      await clearSession();
+    } finally {
+      setState({
+        status: "unauthenticated",
+        session: null,
+        error: null
+      });
+    }
   }, []);
 
   const value = useMemo(
@@ -149,17 +152,8 @@ export function useAuth(): AuthContextValue {
 }
 
 function getAuthErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    switch (error.kind) {
-      case "unauthorized":
-        return "The access token is invalid or expired.";
-      case "network":
-        return "The authentication service could not be reached.";
-      case "server":
-        return "The authentication service is temporarily unavailable.";
-      default:
-        return error.message;
-    }
+  if (error instanceof AuthRequestError) {
+    return error.message;
   }
 
   return error instanceof Error
