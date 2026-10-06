@@ -1,10 +1,17 @@
 import type { ConversationMessage } from "../services/api/messageService";
+import { SuggestedAnswerActions } from "./SuggestedAnswerActions";
 
 interface AiResultCardProps {
   message: ConversationMessage;
+  onRegenerate?: () => Promise<void>;
+  isRegenerating?: boolean;
 }
 
-export function AiResultCard({ message }: AiResultCardProps) {
+export function AiResultCard({
+  message,
+  onRegenerate,
+  isRegenerating = false
+}: AiResultCardProps) {
   const isUserRequest = message.role === "user";
 
   return (
@@ -60,6 +67,11 @@ export function AiResultCard({ message }: AiResultCardProps) {
               {message.suggestedAnswerTranslation}
             </span>
           )}
+          <SuggestedAnswerActions
+            suggestedAnswer={message.suggestedAnswer}
+            onRegenerate={onRegenerate}
+            isRegenerating={isRegenerating}
+          />
         </section>
       )}
 
