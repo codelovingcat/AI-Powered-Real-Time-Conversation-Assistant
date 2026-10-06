@@ -2,7 +2,10 @@ namespace Conversa.Application.Conversations;
 
 public interface IConversationService
 {
-    Task<IReadOnlyList<ConversationSummaryDto>> ListAsync(int take, CancellationToken cancellationToken);
+    Task<CursorPageDto<ConversationSummaryDto>> ListAsync(
+        int limit,
+        string? cursor,
+        CancellationToken cancellationToken);
 
     Task<ConversationSummaryDto> GetAsync(Guid conversationId, CancellationToken cancellationToken);
 
@@ -12,5 +15,9 @@ public interface IConversationService
 
     Task DeleteAsync(Guid conversationId, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<MessageDto>> ListMessagesAsync(Guid conversationId, CancellationToken cancellationToken);
+    Task<CursorPageDto<MessageDto>> ListMessagesAsync(
+        Guid conversationId,
+        int limit,
+        string? cursor,
+        CancellationToken cancellationToken);
 }
