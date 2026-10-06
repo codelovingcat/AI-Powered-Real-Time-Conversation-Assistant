@@ -2,7 +2,7 @@ services:
   - type: web
     name: conversa-api
     runtime: image
-    plan: starter
+    plan: 0.5c-512mb
     region: frankfurt
     image:
       url: ghcr.io/codelovingcat/conversa-api:latest
