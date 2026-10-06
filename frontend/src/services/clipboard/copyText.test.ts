@@ -5,10 +5,7 @@ describe("copyText", () => {
   it("uses the Clipboard API when available", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
 
-    Object.defineProperty(globalThis, "navigator", {
-      configurable: true,
-      value: { clipboard: { writeText } }
-    });
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
 
     await expect(copyText("Yes, please.")).resolves.toBeUndefined();
     expect(writeText).toHaveBeenCalledWith("Yes, please.");
