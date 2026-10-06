@@ -17,8 +17,14 @@ export function ConversationStatus({
   onAction,
   busy = false
 }: ConversationStatusProps) {
+  const liveMode = tone === "error" ? "assertive" : "polite";
+
   return (
-    <aside className={`conversation-status conversation-status-${tone}`} role="status" aria-live="polite">
+    <aside
+      className={`conversation-status conversation-status-${tone}`}
+      role={tone === "error" ? "alert" : "status"}
+      aria-live={liveMode}
+    >
       <div className="conversation-status-indicator" aria-hidden="true" />
       <div className="conversation-status-content">
         <strong>{title}</strong>
