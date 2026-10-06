@@ -3,9 +3,15 @@ export async function copyText(value: string): Promise<void> {
     throw new Error("Nothing to copy.");
   }
 
+  let clipboardError: unknown = null;
+
   if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(value);
-    return;
+    try {
+      await navigator.clipboard.writeText(value);
+      return;
+    } catch (error: unknown) {
+      clipboardError = error;
+    }
   }
 
   const textarea = document.createElement("textarea");
@@ -19,7 +25,9 @@ export async function copyText(value: string): Promise<void> {
 
   try {
     if (!document.execCommand("copy")) {
-      throw new Error("Clipboard access is unavailable.");
+      throw clipboardError instanceof Error
+        ? clipboardError
+        : new Error("Clipboard access is unavailable.");
     }
   } finally {
     textarea.remove();
