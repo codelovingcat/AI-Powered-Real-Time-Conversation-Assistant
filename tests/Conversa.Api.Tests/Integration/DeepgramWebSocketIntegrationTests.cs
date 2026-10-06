@@ -184,6 +184,9 @@ public sealed class DeepgramWebSocketIntegrationTests
         public Task<IReadOnlyList<Conversation>> ListByUserPageAsync(
             Guid userId,
             int take,
+            string? search,
+            DateTimeOffset? updatedFrom,
+            DateTimeOffset? updatedTo,
             DateTimeOffset? beforeUpdatedAt,
             Guid? beforeId,
             CancellationToken cancellationToken)
