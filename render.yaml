@@ -23,6 +23,12 @@ services:
       - key: ConnectionStrings__DefaultConnection
         sync: false
 
+      - key: RateLimiting__RedisConnectionString
+        fromService:
+          type: keyvalue
+          name: conversa-rate-limit
+          property: connectionString
+
       - key: Gemini__ApiKey
         sync: false
       - key: Gemini__Model
@@ -54,3 +60,10 @@ services:
         sync: false
 
     preDeployCommand: /app/efbundle --connection "$ConnectionStrings__DefaultConnection"
+
+  - type: keyvalue
+    name: conversa-rate-limit
+    plan: free
+    region: frankfurt
+    maxmemoryPolicy: noeviction
+    ipAllowList: []

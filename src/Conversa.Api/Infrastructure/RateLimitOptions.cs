@@ -4,6 +4,7 @@ public sealed class RateLimitOptions
 {
     public const string SectionName = "RateLimiting";
 
+    public string? RedisConnectionString { get; init; }
     public int GlobalPermitLimit { get; init; } = 120;
     public int AiPermitLimit { get; init; } = 20;
     public int AudioPermitLimit { get; init; } = 10;
