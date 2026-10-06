@@ -5,6 +5,8 @@ using Conversa.Infrastructure.Ai.Gemini;
 using Conversa.Infrastructure.Persistence;
 using Conversa.Infrastructure.Persistence.Repositories;
 using Conversa.Infrastructure.Speech;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,6 +31,9 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
                 npgsql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName)));
+
+        services.AddDataProtection()
+            .PersistKeysToDbContext<AppDbContext>();
 
         services.Configure<GeminiOptions>(configuration.GetSection(GeminiOptions.SectionName));
         var geminiOptions = configuration.GetSection(GeminiOptions.SectionName).Get<GeminiOptions>() ?? new GeminiOptions();

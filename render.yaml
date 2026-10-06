@@ -1,0 +1,56 @@
+services:
+  - type: web
+    name: conversa-api
+    runtime: image
+    plan: 0.5c-512mb
+    region: frankfurt
+    image:
+      url: ghcr.io/codelovingcat/conversa-api:latest
+      creds:
+        fromRegistryCreds:
+          name: conversa-ghcr-read
+    healthCheckPath: /health/ready
+    maxShutdownDelaySeconds: 60
+    renderSubdomainPolicy: enabled
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: PORT
+        value: "10000"
+      - key: ASPNETCORE_HTTP_PORTS
+        value: "10000"
+
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+
+      - key: Gemini__ApiKey
+        sync: false
+      - key: Gemini__Model
+        value: gemini-3.8-flash
+      - key: Gemini__BaseUrl
+        value: https://generativelanguage.googleapis.com/
+
+      - key: Deepgram__ApiKey
+        sync: false
+      - key: Deepgram__Model
+        value: nova-3
+      - key: Deepgram__BaseUrl
+        value: https://api.deepgram.com
+      - key: Deepgram__EndpointingMilliseconds
+        value: "300"
+
+      - key: Authentication__Issuer
+        sync: false
+      - key: Authentication__Audience
+        sync: false
+      - key: Authentication__SigningKey
+        sync: false
+      - key: Authentication__AccessTokenLifetimeMinutes
+        value: "15"
+      - key: Authentication__SessionLifetimeDays
+        value: "7"
+
+      - key: Cors__AllowedOrigins
+        sync: false
+
+    preDeployCommand: /app/efbundle --connection "$ConnectionStrings__DefaultConnection"
