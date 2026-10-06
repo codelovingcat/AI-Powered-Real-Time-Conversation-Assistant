@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { AiResultCard } from "./AiResultCard";
+import { SuggestedAnswerActions } from "./SuggestedAnswerActions";
+import { processAssistantInput } from "../services/api/assistantService";
+import { getAssistantErrorMessage } from "../services/api/assistantService";
 import {
   getLiveFinalText,
   shouldRenderLivePartial,
@@ -34,6 +37,7 @@ export function MessageHistory({
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const streamRef = useRef<HTMLDivElement | null>(null);
@@ -92,6 +96,49 @@ export function MessageHistory({
       endRef.current?.scrollIntoView({ block: "nearest" });
     }
   }, [isLoading]);
+
+  async function handleRegenerate(message: ConversationMessage) {
+    if (!message.suggestedAnswer || regeneratingMessageId !== null) {
+      return;
+    }
+
+    const inputKind =
+      message.role === "user" ? "userFormulationRequest" : "heardSpeech";
+    const isLiveResult = latestAiResult?.id === message.id;
+
+    setRegeneratingMessageId(message.id);
+    setError(null);
+
+    try {
+      const regenerated = await processAssistantInput(
+        message.conversationId,
+        inputKind,
+        message.originalText
+      );
+
+      if (isLiveResult) {
+        setMessages((current) =>
+          current.some((item) => item.id === regenerated.id)
+            ? current
+            : [...current, regenerated]
+        );
+        return;
+      }
+
+      setMessages((current) => [
+        ...current,
+        ...(
+          current.some((item) => item.id === regenerated.id)
+            ? []
+            : [regenerated]
+        )
+      ]);
+    } catch (regenerateError: unknown) {
+      setError(getAssistantErrorMessage(regenerateError));
+    } finally {
+      setRegeneratingMessageId(null);
+    }
+  }
 
   async function loadOlderMessages() {
     if (!nextCursor || isLoadingOlder || isLoading) {
@@ -189,7 +236,16 @@ export function MessageHistory({
               }
 
               return message.role === "speaker" || message.role === "user" ? (
-                <AiResultCard key={message.id} message={message} />
+                <AiResultCard
+                  key={message.id}
+                  message={message}
+                  onRegenerate={
+                    message.suggestedAnswer
+                      ? () => handleRegenerate(message)
+                      : undefined
+                  }
+                  isRegenerating={regeneratingMessageId === message.id}
+                />
               ) : (
                 <MessageBubble key={message.id} message={message} />
               );
@@ -320,6 +376,13 @@ function LiveAiAssistanceCard({
           {message.suggestedAnswerTranslation && (
             <small>{message.suggestedAnswerTranslation}</small>
           )}
+          <SuggestedAnswerActions
+            suggestedAnswer={message.suggestedAnswer}
+            onRegenerate={
+              () => handleRegenerate(message)
+            }
+            isRegenerating={regeneratingMessageId === message.id}
+          />
         </section>
       )}
 
