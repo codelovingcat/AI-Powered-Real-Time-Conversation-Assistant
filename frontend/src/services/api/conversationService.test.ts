@@ -170,7 +170,7 @@ describe("conversationService", () => {
     setAccessToken("test-token");
 
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify([{ id: "missing-fields" }]), {
+      new Response(JSON.stringify({ items: [{ id: "missing-fields" }], nextCursor: null }), {
         status: 200,
         headers: { "Content-Type": "application/json" }
       })
