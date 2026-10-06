@@ -39,10 +39,15 @@ export function MessageHistory({
   const streamRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const controller = new AbortController();
-
     setMessages([]);
     setNextCursor(null);
+    setError(null);
+    setIsLoading(true);
+  }, [conversationId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
     setIsLoading(true);
     setError(null);
 
@@ -67,6 +72,20 @@ export function MessageHistory({
 
     return () => controller.abort();
   }, [conversationId, refreshToken, onHistorySynchronized]);
+
+  const timelineSnapshot: LiveTimelineSnapshot = {
+    transcript: liveTranscript ?? {
+      finalTexts: [],
+      partialText: "",
+      confidence: null
+    },
+    latestAiResult
+  };
+  const liveFinalText = getLiveFinalText(timelineSnapshot);
+  const showLivePartial = shouldRenderLivePartial(timelineSnapshot);
+  const liveHasContent = Boolean(liveFinalText || showLivePartial);
+  const hasTimelineContent =
+    messages.length > 0 || liveHasContent || Boolean(latestAiResult);
 
   useEffect(() => {
     if (!isLoading) {
@@ -106,7 +125,7 @@ export function MessageHistory({
     }
   }
 
-  if (isLoading) {
+  if (isLoading && messages.length === 0 && !hasTimelineContent) {
     return (
       <section className="message-history" aria-labelledby="message-history-title">
         <div className="message-history-header">
@@ -121,20 +140,6 @@ export function MessageHistory({
       </section>
     );
   }
-
-  const timelineSnapshot: LiveTimelineSnapshot = {
-    transcript: liveTranscript ?? {
-      finalTexts: [],
-      partialText: "",
-      confidence: null
-    },
-    latestAiResult
-  };
-  const liveFinalText = getLiveFinalText(timelineSnapshot);
-  const showLivePartial = shouldRenderLivePartial(timelineSnapshot);
-  const liveHasContent = Boolean(liveFinalText || showLivePartial);
-  const hasTimelineContent =
-    messages.length > 0 || liveHasContent || Boolean(latestAiResult);
 
   return (
     <section className="message-history" aria-labelledby="message-history-title">
