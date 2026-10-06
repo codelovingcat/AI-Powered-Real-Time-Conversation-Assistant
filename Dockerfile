@@ -11,7 +11,6 @@ RUN ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=conv
     --startup-project src/Conversa.Api/Conversa.Api.csproj \
     --configuration Release \
     --no-build \
-    --self-contained false \
     --output /app/efbundle
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
