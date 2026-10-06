@@ -5,6 +5,11 @@ import { MicrophoneCapturePanel } from "../components/MicrophoneCapturePanel";
 import { TextAssistantPanel } from "../components/TextAssistantPanel";
 import { MessageHistory } from "../components/MessageHistory";
 import { InstructionEditor } from "../components/InstructionEditor";
+import { EMPTY_TRANSCRIPT, type TranscriptSnapshot } from "../services/audio/transcriptState";
+import {
+  type LiveConnectionState
+} from "../services/audio/conversationTimelineState";
+import type { ConversationMessage } from "../services/api/messageService";
 import { useAuth } from "../auth/AuthContext";
 import type { ConversationSummary } from "../services/api/conversationService";
 import {
@@ -24,21 +29,29 @@ export function HomePage() {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
+  const [liveTranscript, setLiveTranscript] =
+    useState<TranscriptSnapshot>(EMPTY_TRANSCRIPT);
+  const [liveConnectionState, setLiveConnectionState] =
+    useState<LiveConnectionState>("idle");
+  const [latestAiResult, setLatestAiResult] =
+    useState<ConversationMessage | null>(null);
 
   async function handleFinalTranscript(text: string) {
     if (!activeConversation || !text.trim()) {
       return;
     }
 
+    setLatestAiResult(null);
     setIsAiLoading(true);
     setAiError(null);
 
     try {
-      await processAssistantInput(
+      const result = await processAssistantInput(
         activeConversation.id,
         "heardSpeech",
         text.trim()
       );
+      setLatestAiResult(result);
       setRefreshToken((current) => current + 1);
     } catch (error: unknown) {
       setAiError(getAssistantErrorMessage(error));
@@ -46,6 +59,30 @@ export function HomePage() {
       setIsAiLoading(false);
     }
   }
+
+  function handleLiveTranscriptChange(nextTranscript: TranscriptSnapshot) {
+    if (nextTranscript.partialText.trim()) {
+      setLatestAiResult(null);
+    }
+
+    setLiveTranscript(nextTranscript);
+  }
+
+  function handleConversationSelect(
+    conversation: ConversationSummary | null
+  ) {
+    setAiError(null);
+    setIsAiLoading(false);
+    setLiveTranscript(EMPTY_TRANSCRIPT);
+    setLatestAiResult(null);
+    setLiveConnectionState("idle");
+    setActiveConversation(conversation);
+  }
+
+  const handleHistorySynchronized = useCallback(() => {
+    setLiveTranscript(EMPTY_TRANSCRIPT);
+    setLatestAiResult(null);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -68,11 +105,7 @@ export function HomePage() {
     <main className="app-shell">
       <ConversationSidebar
         activeConversationId={activeConversation?.id ?? null}
-        onSelect={(conversation) => {
-          setAiError(null);
-          setIsAiLoading(false);
-          setActiveConversation(conversation);
-        }}
+        onSelect={handleConversationSelect}
       />
 
       <section className="workspace" aria-labelledby="page-title">
@@ -146,6 +179,10 @@ export function HomePage() {
             <MessageHistory
               conversationId={activeConversation.id}
               refreshToken={refreshToken}
+              liveTranscript={liveTranscript}
+              liveConnectionState={liveConnectionState}
+              latestAiResult={latestAiResult}
+              onHistorySynchronized={handleHistorySynchronized}
             />
           </div>
         ) : (
@@ -167,6 +204,8 @@ export function HomePage() {
         <MicrophoneCapturePanel
           conversationId={activeConversation?.id ?? null}
           onFinalTranscript={handleFinalTranscript}
+          onTranscriptChange={handleLiveTranscriptChange}
+          onConnectionStateChange={setLiveConnectionState}
         />
       </section>
     </main>
