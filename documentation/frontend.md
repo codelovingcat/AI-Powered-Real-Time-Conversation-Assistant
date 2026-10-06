@@ -127,3 +127,15 @@ Frontend hiçbir zaman Gemini API key, database credential veya signing secret t
 Rate limit, input limitleri, authorization ve prompt security backend'de kalacak.
 
 Frontend CI ayrıca `typecheck`, test ve production build çalıştırıyor; external Gemini/Deepgram smoke çağrıları frontend CI'ına eklenmiyor.
+
+
+## P30 — Suggested-answer actions
+
+Suggested English replies in the web conversation timeline support:
+
+- copying the English reply through the browser Clipboard API, with a local textarea fallback when Clipboard API access is unavailable or denied;
+- explicit copied/copy-failed feedback;
+- regenerating a reply through the existing authenticated assistant API using the original message input;
+- explicit regeneration loading/success/failure feedback.
+
+Regeneration creates a new persisted message rather than modifying the previous AI result. The authenticated conversation boundary remains enforced by the existing assistant endpoint, and copied text never leaves the browser through a separate third-party request.
