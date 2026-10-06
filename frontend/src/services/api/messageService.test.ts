@@ -34,7 +34,7 @@ describe("messageService", () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(
-        new Response(JSON.stringify([message]), {
+        new Response(JSON.stringify({ items: [message], nextCursor: null }), {
           status: 200,
           headers: { "Content-Type": "application/json" }
         })
@@ -42,7 +42,10 @@ describe("messageService", () => {
 
     await expect(
       listMessages(message.conversationId)
-    ).resolves.toEqual([message]);
+    ).resolves.toEqual({
+      items: [message],
+      nextCursor: null
+    });
 
     expect(fetchMock.mock.calls[0][0]).toBe(
       "/api/conversations/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/messages"
