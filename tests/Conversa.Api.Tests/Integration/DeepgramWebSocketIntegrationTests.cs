@@ -197,6 +197,14 @@ public sealed class DeepgramWebSocketIntegrationTests
     {
         public string ProviderName => "test";
 
+        public Task<IReadOnlyList<Conversation>> ListByUserPageAsync(
+            Guid userId,
+            int take,
+            DateTimeOffset? beforeUpdatedAt,
+            Guid? beforeId,
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
         public Task<ISpeechToTextSession> OpenSessionAsync(
             SpeechSessionOptions options,
             CancellationToken cancellationToken)
