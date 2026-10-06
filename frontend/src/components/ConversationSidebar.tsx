@@ -4,6 +4,7 @@ import {
   deleteConversation,
   getConversationErrorMessage,
   listConversations,
+  type ConversationListFilters,
   type ConversationSummary
 } from "../services/api/conversationService";
 
@@ -14,6 +15,16 @@ interface ConversationSidebarProps {
 
 const DEFAULT_INSTRUCTION =
   "During this conversation, translate English speech into natural and accurate Turkish. Unless I explicitly ask otherwise, only translate and explain what is being said.";
+
+function startOfDayIso(value: string): string {
+  return new Date(value + "T00:00:00.000Z").toISOString();
+}
+
+function endOfDayExclusiveIso(value: string): string {
+  const date = new Date(value + "T00:00:00.000Z");
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString();
+}
 
 export function ConversationSidebar({
   activeConversationId,
@@ -30,27 +41,34 @@ export function ConversationSidebar({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [instruction, setInstruction] = useState(DEFAULT_INSTRUCTION);
+  const [searchDraft, setSearchDraft] = useState("");
+  const [updatedFromDraft, setUpdatedFromDraft] = useState("");
+  const [updatedToDraft, setUpdatedToDraft] = useState("");
+  const [filters, setFilters] = useState<ConversationListFilters>({});
 
-  const loadConversations = useCallback(async (isReload = false) => {
-    if (isReload) {
-      setIsReloading(true);
-    } else {
-      setIsLoading(true);
-    }
+  const loadConversations = useCallback(
+    async (filtersToApply: ConversationListFilters, isReload = false) => {
+      if (isReload) {
+        setIsReloading(true);
+      } else {
+        setIsLoading(true);
+      }
 
-    setError(null);
+      setError(null);
 
-    try {
-      const page = await listConversations();
-      setConversations(page.items);
-      setNextCursor(page.nextCursor);
-    } catch (loadError) {
-      setError(getConversationErrorMessage(loadError));
-    } finally {
-      setIsLoading(false);
-      setIsReloading(false);
-    }
-  }, []);
+      try {
+        const page = await listConversations(undefined, undefined, filtersToApply);
+        setConversations(page.items);
+        setNextCursor(page.nextCursor);
+      } catch (loadError) {
+        setError(getConversationErrorMessage(loadError));
+      } finally {
+        setIsLoading(false);
+        setIsReloading(false);
+      }
+    },
+    []
+  );
 
   async function loadMoreConversations() {
     if (!nextCursor || isLoadingMore || isLoading || isReloading) {
@@ -61,7 +79,7 @@ export function ConversationSidebar({
     setError(null);
 
     try {
-      const page = await listConversations(nextCursor);
+      const page = await listConversations(nextCursor, undefined, filters);
       setConversations((current) => [...current, ...page.items]);
       setNextCursor(page.nextCursor);
     } catch (loadError) {
@@ -72,10 +90,44 @@ export function ConversationSidebar({
   }
 
   useEffect(() => {
-    void loadConversations();
+    void loadConversations({});
   }, [loadConversations]);
 
   const sortedConversations = conversations;
+  const hasActiveFilters = Boolean(
+    filters.search || filters.updatedFrom || filters.updatedTo
+  );
+
+  function buildFilters(): ConversationListFilters {
+    return {
+      search: searchDraft.trim() || undefined,
+      updatedFrom: updatedFromDraft ? startOfDayIso(updatedFromDraft) : undefined,
+      updatedTo: updatedToDraft ? endOfDayExclusiveIso(updatedToDraft) : undefined
+    };
+  }
+
+  function handleSearch() {
+    if (
+      updatedFromDraft &&
+      updatedToDraft &&
+      updatedFromDraft > updatedToDraft
+    ) {
+      setError("Updated from must be earlier than or equal to updated to.");
+      return;
+    }
+
+    const nextFilters = buildFilters();
+    setFilters(nextFilters);
+    void loadConversations(nextFilters, true);
+  }
+
+  function handleClearSearch() {
+    setSearchDraft("");
+    setUpdatedFromDraft("");
+    setUpdatedToDraft("");
+    setFilters({});
+    void loadConversations({}, true);
+  }
 
   async function handleCreate() {
     if (!title.trim() || !instruction.trim()) {
@@ -93,7 +145,11 @@ export function ConversationSidebar({
         targetLanguage: "tr"
       });
 
-      setConversations((current) => [created, ...current]);
+      if (hasActiveFilters) {
+        await loadConversations(filters, true);
+      } else {
+        setConversations((current) => [created, ...current]);
+      }
       onSelect(created);
       setTitle("");
       setInstruction(DEFAULT_INSTRUCTION);
@@ -180,6 +236,63 @@ export function ConversationSidebar({
         </div>
       )}
 
+      <form
+        className="conversation-search"
+        role="search"
+        onSubmit={(event) => {
+          event.preventDefault();
+          handleSearch();
+        }}
+      >
+        <label htmlFor="conversation-search-input">Search conversations</label>
+        <input
+          id="conversation-search-input"
+          value={searchDraft}
+          onChange={(event) => setSearchDraft(event.target.value)}
+          maxLength={100}
+          placeholder="Title or language"
+          disabled={isLoading || isReloading}
+        />
+
+        <div className="conversation-search-dates">
+          <label htmlFor="conversation-updated-from">Updated from</label>
+          <input
+            id="conversation-updated-from"
+            type="date"
+            value={updatedFromDraft}
+            onChange={(event) => setUpdatedFromDraft(event.target.value)}
+            disabled={isLoading || isReloading}
+          />
+
+          <label htmlFor="conversation-updated-to">Updated to</label>
+          <input
+            id="conversation-updated-to"
+            type="date"
+            value={updatedToDraft}
+            onChange={(event) => setUpdatedToDraft(event.target.value)}
+            disabled={isLoading || isReloading}
+          />
+        </div>
+
+        <div className="conversation-search-actions">
+          <button
+            className="primary-button"
+            type="submit"
+            disabled={isLoading || isReloading}
+          >
+            Search
+          </button>
+          <button
+            className="text-button"
+            type="button"
+            onClick={handleClearSearch}
+            disabled={isLoading || isReloading || !hasActiveFilters && !searchDraft && !updatedFromDraft && !updatedToDraft}
+          >
+            Clear
+          </button>
+        </div>
+      </form>
+
       <div className="sidebar-actions">
         <span className="conversation-count">
           {sortedConversations.length} conversation
@@ -188,7 +301,7 @@ export function ConversationSidebar({
         <button
           className="text-button"
           type="button"
-          onClick={() => void loadConversations(true)}
+          onClick={() => void loadConversations(filters, true)}
           disabled={isReloading || isLoading}
         >
           {isReloading ? "Refreshing…" : "Refresh"}
@@ -206,7 +319,9 @@ export function ConversationSidebar({
           <p className="sidebar-empty">Loading conversations…</p>
         ) : sortedConversations.length === 0 ? (
           <p className="sidebar-empty">
-            No conversations yet. Create one to get started.
+            {hasActiveFilters
+              ? "No conversations match your current filters."
+              : "No conversations yet. Create one to get started."}
           </p>
         ) : (
           <>
