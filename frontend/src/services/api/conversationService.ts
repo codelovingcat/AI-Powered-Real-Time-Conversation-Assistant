@@ -46,11 +46,15 @@ function parseConversationPage(value: unknown): CursorPage<ConversationSummary> 
 
   const candidate = value as Record<string, unknown>;
 
-  if (
-    !Array.isArray(candidate.items) ||
-    !candidate.items.every(isConversationSummary) ||
-    (candidate.nextCursor !== null && typeof candidate.nextCursor !== "string")
-  ) {
+  if (!Array.isArray(candidate.items)) {
+    throw new Error("The conversation list response is invalid.");
+  }
+
+  if (!candidate.items.every(isConversationSummary)) {
+    throw new Error("The conversation list contains invalid data.");
+  }
+
+  if (candidate.nextCursor !== null && typeof candidate.nextCursor !== "string") {
     throw new Error("The conversation list response is invalid.");
   }
 
