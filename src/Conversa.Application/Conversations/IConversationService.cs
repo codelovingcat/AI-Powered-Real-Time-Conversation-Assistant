@@ -1,3 +1,5 @@
+using Conversa.Application.Common;
+
 namespace Conversa.Application.Conversations;
 
 public interface IConversationService
