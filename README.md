@@ -177,13 +177,13 @@ Start PostgreSQL:
 docker compose up -d
 ```
 
-The compose file creates database `conversa` with user `conversa` and password `conversa`. That password is a local development default, not a production secret.
+The compose file reads PostgreSQL credentials from `.env`. Copy `.env.example` to `.env` and keep the populated file untracked.
 
 Apply configuration and run the API:
 
 ```bash
-export ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=conversa;Username=conversa;Password=conversa"
-export Gemini__ApiKey="your-gemini-api-key"
+cp .env.example .env
+# Edit .env and provide local secrets, then:
 export ASPNETCORE_ENVIRONMENT=Development
 export ASPNETCORE_URLS="http://localhost:5080"
 dotnet run --project src/Conversa.Api
@@ -293,7 +293,7 @@ ASP.NET Core maps `__` to configuration sections. See `.env.example`.
 | `Deepgram__EndpointingMilliseconds` | No | Defaults to `300` |
 
 
-`appsettings.json` ships with an empty API key and an empty connection string. `appsettings.Development.json` contains only the local Docker connection string so `dotnet run` works against compose. Production must set the environment variables and must not run as Development.
+`appsettings.json` contains only non-secret defaults. `appsettings.Development.json` is intentionally empty so local credentials cannot live in source control. Local secrets belong in `.env`/user-secrets or environment variables. Production must provide all required settings and must not run as Development.
 
 ### GitHub Actions Gemini secret
 
