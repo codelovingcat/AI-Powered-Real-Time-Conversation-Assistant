@@ -12,6 +12,13 @@ import {
 } from "../auth/accessTokenStore";
 import { subscribeToUnauthorized } from "../auth/authEvents";
 
+const refreshPayload = {
+  authenticated: true,
+  userId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  accessToken: "refreshed-access-token",
+  accessTokenExpiresAt: "2026-10-06T11:15:00.000Z"
+};
+
 describe("apiClient", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -33,6 +40,7 @@ describe("apiClient", () => {
 
     expect(headers.get("Authorization")).toBe("Bearer test-access-token");
     expect(headers.get("Accept")).toBe("application/json");
+    expect(init?.credentials).toBe("include");
   });
 
   it("does not add an authorization header without a token", async () => {
@@ -48,14 +56,42 @@ describe("apiClient", () => {
     expect(headers.has("Authorization")).toBe(false);
   });
 
-  it("classifies 401 as unauthorized and clears the active session", async () => {
-    setAccessToken("expired-token");
+  it("refreshes once and retries a protected request after a 401", async () => {
+    setAccessToken("expired-access-token");
+
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("", { status: 401 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(refreshPayload), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        })
+      )
+      .mockResolvedValueOnce(new Response("[]", { status: 200 }));
+
+    const response = await apiGet("/api/conversations");
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(String(fetchMock.mock.calls[1][0])).toContain("/api/auth/refresh");
+    expect(fetchMock.mock.calls[1][1]?.credentials).toBe("include");
+
+    const [, retryInit] = fetchMock.mock.calls[2];
+    const retryHeaders = new Headers(retryInit?.headers);
+    expect(retryHeaders.get("Authorization")).toBe(
+      "Bearer refreshed-access-token"
+    );
+  });
+
+  it("clears the client session when refresh reports an expired session", async () => {
+    setAccessToken("expired-access-token");
     const unauthorized = vi.fn();
     const unsubscribe = subscribeToUnauthorized(unauthorized);
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response("", { status: 401 })
-    );
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("", { status: 401 }))
+      .mockResolvedValueOnce(new Response("", { status: 401 }));
 
     await expect(apiGet("/api/conversations")).rejects.toMatchObject({
       status: 401,
