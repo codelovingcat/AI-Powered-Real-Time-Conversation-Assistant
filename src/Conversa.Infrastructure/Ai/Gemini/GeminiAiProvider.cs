@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Conversa.Application.Observability;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -25,6 +26,17 @@ internal sealed class GeminiAiProvider(
         AiConversationRequest request,
         CancellationToken cancellationToken)
     {
+        using var activity = ConversaTelemetry.ActivitySource.StartActivity(
+            "conversa.ai.process");
+        var totalStopwatch = Stopwatch.StartNew();
+        var outcome = "error";
+
+        activity?.SetTag("conversa.provider", Name);
+        activity?.SetTag("conversa.operation", "ai.process");
+        activity?.SetTag("conversa.input_kind", request.InputKind.ToString());
+
+        try
+        {
         var settings = options.Value;
         ValidateSettings(settings);
 
@@ -59,6 +71,8 @@ internal sealed class GeminiAiProvider(
                             "Gemini request succeeded on attempt {Attempt} in {ElapsedMilliseconds} ms.",
                             attempt,
                             stopwatch.ElapsedMilliseconds);
+                        outcome = "success";
+                        activity?.SetStatus(ActivityStatusCode.Ok);
                         return result;
                     }
                     catch (AiProviderException exception)
@@ -119,6 +133,31 @@ internal sealed class GeminiAiProvider(
         }
 
         throw new AiProviderException("Gemini request failed after all retry attempts.");
+    }
+
+        }
+        catch (OperationCanceledException)
+        {
+            outcome = "cancelled";
+            activity?.SetStatus(ActivityStatusCode.Error, "cancelled");
+            throw;
+        }
+        catch (Exception exception)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
+            throw;
+        }
+        finally
+        {
+            totalStopwatch.Stop();
+            ConversaTelemetry.AiRequests.Add(
+                1,
+                ConversaTelemetry.Tags(Name, "process", outcome));
+            ConversaTelemetry.AiDuration.Record(
+                totalStopwatch.Elapsed.TotalMilliseconds,
+                ConversaTelemetry.Tags(Name, "process", outcome));
+            activity?.SetTag("conversa.outcome", outcome);
+        }
     }
 
     private static bool IsTransient(HttpStatusCode statusCode, GeminiError error) =>
