@@ -11,7 +11,6 @@ using Conversa.Application.Conversations;
 using Conversa.Infrastructure;
 using Conversa.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
@@ -165,8 +164,6 @@ builder.Configuration.GetSection(RateLimitOptions.SectionName).Bind(rateLimitOpt
 rateLimitOptions.Validate();
 
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddDataProtection()
-    .PersistKeysToDbContext<AppDbContext>();
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database", failureStatus: HealthStatus.Unhealthy, tags: new[] { "ready" });
 builder.Services.Configure<AudioWebSocketOptions>(builder.Configuration.GetSection(AudioWebSocketOptions.SectionName));
 builder.Services.Configure<RateLimitOptions>(builder.Configuration.GetSection(RateLimitOptions.SectionName));
