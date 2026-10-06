@@ -1,0 +1,118 @@
+name: Production Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "GHCR image tag or commit SHA to deploy"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy API to Render
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve image tag
+        id: image
+        env:
+          REQUESTED_TAG: ${{ inputs.image_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag="${REQUESTED_TAG:-$GITHUB_SHA}"
+
+          if [[ ! "$tag" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            echo "Invalid image tag format."
+            exit 1
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER}/conversa-api:$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Verify image exists
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: docker buildx imagetools inspect "$IMAGE" >/dev/null
+
+      - name: Validate production URL
+        env:
+          PRODUCTION_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$PRODUCTION_BASE_URL" ]]; then
+            echo "PRODUCTION_BASE_URL repository/environment variable is required."
+            exit 1
+          fi
+
+          case "$PRODUCTION_BASE_URL" in
+            https://*) ;;
+            *)
+              echo "PRODUCTION_BASE_URL must use HTTPS."
+              exit 1
+              ;;
+          esac
+
+      - name: Trigger Render deploy
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          IMAGE: ${{ steps.image.outputs.image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$RENDER_DEPLOY_HOOK_URL" ]]; then
+            echo "RENDER_DEPLOY_HOOK_URL production environment secret is required."
+            exit 1
+          fi
+
+          encoded_image="$(python -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["IMAGE"], safe=""))')"
+
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            "${RENDER_DEPLOY_HOOK_URL}&imgURL=${encoded_image}"
+
+      - name: Verify production health
+        env:
+          PRODUCTION_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          health_url="${PRODUCTION_BASE_URL%/}/health"
+          ready_url="${PRODUCTION_BASE_URL%/}/health/ready"
+
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error --proto '=https' --tlsv1.2 "$health_url" >/dev/null &&
+               curl --fail --silent --show-error --proto '=https' --tlsv1.2 "$ready_url" >/dev/null; then
+              exit 0
+            fi
+
+            sleep 10
+          done
+
+          echo "Production health checks did not become ready."
+          exit 1
