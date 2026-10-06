@@ -106,7 +106,8 @@ public sealed class ConversationAssistantFlowTests
         Assert.True(conversation.UpdatedAt >= now);
 
         var telemetryActivity = Assert.Single(
-            activities.Where(activity => activity.OperationName == "conversa.assistant.process"));
+            activities,
+            activity => activity.OperationName == "conversa.assistant.process");
         Assert.Equal(ActivityStatusCode.Ok, telemetryActivity.Status);
         Assert.Equal("success", telemetryActivity.GetTagItem("conversa.outcome"));
         Assert.Equal(AiInputKind.HeardSpeech.ToString(), telemetryActivity.GetTagItem("conversa.input_kind"));
