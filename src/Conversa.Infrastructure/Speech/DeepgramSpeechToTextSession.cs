@@ -40,6 +40,7 @@ public sealed class DeepgramSpeechToTextSession : ISpeechToTextSession
         using var activity = ConversaTelemetry.ActivitySource.StartActivity(
             "conversa.stt.streaming.start");
         var stopwatch = Stopwatch.StartNew();
+        var outcome = "error";
         activity?.SetTag("conversa.provider", "deepgram");
         activity?.SetTag("conversa.operation", "stt.streaming.start");
 
@@ -70,10 +71,12 @@ public sealed class DeepgramSpeechToTextSession : ISpeechToTextSession
         }
 
         _receiveTask = ReceiveLoopAsync(_disposeCts.Token);
+        outcome = "success";
         activity?.SetStatus(ActivityStatusCode.Ok);
         }
         catch (OperationCanceledException)
         {
+            outcome = "cancelled";
             activity?.SetStatus(ActivityStatusCode.Error, "cancelled");
             throw;
         }
@@ -87,10 +90,11 @@ public sealed class DeepgramSpeechToTextSession : ISpeechToTextSession
             stopwatch.Stop();
             ConversaTelemetry.SttRequests.Add(
                 1,
-                ConversaTelemetry.Tags("deepgram", "streaming.start", "success"));
+                ConversaTelemetry.Tags("deepgram", "streaming.start", outcome));
             ConversaTelemetry.SttDuration.Record(
                 stopwatch.Elapsed.TotalMilliseconds,
-                ConversaTelemetry.Tags("deepgram", "streaming.start", "success"));
+                ConversaTelemetry.Tags("deepgram", "streaming.start", outcome));
+            activity?.SetTag("conversa.outcome", outcome);
         }
     }
 
