@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Conversa.Api.Identity;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
