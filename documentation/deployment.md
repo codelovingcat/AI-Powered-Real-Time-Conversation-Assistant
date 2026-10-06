@@ -45,7 +45,7 @@ Render recommends environment variables for production secrets and supports mark
 
 ## Production environment variables
 
-Required:
+Required settings are validated during API startup. Values marked as secrets must be stored in Render/GitHub secret storage and never in source control:
 
 | Variable | Source |
 | --- | --- |
