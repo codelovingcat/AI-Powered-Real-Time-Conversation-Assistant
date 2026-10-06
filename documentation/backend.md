@@ -216,3 +216,16 @@ P26 adds configurable OpenTelemetry tracing and metrics.
 Observability is disabled by default in committed configuration. Enable it with `Observability__Enabled=true` and direct the OTLP exporter with `Observability__OtlpEndpoint`. Outside Development and Testing, configured OTLP endpoints must use HTTPS and cannot contain embedded credentials.
 
 Telemetry intentionally excludes prompts, transcripts, access tokens, API keys, database credentials and conversation identifiers. Correlation is provided by the standard W3C trace context and the trace ID already returned by the API error model.
+
+
+## P27 — Cursor pagination
+
+Conversation and message history endpoints use cursor pagination rather than returning the full collection.
+
+- `GET /api/conversations?limit=50&cursor=...` returns the newest page for the authenticated user.
+- `GET /api/conversations/{id}/messages?limit=50&cursor=...` returns the newest page for an owned conversation.
+- Responses use `{ items, nextCursor }`; `nextCursor` is `null` on the final page.
+- Ordering is deterministic: conversations use `UpdatedAt` then `Id` descending; messages use `CreatedAt` then `Id` descending at the query boundary and are returned oldest-to-newest to the client.
+- Cursor values contain only pagination position data. They do not contain conversation content or authorization state.
+- Ownership is applied independently of cursor parameters: conversation pages always filter by `currentUser.UserId`, and message pages first resolve the conversation through the authenticated user before querying messages.
+- Queries request at most one extra row to determine whether another page exists, avoiding a separate count query and keeping history payloads bounded.
