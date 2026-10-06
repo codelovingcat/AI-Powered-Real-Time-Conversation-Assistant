@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Security.Claims;
-using System.Text;
 using System.Threading.RateLimiting;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -11,11 +10,15 @@ using Conversa.Application.Abstractions.Identity;
 using Conversa.Application.Conversations;
 using Conversa.Infrastructure;
 using Conversa.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
+
+const string PersistentSessionScheme = "Conversa.Session";
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,10 +52,54 @@ if (signingKeyBytes.Length < 32)
         "Authentication:SigningKey must contain at least 32 bytes.");
 }
 
+var accessTokenLifetimeMinutes =
+    builder.Configuration.GetValue("Authentication:AccessTokenLifetimeMinutes", 15);
+
+var sessionLifetimeDays =
+    builder.Configuration.GetValue("Authentication:SessionLifetimeDays", 7);
+
+if (accessTokenLifetimeMinutes is < 5 or > 60)
+{
+    throw new InvalidOperationException(
+        "Authentication:AccessTokenLifetimeMinutes must be between 5 and 60.");
+}
+
+if (sessionLifetimeDays is < 1 or > 30)
+{
+    throw new InvalidOperationException(
+        "Authentication:SessionLifetimeDays must be between 1 and 30.");
+}
+
+var allowedCorsOrigins = (builder.Configuration["Cors:AllowedOrigins"] ?? string.Empty)
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+if (allowedCorsOrigins.Length == 0 && builder.Environment.IsDevelopment())
+{
+    allowedCorsOrigins = ["http://localhost:5173"];
+}
+
 var signingKey = new SymmetricSecurityKey(signingKeyBytes);
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+    {
+        if (allowedCorsOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedCorsOrigins)
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        }
+    });
+});
+
 builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
     .AddJwtBearer(options =>
     {
         options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
@@ -84,6 +131,30 @@ builder.Services
                 return Task.CompletedTask;
             }
         };
+    })
+    .AddCookie(PersistentSessionScheme, options =>
+    {
+        options.Cookie.Name = "conversa_session";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest
+            : CookieSecurePolicy.Always;
+        options.Cookie.SameSite = builder.Environment.IsDevelopment()
+            ? SameSiteMode.Lax
+            : SameSiteMode.None;
+        options.Cookie.Path = "/api/auth";
+        options.ExpireTimeSpan = TimeSpan.FromDays(sessionLifetimeDays);
+        options.SlidingExpiration = false;
+        options.Events.OnRedirectToLogin = context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        };
+        options.Events.OnRedirectToAccessDenied = context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        };
     });
 
 builder.Services.AddAuthorization();
@@ -102,6 +173,12 @@ builder.Services.AddScoped<IConversationService, ConversationService>();
 builder.Services.AddScoped<IConversationAssistant, ConversationAssistant>();
 builder.Services.AddScoped<ConversationInputValidator>();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton(new JwtAccessTokenFactory(
+    authenticationIssuer,
+    authenticationAudience,
+    signingKey,
+    TimeSpan.FromMinutes(accessTokenLifetimeMinutes),
+    TimeProvider.System));
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -169,6 +246,7 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseRouting();
+app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
