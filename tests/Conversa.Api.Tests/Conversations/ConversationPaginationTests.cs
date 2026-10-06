@@ -22,6 +22,14 @@ public sealed class ConversationPaginationTests
                 "en",
                 "tr",
                 now.AddMinutes(-index)))
+            .Append(
+                Conversation.Create(
+                    Guid.NewGuid(),
+                    "Other user's conversation",
+                    "This must never appear in the page.",
+                    "en",
+                    "tr",
+                    now.AddMinutes(1)))
             .ToArray();
 
         var repository = new RecordingConversationRepository(conversations);
@@ -30,6 +38,7 @@ public sealed class ConversationPaginationTests
         var firstPage = await service.ListAsync(2, null, CancellationToken.None);
 
         Assert.Equal(2, firstPage.Items.Count);
+        Assert.All(firstPage.Items, item => Assert.Equal(userId, item.UserId));
         Assert.NotNull(firstPage.NextCursor);
         Assert.Equal(userId, repository.LastUserId);
         Assert.Equal(3, repository.LastTake);
