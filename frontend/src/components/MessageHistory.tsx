@@ -268,7 +268,11 @@ export function MessageHistory({
             )}
 
             {latestAiResult && (
-              <LiveAiAssistanceCard message={latestAiResult} />
+              <LiveAiAssistanceCard
+                message={latestAiResult}
+                onRegenerate={() => handleRegenerate(latestAiResult)}
+                isRegenerating={regeneratingMessageId === latestAiResult.id}
+              />
             )}
 
             <div ref={endRef} aria-hidden="true" />
@@ -346,9 +350,13 @@ function LiveTranscriptTurn({
 }
 
 function LiveAiAssistanceCard({
-  message
+  message,
+  onRegenerate,
+  isRegenerating = false
 }: {
   message: ConversationMessage;
+  onRegenerate?: () => Promise<void>;
+  isRegenerating?: boolean;
 }) {
   return (
     <article className="timeline-ai-assistance">
@@ -380,10 +388,8 @@ function LiveAiAssistanceCard({
           )}
           <SuggestedAnswerActions
             suggestedAnswer={message.suggestedAnswer}
-            onRegenerate={
-              () => handleRegenerate(message)
-            }
-            isRegenerating={regeneratingMessageId === message.id}
+            onRegenerate={onRegenerate}
+            isRegenerating={isRegenerating}
           />
         </section>
       )}
