@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using System.Net.WebSockets;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using Conversa.Application.Abstractions.Persistence;
+using Conversa.Application.Observability;
 using Conversa.Application.Speech;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +27,15 @@ public static class AudioWebSocketEndpoint
         IServiceProvider services,
         IOptions<AudioWebSocketOptions> options)
     {
+        using var activity = ConversaTelemetry.ActivitySource.StartActivity(
+            "conversa.websocket.audio");
+        var stopwatch = Stopwatch.StartNew();
+        var outcome = "error";
+
+        activity?.SetTag("conversa.operation", "audio.websocket");
+
+        try
+        {
         if (context.User.Identity?.IsAuthenticated != true)
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -73,6 +84,8 @@ public static class AudioWebSocketEndpoint
             ? await context.WebSockets.AcceptWebSocketAsync(WebSocketAuthentication.SubProtocol)
             : await context.WebSockets.AcceptWebSocketAsync();
 
+        ConversaTelemetry.WebSocketConnections.Add(1);
+
         if (factory is null)
         {
             await SendAsync(socket, new
@@ -86,6 +99,7 @@ public static class AudioWebSocketEndpoint
                 WebSocketCloseStatus.PolicyViolation,
                 "stt_provider_not_configured",
                 cancellationToken);
+            outcome = "error";
             return;
         }
 
@@ -114,6 +128,8 @@ public static class AudioWebSocketEndpoint
         }
         catch (OperationCanceledException) when (lifetimeCts.IsCancellationRequested)
         {
+            outcome = "cancelled";
+            activity?.SetStatus(ActivityStatusCode.Error, "cancelled");
             if (socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
             {
                 await socket.CloseAsync(
@@ -121,6 +137,26 @@ public static class AudioWebSocketEndpoint
                     "connection lifetime exceeded or request cancelled",
                     CancellationToken.None);
             }
+        }
+        catch (Exception exception)
+        {
+            outcome = "error";
+            activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
+            throw;
+        }
+        finally
+        {
+            stopwatch.Stop();
+            ConversaTelemetry.WebSocketConnections.Add(-1);
+            ConversaTelemetry.WebSocketDuration.Record(
+                stopwatch.Elapsed.TotalMilliseconds,
+                new TagList { { "outcome", outcome } });
+            if (outcome == "error")
+            {
+                ConversaTelemetry.WebSocketFailures.Add(1);
+            }
+
+            activity?.SetTag("conversa.outcome", outcome);
         }
     }
 
