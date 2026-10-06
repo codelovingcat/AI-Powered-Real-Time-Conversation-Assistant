@@ -222,6 +222,14 @@ public sealed class ConversationAssistantFlowTests
             CancellationToken cancellationToken)
             => throw new NotSupportedException();
 
+        public Task<IReadOnlyList<Conversation>> ListByUserPageAsync(
+            Guid userId,
+            int take,
+            DateTimeOffset? beforeUpdatedAt,
+            Guid? beforeId,
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
         public Task AddAsync(Conversation conversation, CancellationToken cancellationToken)
             => throw new NotSupportedException();
 
@@ -234,14 +242,6 @@ public sealed class ConversationAssistantFlowTests
         private readonly List<Message> _messages = [.. initialMessages];
 
         public List<Message> AddedMessages { get; } = [];
-
-        public Task<IReadOnlyList<Conversation>> ListByUserPageAsync(
-            Guid userId,
-            int take,
-            DateTimeOffset? beforeUpdatedAt,
-            Guid? beforeId,
-            CancellationToken cancellationToken)
-            => throw new NotSupportedException();
 
         public Task<IReadOnlyList<Message>> ListByConversationAsync(
             Guid conversationId,
