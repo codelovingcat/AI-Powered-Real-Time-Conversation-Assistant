@@ -3,6 +3,7 @@ import {
   clearAccessToken,
   getAccessToken
 } from "../auth/accessTokenStore";
+import { refreshCurrentSession } from "../auth/authSession";
 import { notifyUnauthorized } from "../auth/authEvents";
 
 export type ApiErrorKind =
@@ -70,7 +71,8 @@ export async function apiDelete(
 
 export async function apiRequest(
   path: string,
-  init: RequestInit = {}
+  init: RequestInit = {},
+  allowSessionRefresh = true
 ): Promise<Response> {
   const headers = new Headers(init.headers);
   headers.set("Accept", "application/json");
@@ -90,7 +92,7 @@ export async function apiRequest(
     response = await fetch(resolveApiUrl(path), {
       ...init,
       headers,
-      credentials: "same-origin"
+      credentials: "include"
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
@@ -106,6 +108,20 @@ export async function apiRequest(
 
   if (response.ok) {
     return response;
+  }
+
+  if (
+    response.status === 401 &&
+    allowSessionRefresh &&
+    getAccessToken() !== null &&
+    path.startsWith("/api/") &&
+    !path.startsWith("/api/auth/")
+  ) {
+    const refreshedSession = await refreshCurrentSession();
+
+    if (refreshedSession) {
+      return apiRequest(path, init, false);
+    }
   }
 
   throw createApiError(response);
