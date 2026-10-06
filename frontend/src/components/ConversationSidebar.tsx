@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   createConversation,
   deleteConversation,
@@ -53,7 +53,7 @@ export function ConversationSidebar({
   }, []);
 
   async function loadMoreConversations() {
-    if (!nextCursor || isLoadingMore || isLoading) {
+    if (!nextCursor || isLoadingMore || isLoading || isReloading) {
       return;
     }
 
@@ -75,15 +75,7 @@ export function ConversationSidebar({
     void loadConversations();
   }, [loadConversations]);
 
-  const sortedConversations = useMemo(
-    () =>
-      [...conversations].sort(
-        (left, right) =>
-          new Date(right.updatedAt).getTime() -
-          new Date(left.updatedAt).getTime()
-      ),
-    [conversations]
-  );
+  const sortedConversations = conversations;
 
   async function handleCreate() {
     if (!title.trim() || !instruction.trim()) {
@@ -259,7 +251,7 @@ export function ConversationSidebar({
                 className="text-button"
                 type="button"
                 onClick={() => void loadMoreConversations()}
-                disabled={isLoadingMore}
+                disabled={isLoadingMore || isReloading}
               >
                 {isLoadingMore ? "Loading older conversations…" : "Load older conversations"}
               </button>
