@@ -90,6 +90,51 @@ public sealed class ConversationSearchTests
     }
 
     [Fact]
+    public async Task Updated_date_filters_use_inclusive_start_and_exclusive_end()
+    {
+        var userId = Guid.NewGuid();
+        var from = new DateTimeOffset(2026, 10, 1, 0, 0, 0, TimeSpan.Zero);
+        var to = from.AddDays(1);
+
+        var included = Conversation.Create(
+            userId,
+            "Included",
+            "Translate naturally.",
+            "en",
+            "tr",
+            from);
+        var excludedBefore = Conversation.Create(
+            userId,
+            "Before",
+            "Translate naturally.",
+            "en",
+            "tr",
+            from.AddTicks(-1));
+        var excludedAtEnd = Conversation.Create(
+            userId,
+            "At end",
+            "Translate naturally.",
+            "en",
+            "tr",
+            to);
+
+        var repository = new RecordingConversationRepository(
+            [included, excludedBefore, excludedAtEnd]);
+        var service = CreateService(userId, repository);
+
+        var page = await service.ListAsync(
+            10,
+            null,
+            null,
+            from,
+            to,
+            CancellationToken.None);
+
+        var item = Assert.Single(page.Items);
+        Assert.Equal(included.Id, item.Id);
+    }
+
+    [Fact]
     public async Task Oversized_search_is_rejected_before_repository_query()
     {
         var userId = Guid.NewGuid();
