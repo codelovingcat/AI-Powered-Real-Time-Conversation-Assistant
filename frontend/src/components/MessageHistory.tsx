@@ -6,7 +6,6 @@ import {
   processAssistantInput
 } from "../services/api/assistantService";
 import { getRegenerationInputKind } from "../services/api/regeneration";
-import { getRegenerationInputKind } from "../services/api/regeneration";
 import {
   getLiveFinalText,
   shouldRenderLivePartial,
