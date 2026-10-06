@@ -77,11 +77,15 @@ function parseMessagePage(value: unknown): MessagePage {
 
   const candidate = value as Record<string, unknown>;
 
-  if (
-    !Array.isArray(candidate.items) ||
-    !candidate.items.every(isConversationMessage) ||
-    (candidate.nextCursor !== null && typeof candidate.nextCursor !== "string")
-  ) {
+  if (!Array.isArray(candidate.items)) {
+    throw new Error("The message history response is invalid.");
+  }
+
+  if (!candidate.items.every(isConversationMessage)) {
+    throw new Error("The message history contains invalid data.");
+  }
+
+  if (candidate.nextCursor !== null && typeof candidate.nextCursor !== "string") {
     throw new Error("The message history response is invalid.");
   }
 
