@@ -3,7 +3,8 @@ using Conversa.Api.Controllers;
 using Conversa.Api.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;\nusing Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
 
 namespace Conversa.Api.Tests.Controllers;
 
