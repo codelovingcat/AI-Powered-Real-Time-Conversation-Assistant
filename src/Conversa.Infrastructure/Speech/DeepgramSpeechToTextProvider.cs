@@ -116,6 +116,12 @@ public sealed class DeepgramSpeechToTextProvider(
                 SpeechRecognitionStatus.Failed,
                 new SpeechError("invalid_provider_response", "The speech-to-text provider returned an invalid response."));
         }
+        }
+        catch (Exception exception)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
+            throw;
+        }
         finally
         {
             stopwatch.Stop();
