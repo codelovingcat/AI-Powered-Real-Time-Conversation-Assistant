@@ -22,6 +22,7 @@ public sealed class ConversationAssistantFlowTests
                 ActivitySamplingResult.AllData,
             ActivityStopped = activity => activities.Add(activity)
         };
+        ConversaTelemetry.ActivitySource.AddActivityListener(listener);
 
         var userId = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
