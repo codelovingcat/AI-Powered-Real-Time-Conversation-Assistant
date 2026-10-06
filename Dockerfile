@@ -5,7 +5,8 @@ RUN dotnet restore Conversa.slnx
 RUN dotnet tool install --global dotnet-ef --version 10.0.11
 ENV PATH="/root/.dotnet/tools:$PATH"
 RUN dotnet publish src/Conversa.Api/Conversa.Api.csproj --configuration Release --no-restore --output /app/publish /p:UseAppHost=false
-RUN dotnet ef migrations bundle \
+RUN ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=conversa;Username=conversa;Password=build-only" \
+    dotnet ef migrations bundle \
     --project src/Conversa.Infrastructure/Conversa.Infrastructure.csproj \
     --startup-project src/Conversa.Api/Conversa.Api.csproj \
     --configuration Release \
