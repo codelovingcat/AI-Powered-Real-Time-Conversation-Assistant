@@ -41,9 +41,9 @@ internal sealed class ConversationRepository(AppDbContext db) : IConversationRep
             var pattern = $"%{escapedSearch}%";
 
             query = query.Where(conversation =>
-                EF.Functions.ILike(conversation.Title, pattern, "\\\\")
-                || EF.Functions.ILike(conversation.SourceLanguage, pattern, "\\\\")
-                || EF.Functions.ILike(conversation.TargetLanguage, pattern, "\\\\"));
+                EF.Functions.ILike(conversation.Title, pattern, "\\")
+                || EF.Functions.ILike(conversation.SourceLanguage, pattern, "\\")
+                || EF.Functions.ILike(conversation.TargetLanguage, pattern, "\\"));
         }
 
         if (updatedFrom is not null)
@@ -73,9 +73,9 @@ internal sealed class ConversationRepository(AppDbContext db) : IConversationRep
 
     private static string EscapeLikePattern(string value)
         => value
-            .Replace("\\\\", "\\\\\\\\", StringComparison.Ordinal)
-            .Replace("%", "\\\\%", StringComparison.Ordinal)
-            .Replace("_", "\\\\_", StringComparison.Ordinal);
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("%", "\\%", StringComparison.Ordinal)
+            .Replace("_", "\\_", StringComparison.Ordinal);
 
     public async Task AddAsync(Conversation conversation, CancellationToken cancellationToken)
         => await db.Conversations.AddAsync(conversation, cancellationToken);
