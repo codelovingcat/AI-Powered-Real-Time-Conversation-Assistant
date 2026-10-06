@@ -13,8 +13,34 @@ internal sealed class MessageRepository(AppDbContext db) : IMessageRepository
         => await db.Messages
             .Where(message => message.ConversationId == conversationId)
             .OrderBy(message => message.CreatedAt)
+            .ThenBy(message => message.Id)
             .Take(take)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Message>> ListByConversationPageAsync(
+        Guid conversationId,
+        int take,
+        DateTimeOffset? beforeCreatedAt,
+        Guid? beforeId,
+        CancellationToken cancellationToken)
+    {
+        var query = db.Messages
+            .Where(message => message.ConversationId == conversationId);
+
+        if (beforeCreatedAt is not null && beforeId is not null)
+        {
+            query = query.Where(message =>
+                message.CreatedAt < beforeCreatedAt.Value
+                || (message.CreatedAt == beforeCreatedAt.Value
+                    && message.Id.CompareTo(beforeId.Value) < 0));
+        }
+
+        return await query
+            .OrderByDescending(message => message.CreatedAt)
+            .ThenByDescending(message => message.Id)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+    }
 
     public async Task<IReadOnlyList<Message>> ListRecentAsync(
         Guid conversationId,
