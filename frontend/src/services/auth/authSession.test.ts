@@ -10,75 +10,126 @@ import {
   validateCurrentSession
 } from "./authSession";
 
+const refreshedPayload = {
+  authenticated: true,
+  userId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  accessToken: "short-lived-access-token",
+  accessTokenExpiresAt: "2026-10-06T11:15:00.000Z"
+};
+
 describe("authSession", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     clearAccessToken();
   });
 
-  it("keeps the access token after successful session validation", async () => {
+  it("exchanges the external access token for a short-lived app token", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            authenticated: true,
-            userId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" }
-          }
-        )
+        new Response(JSON.stringify(refreshedPayload), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        })
       );
 
-    const session = await signInWithAccessToken("test-token");
+    const session = await signInWithAccessToken(" external-token ");
 
-    expect(session.userId).toBe("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-    expect(getAccessToken()).toBe("test-token");
+    expect(session).toEqual({
+      authenticated: true,
+      userId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    });
+    expect(getAccessToken()).toBe("short-lived-access-token");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("/api/auth/session");
+    expect(init?.method).toBe("POST");
+    expect(new Headers(init?.headers).get("Authorization")).toBe(
+      "Bearer external-token"
+    );
+    expect(init?.credentials).toBe("include");
+  });
+
+  it("restores a session after reload using the persistent cookie", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(JSON.stringify(refreshedPayload), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        })
+      );
+
+    const session = await validateCurrentSession();
+
+    expect(session).toEqual({
+      authenticated: true,
+      userId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    });
+    expect(getAccessToken()).toBe("short-lived-access-token");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("/api/auth/refresh");
+    expect(init?.method).toBe("POST");
+    expect(init?.credentials).toBe("include");
+    expect(new Headers(init?.headers).has("Authorization")).toBe(false);
+  });
+
+  it("returns null and clears the access token when the persistent session is expired", async () => {
+    setAccessToken("expired-access-token");
+
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("", { status: 401 }));
+
+    await expect(validateCurrentSession()).resolves.toBeNull();
+
+    expect(getAccessToken()).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("clears the token when session validation rejects the token", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response("", { status: 401 })
+  it("shares concurrent refresh requests", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(refreshedPayload), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      })
     );
 
-    await expect(signInWithAccessToken("expired-token")).rejects.toMatchObject({
-      status: 401,
-      kind: "unauthorized"
-    });
+    const [first, second] = await Promise.all([
+      validateCurrentSession(),
+      validateCurrentSession()
+    ]);
+
+    expect(first?.userId).toBe(second?.userId);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("logs out remotely and clears the local access token", async () => {
+    setAccessToken("short-lived-access-token");
+
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("", { status: 204 }));
+
+    await signOut();
 
     expect(getAccessToken()).toBeNull();
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("/api/auth/logout");
+    expect(init?.method).toBe("POST");
+    expect(init?.credentials).toBe("include");
   });
 
-  it("returns null when no session token exists", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch");
+  it("clears the local access token when logout fails", async () => {
+    setAccessToken("short-lived-access-token");
 
-    await expect(validateCurrentSession()).resolves.toBeNull();
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("keeps unexpected session failures visible to the UI", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response("", { status: 503 })
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(
+      new Error("network failure")
     );
 
-    setAccessToken("test-token");
-
-    await expect(validateCurrentSession()).rejects.toMatchObject({
-      status: 503,
-      kind: "server"
-    });
-
-    expect(getAccessToken()).toBe("test-token");
-  });
-
-  it("signs out by clearing the in-memory token", () => {
-    setAccessToken("test-token");
-
-    signOut();
-
+    await expect(signOut()).rejects.toThrow("network failure");
     expect(getAccessToken()).toBeNull();
   });
 });
