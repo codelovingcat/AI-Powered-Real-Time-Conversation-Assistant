@@ -38,7 +38,7 @@ jobs:
 
     env:
       ASPNETCORE_ENVIRONMENT: Testing
-      ASPNETCORE_URLS: http://127.0.0.1:5080
+      ASPNETCORE_URLS: http://0.0.0.0:5080
       ConnectionStrings__DefaultConnection: Host=127.0.0.1;Port=5432;Database=conversa_e2e;Username=conversa;Password=test-password
       Authentication__Issuer: Conversa.E2E
       Authentication__Audience: Conversa.E2E
