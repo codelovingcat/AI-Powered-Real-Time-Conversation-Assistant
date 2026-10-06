@@ -30,13 +30,16 @@ describe("conversationService", () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(
-        new Response(JSON.stringify([conversation]), {
+        new Response(JSON.stringify({ items: [conversation], nextCursor: null }), {
           status: 200,
           headers: { "Content-Type": "application/json" }
         })
       );
 
-    await expect(listConversations()).resolves.toEqual([conversation]);
+    await expect(listConversations()).resolves.toEqual({
+      items: [conversation],
+      nextCursor: null
+    });
 
     const [, init] = fetchMock.mock.calls[0];
     expect(new Headers(init?.headers).get("Authorization")).toBe(
