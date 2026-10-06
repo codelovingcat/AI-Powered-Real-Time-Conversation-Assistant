@@ -57,6 +57,9 @@ Required settings are validated during API startup. Values marked as secrets mus
 | `Authentication__SigningKey` | 256-bit-or-longer signing secret, base64 encoded |
 | `RateLimiting__RedisConnectionString` | Render-provided shared Valkey/Redis endpoint |
 | `Cors__AllowedOrigins` | Exact browser origin(s), comma-separated |
+| `Observability__Enabled` | `true` when telemetry export is desired |
+| `Observability__ServiceName` | `conversa-api` |
+| `Observability__OtlpEndpoint` | OTLP collector HTTPS endpoint |
 
 Fixed production defaults:
 
@@ -68,7 +71,7 @@ Fixed production defaults:
 | `Authentication__AccessTokenLifetimeMinutes` | `15` |
 | `Authentication__SessionLifetimeDays` | `7` |
 
-Do not put any of these secrets in `render.yaml`, GitHub source, workflow logs, or image build arguments.
+Do not put any secrets in `render.yaml`, GitHub source, workflow logs, or image build arguments. `Observability__OtlpEndpoint` is configuration, not a credential; any exporter authentication headers must be supplied through the telemetry backend/secret mechanism and never committed.
 
 ## Database migration
 
