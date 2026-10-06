@@ -31,6 +31,7 @@ public static class AudioWebSocketEndpoint
             "conversa.websocket.audio");
         var stopwatch = Stopwatch.StartNew();
         var outcome = "error";
+        var connectionMetricRecorded = false;
 
         activity?.SetTag("conversa.operation", "audio.websocket");
 
@@ -85,6 +86,7 @@ public static class AudioWebSocketEndpoint
             : await context.WebSockets.AcceptWebSocketAsync();
 
         ConversaTelemetry.WebSocketConnections.Add(1);
+        connectionMetricRecorded = true;
 
         if (factory is null)
         {
@@ -146,13 +148,27 @@ public static class AudioWebSocketEndpoint
             activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
             throw;
         }
+        }
+
+        catch (Exception exception)
+        {
+            outcome = "error";
+            activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
+            throw;
+        }
         finally
         {
             stopwatch.Stop();
-            ConversaTelemetry.WebSocketConnections.Add(-1);
+
+            if (connectionMetricRecorded)
+            {
+                ConversaTelemetry.WebSocketConnections.Add(-1);
+            }
+
             ConversaTelemetry.WebSocketDuration.Record(
                 stopwatch.Elapsed.TotalMilliseconds,
                 new TagList { { "outcome", outcome } });
+
             if (outcome == "error")
             {
                 ConversaTelemetry.WebSocketFailures.Add(1);
