@@ -48,12 +48,36 @@ describe("messageService", () => {
     });
 
     expect(fetchMock.mock.calls[0][0]).toBe(
-      "/api/conversations/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/messages"
+      "/api/conversations/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/messages?limit=50"
     );
 
     const [, init] = fetchMock.mock.calls[0];
     expect(new Headers(init?.headers).get("Authorization")).toBe(
       "Bearer test-token"
+    );
+  });
+
+  it("passes the cursor to the paginated message endpoint", async () => {
+    setAccessToken("test-token");
+
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(JSON.stringify({ items: [message], nextCursor: "next-cursor" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        })
+      );
+
+    await expect(
+      listMessages(message.conversationId, "cursor-value")
+    ).resolves.toEqual({
+      items: [message],
+      nextCursor: "next-cursor"
+    });
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "/api/conversations/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/messages?limit=50&cursor=cursor-value"
     );
   });
 
