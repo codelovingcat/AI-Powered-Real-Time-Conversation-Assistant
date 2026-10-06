@@ -125,6 +125,8 @@ public static class AudioWebSocketEndpoint
             }
 
             await pumping;
+            outcome = "success";
+            activity?.SetStatus(ActivityStatusCode.Ok);
         }
         catch (OperationCanceledException) when (lifetimeCts.IsCancellationRequested)
         {
