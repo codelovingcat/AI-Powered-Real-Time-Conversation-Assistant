@@ -19,19 +19,34 @@ public sealed class ConversationService(
     private const string DefaultSourceLanguage = "en";
     private const string DefaultTargetLanguage = "tr";
 
-    public async Task<CursorPageDto<ConversationSummaryDto>> ListAsync(
+    public Task<CursorPageDto<ConversationSummaryDto>> ListAsync(
         int limit,
         string? cursor,
         CancellationToken cancellationToken)
+        => ListAsync(limit, cursor, null, null, null, cancellationToken);
+
+    public async Task<CursorPageDto<ConversationSummaryDto>> ListAsync(
+        int limit,
+        string? cursor,
+        string? search,
+        DateTimeOffset? updatedFrom,
+        DateTimeOffset? updatedTo,
+        CancellationToken cancellationToken)
     {
+        validator.ValidateConversationList(search, updatedFrom, updatedTo);
+
         var bounded = limit <= 0 ? DefaultPageSize : Math.Min(limit, MaxPageSize);
         (DateTimeOffset Timestamp, Guid Id)? decoded = cursor is null
             ? null
             : PaginationCursor.Decode(cursor);
+        var normalizedSearch = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
 
         var items = await conversations.ListByUserPageAsync(
             currentUser.UserId,
             bounded + 1,
+            normalizedSearch,
+            updatedFrom,
+            updatedTo,
             decoded?.Timestamp,
             decoded?.Id,
             cancellationToken);

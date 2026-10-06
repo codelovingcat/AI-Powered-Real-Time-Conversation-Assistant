@@ -1369,3 +1369,62 @@ h1 {
   width: 100%;
   margin-top: 8px;
 }
+
+
+.conversation-search {
+  display: grid;
+  gap: 8px;
+  padding: 13px;
+  border: 1px solid rgba(166, 187, 217, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.conversation-search > label,
+.conversation-search-dates label {
+  color: #aebbd0;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.conversation-search input {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid rgba(166, 187, 217, 0.16);
+  border-radius: 9px;
+  outline: none;
+  color: #e8eef8;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.conversation-search input:focus {
+  border-color: #85a8ff;
+  box-shadow: 0 0 0 3px rgba(133, 168, 255, 0.1);
+}
+
+.conversation-search-dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px 8px;
+}
+
+.conversation-search-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.conversation-search-actions .primary-button {
+  min-height: 38px;
+  margin-top: 0;
+  padding: 0 13px;
+}
+
+@media (max-width: 360px) {
+  .conversation-search-dates {
+    grid-template-columns: 1fr;
+  }
+}

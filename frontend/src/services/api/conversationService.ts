@@ -39,6 +39,12 @@ export interface CursorPage<T> {
   nextCursor: string | null;
 }
 
+export interface ConversationListFilters {
+  search?: string;
+  updatedFrom?: string;
+  updatedTo?: string;
+}
+
 function parseConversationPage(value: unknown): CursorPage<ConversationSummary> {
   if (typeof value !== "object" || value === null) {
     throw new Error("The conversation list response is invalid.");
@@ -73,12 +79,26 @@ export interface CreateConversationInput {
 
 export async function listConversations(
   cursor?: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  filters: ConversationListFilters = {}
 ): Promise<CursorPage<ConversationSummary>> {
   const params = new URLSearchParams({ limit: "50" });
 
   if (cursor) {
     params.set("cursor", cursor);
+  }
+
+  const search = filters.search?.trim();
+  if (search) {
+    params.set("search", search);
+  }
+
+  if (filters.updatedFrom) {
+    params.set("updatedFrom", filters.updatedFrom);
+  }
+
+  if (filters.updatedTo) {
+    params.set("updatedTo", filters.updatedTo);
   }
 
   const response = await apiGet("/api/conversations?" + params.toString(), signal);

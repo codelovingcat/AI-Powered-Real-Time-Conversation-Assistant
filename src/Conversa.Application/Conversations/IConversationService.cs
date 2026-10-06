@@ -9,6 +9,14 @@ public interface IConversationService
         string? cursor,
         CancellationToken cancellationToken);
 
+    Task<CursorPageDto<ConversationSummaryDto>> ListAsync(
+        int limit,
+        string? cursor,
+        string? search,
+        DateTimeOffset? updatedFrom,
+        DateTimeOffset? updatedTo,
+        CancellationToken cancellationToken);
+
     Task<ConversationSummaryDto> GetAsync(Guid conversationId, CancellationToken cancellationToken);
 
     Task<ConversationSummaryDto> CreateAsync(CreateConversationCommand command, CancellationToken cancellationToken);

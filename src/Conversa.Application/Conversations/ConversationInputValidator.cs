@@ -9,6 +9,7 @@ public sealed class ConversationInputValidator
 {
     public const int MaxRequestBodyBytes = 64 * 1024;
     public const int MaxAssistantRequestBodyBytes = 32 * 1024;
+    public const int MaxSearchLength = 100;
 
     public void ValidateCreate(CreateConversationCommand command)
     {
@@ -49,6 +50,28 @@ public sealed class ConversationInputValidator
 
         if (command.TargetLanguage is not null)
             ValidateRequiredLanguage(errors, "targetLanguage", command.TargetLanguage);
+
+        ThrowIfInvalid(errors);
+    }
+
+    public void ValidateConversationList(
+        string? search,
+        DateTimeOffset? updatedFrom,
+        DateTimeOffset? updatedTo)
+    {
+        var errors = new Dictionary<string, string[]>();
+        var normalizedSearch = search?.Trim();
+
+        if (!string.IsNullOrWhiteSpace(normalizedSearch)
+            && normalizedSearch.Length > MaxSearchLength)
+        {
+            errors["search"] = [$"Value cannot exceed {MaxSearchLength} characters."];
+        }
+
+        if (updatedFrom is not null && updatedTo is not null && updatedFrom > updatedTo)
+        {
+            errors["updatedFrom"] = ["updatedFrom must be earlier than or equal to updatedTo."];
+        }
 
         ThrowIfInvalid(errors);
     }

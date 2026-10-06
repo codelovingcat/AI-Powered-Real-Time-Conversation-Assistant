@@ -18,8 +18,17 @@ public sealed class ConversationsController(
     public async Task<IActionResult> List(
         [FromQuery] int limit = ConversationService.DefaultPageSize,
         [FromQuery] string? cursor = null,
+        [FromQuery] string? search = null,
+        [FromQuery] DateTimeOffset? updatedFrom = null,
+        [FromQuery] DateTimeOffset? updatedTo = null,
         CancellationToken cancellationToken = default)
-        => Ok(await conversations.ListAsync(limit, cursor, cancellationToken));
+        => Ok(await conversations.ListAsync(
+            limit,
+            cursor,
+            search,
+            updatedFrom,
+            updatedTo,
+            cancellationToken));
 
     [HttpPost]
     [RequestSizeLimit(ConversationInputValidator.MaxRequestBodyBytes)]
