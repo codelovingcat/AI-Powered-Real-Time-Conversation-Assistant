@@ -61,7 +61,10 @@ export function HomePage() {
   }
 
   function handleLiveTranscriptChange(nextTranscript: TranscriptSnapshot) {
-    if (nextTranscript.partialText.trim()) {
+    if (
+      nextTranscript.partialText.trim() ||
+      nextTranscript.finalTexts.length === 0
+    ) {
       setLatestAiResult(null);
     }
 
