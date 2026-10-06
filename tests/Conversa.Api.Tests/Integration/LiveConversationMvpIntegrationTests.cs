@@ -210,6 +210,14 @@ public sealed class LiveConversationMvpIntegrationTests
 
         public List<Message> AddedMessages { get; } = [];
 
+        public Task<IReadOnlyList<Conversation>> ListByUserPageAsync(
+            Guid userId,
+            int take,
+            DateTimeOffset? beforeUpdatedAt,
+            Guid? beforeId,
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
         public Task<IReadOnlyList<Message>> ListByConversationAsync(
             Guid conversationId,
             int take,
@@ -220,6 +228,14 @@ public sealed class LiveConversationMvpIntegrationTests
                     .OrderBy(message => message.CreatedAt)
                     .Take(take)
                     .ToArray());
+
+        public Task<IReadOnlyList<Message>> ListByConversationPageAsync(
+            Guid conversationId,
+            int take,
+            DateTimeOffset? beforeCreatedAt,
+            Guid? beforeId,
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
 
         public Task<IReadOnlyList<Message>> ListRecentAsync(
             Guid conversationId,
