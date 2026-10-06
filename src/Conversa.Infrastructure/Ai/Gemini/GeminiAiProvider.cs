@@ -133,8 +133,6 @@ internal sealed class GeminiAiProvider(
         }
 
         throw new AiProviderException("Gemini request failed after all retry attempts.");
-    }
-
         }
         catch (OperationCanceledException)
         {
