@@ -46,7 +46,7 @@ Not implemented yet:
 - Identity provider / user credential issuance
 - React Native client
 - A full microphone pipeline in the web client
-- Production deployment, background workers, and multi-instance hosting
+- Production deployment configuration is included for Render; the production service itself is provisioned outside GitHub
 - A model snapshot for later `dotnet ef migrations add` diffs (see below)
 
 ## Architecture
@@ -304,6 +304,14 @@ User secrets are also supported:
 ```bash
 dotnet user-secrets set "Gemini:ApiKey" "your-gemini-api-key" --project src/Conversa.Api
 ```
+
+## Production deployment
+
+The API is deployed as a prebuilt GHCR image to Render by the controlled `.github/workflows/deploy-production.yml` workflow. The deployment uses the exact GHCR image tag supplied to the workflow, runs the EF migration bundle before traffic is switched, and verifies `/health` plus `/health/ready` over HTTPS.
+
+Render configuration lives in `render.yaml`. Production secrets remain in Render and GitHub environment configuration rather than source control. See [documentation/deployment.md](documentation/deployment.md) for the one-time setup, deployment, and rollback procedure.
+
+Render supports image-backed web services pulling private images from GHCR, HTTP health checks, and deploy hooks for controlled image deployment. citeturn597444search0turn165385search1
 
 ## Hosted PostgreSQL with Neon
 
