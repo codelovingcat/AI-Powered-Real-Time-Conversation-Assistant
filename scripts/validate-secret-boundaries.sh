@@ -36,10 +36,16 @@ for path in Path("src/Conversa.Api").glob("appsettings*.json"):
     data = json.loads(path.read_text(encoding="utf-8"))
     for key_path, value in walk(data):
         key = key_path[-1]
-        if key in secret_names or key in connection_names:
-            if isinstance(value, str) and value.strip() and not value.startswith("<"):
+        if key in secret_names and isinstance(value, str) and value.strip():
+            if not value.startswith("<"):
                 raise SystemExit(
-                    f"{path}: {'.'.join(key_path)} contains a non-placeholder value."
+                    f"{path}: {'.'.join(key_path)} contains a non-placeholder secret."
+                )
+
+        if key in connection_names and isinstance(value, str) and value.strip():
+            if "<" not in value or ">" not in value:
+                raise SystemExit(
+                    f"{path}: {'.'.join(key_path)} must be empty or use a placeholder."
                 )
 PY
 
