@@ -24,6 +24,13 @@ const string PersistentSessionScheme = "Conversa.Session";
 
 var builder = WebApplication.CreateBuilder(args);
 
+var enforceProductionRules = !builder.Environment.IsDevelopment()
+    && !builder.Environment.IsEnvironment("Testing");
+
+ProductionConfigurationValidator.Validate(
+    builder.Configuration,
+    enforceProductionRules);
+
 var authenticationIssuer = builder.Configuration["Authentication:Issuer"];
 var authenticationAudience = builder.Configuration["Authentication:Audience"];
 var authenticationSigningKey = builder.Configuration["Authentication:SigningKey"];
