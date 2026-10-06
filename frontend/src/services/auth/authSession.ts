@@ -40,7 +40,7 @@ function isAuthSession(value: unknown): value is AuthSession {
     return false;
   }
 
-  const candidate = value as Record<string, unknown>;
+  const candidate = value as AuthSession & Record<string, unknown>;
 
   return (
     candidate.authenticated === true &&
