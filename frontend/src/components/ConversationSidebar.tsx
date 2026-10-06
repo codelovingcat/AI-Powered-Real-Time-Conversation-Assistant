@@ -270,7 +270,7 @@ export function ConversationSidebar({
             type="date"
             value={updatedToDraft}
             onChange={(event) => setUpdatedToDraft(event.target.value)}
-            disabled={isLoading || isReloading}
+            disabled={isLoading || isReloading || isLoadingMore}
           />
         </div>
 
@@ -278,7 +278,7 @@ export function ConversationSidebar({
           <button
             className="primary-button"
             type="submit"
-            disabled={isLoading || isReloading}
+            disabled={isLoading || isReloading || isLoadingMore}
           >
             Search
           </button>
@@ -290,7 +290,10 @@ export function ConversationSidebar({
               isLoading ||
               isReloading ||
               isLoadingMore ||
-              (!hasActiveFilters && !searchDraft && !updatedFromDraft && !updatedToDraft)
+              !hasActiveFilters &&
+              !searchDraft &&
+              !updatedFromDraft &&
+              !updatedToDraft
             }
           >
             Clear
