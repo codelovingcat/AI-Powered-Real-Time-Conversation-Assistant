@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { AiResultCard } from "./AiResultCard";
 import { SuggestedAnswerActions } from "./SuggestedAnswerActions";
-import { processAssistantInput } from "../services/api/assistantService";
-import { getAssistantErrorMessage } from "../services/api/assistantService";
+import {
+  getAssistantErrorMessage,
+  processAssistantInput
+} from "../services/api/assistantService";
+import { getRegenerationInputKind } from "../services/api/regeneration";
+import { getRegenerationInputKind } from "../services/api/regeneration";
 import {
   getLiveFinalText,
   shouldRenderLivePartial,
@@ -104,8 +108,7 @@ export function MessageHistory({
       return;
     }
 
-    const inputKind =
-      message.role === "user" ? "userFormulationRequest" : "heardSpeech";
+    const inputKind = getRegenerationInputKind(message.role);
     const isLiveResult = latestAiResult?.id === message.id;
 
     setRegeneratingMessageId(message.id);
