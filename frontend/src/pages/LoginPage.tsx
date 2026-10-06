@@ -35,7 +35,8 @@ export function LoginPage() {
         <h1 id="login-title">Sign in</h1>
         <p className="auth-copy">
           Enter an access token issued by the configured identity system.
-          The token is validated by the Conversa API and kept only in memory.
+          The token is exchanged for a short-lived Conversa access token.
+          The long-lived browser session is kept in an HttpOnly cookie.
         </p>
 
         <form className="auth-form" onSubmit={handleSubmit}>
@@ -68,7 +69,8 @@ export function LoginPage() {
         )}
 
         <p className="security-note">
-          Access tokens are never written to localStorage or sessionStorage.
+          Access tokens are kept only in memory. The persistent session cookie is
+          HttpOnly and is not readable by JavaScript.
         </p>
       </section>
     </main>
