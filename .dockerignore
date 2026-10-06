@@ -12,3 +12,5 @@
 **/*.key
 *.user
 *.suo
+
+# Local environment files, credentials and private key material are excluded from image build context.
