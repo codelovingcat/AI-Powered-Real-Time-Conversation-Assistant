@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Claims;
 using Conversa.Api.Infrastructure.RateLimiting;
+using Microsoft.AspNetCore.Http;
 using StackExchange.Redis;
 using Xunit;
 
