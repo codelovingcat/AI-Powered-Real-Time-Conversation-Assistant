@@ -7,6 +7,10 @@ import {
 } from "../services/api/assistantService";
 import { getRegenerationInputKind } from "../services/api/regeneration";
 import {
+  groupMessagesIntoTurns,
+  type ConversationTurn
+} from "../services/api/messageTimeline";
+import {
   getLiveFinalText,
   shouldRenderLivePartial,
   type LiveConnectionState,
@@ -95,6 +99,10 @@ export function MessageHistory({
   const liveHasContent = Boolean(liveFinalText || showLivePartial);
   const hasTimelineContent =
     messages.length > 0 || liveHasContent || Boolean(latestAiResult);
+  const persistedMessages = messages.filter(
+    (message) => latestAiResult?.id !== message.id
+  );
+  const conversationTurns = groupMessagesIntoTurns(persistedMessages);
 
   useEffect(() => {
     if (!isLoading) {
@@ -180,6 +188,7 @@ export function MessageHistory({
           <div>
             <span className="workspace-kicker">MESSAGE HISTORY</span>
             <h3 id="message-history-title">Conversation</h3>
+            <span className="message-history-subtitle">Saved history</span>
           </div>
         </div>
         <p className="message-history-state" aria-live="polite">
@@ -231,46 +240,33 @@ export function MessageHistory({
           )}
 
           <div className="message-stream" ref={streamRef} aria-live="polite">
-            {messages.map((message) => {
-              if (latestAiResult?.id === message.id) {
-                return null;
-              }
-
-              return message.role === "speaker" || message.role === "user" ? (
-                <AiResultCard
-                  key={message.id}
-                  message={message}
-                  onRegenerate={
-                    message.suggestedAnswer
-                      ? () => handleRegenerate(message)
-                      : undefined
-                  }
-                  isRegenerating={regeneratingMessageId === message.id}
-                />
-              ) : (
-                <MessageBubble key={message.id} message={message} />
-              );
-            })}
-
-            {showLivePartial && (
-              <LiveTranscriptTurn
-                text={timelineSnapshot.transcript.partialText}
-                final={false}
+            {conversationTurns.map((turn, index) => (
+              <ConversationTurnGroup
+                key={
+                  turn.messages[0]?.id ??
+                  turn.role + "-" + turn.startedAt + "-" + index
+                }
+                turn={turn}
+                regeneratingMessageId={regeneratingMessageId}
+                onRegenerate={handleRegenerate}
               />
-            )}
+            ))}
 
-            {liveFinalText && (
-              <LiveTranscriptTurn
-                text={liveFinalText}
-                final
-              />
-            )}
-
-            {latestAiResult && (
-              <LiveAiAssistanceCard
+            {(liveHasContent || latestAiResult) && (
+              <LiveTurnGroup
+                text={liveFinalText ?? timelineSnapshot.transcript.partialText}
+                isPartial={!liveFinalText}
                 message={latestAiResult}
-                onRegenerate={() => handleRegenerate(latestAiResult)}
-                isRegenerating={regeneratingMessageId === latestAiResult.id}
+                onRegenerate={
+                  latestAiResult
+                    ? () => handleRegenerate(latestAiResult)
+                    : undefined
+                }
+                isRegenerating={
+                  latestAiResult
+                    ? regeneratingMessageId === latestAiResult.id
+                    : false
+                }
               />
             )}
 
@@ -330,20 +326,102 @@ function LiveConnectionIndicator({
   );
 }
 
-function LiveTranscriptTurn({
+function ConversationTurnGroup({
+  turn,
+  regeneratingMessageId,
+  onRegenerate
+}: {
+  turn: ConversationTurn;
+  regeneratingMessageId: string | null;
+  onRegenerate: (message: ConversationMessage) => Promise<void>;
+}) {
+  const roleLabel = getRoleLabel(turn.role);
+  const grouped = turn.messages.length > 1;
+
+  if (turn.role !== "speaker" && turn.role !== "user") {
+    return turn.messages.map((message) => (
+      <MessageBubble key={message.id} message={message} />
+    ));
+  }
+
+  return (
+    <article className={"conversation-turn conversation-turn-" + turn.role}>
+      <header className="conversation-turn-header">
+        <div className="conversation-turn-speaker">
+          <span className="conversation-turn-role">{roleLabel}</span>
+          <span className="conversation-turn-kind">
+            {grouped ? turn.messages.length + " messages in this turn" : "Turn"}
+          </span>
+        </div>
+        <time dateTime={turn.startedAt}>
+          {formatMessageTime(turn.startedAt)}
+        </time>
+      </header>
+
+      <div className="conversation-turn-messages">
+        {turn.messages.map((message) => (
+          <AiResultCard
+            key={message.id}
+            message={message}
+            showHeader={false}
+            onRegenerate={
+              message.suggestedAnswer
+                ? () => onRegenerate(message)
+                : undefined
+            }
+            isRegenerating={regeneratingMessageId === message.id}
+          />
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function LiveTurnGroup({
   text,
-  final
+  isPartial,
+  message,
+  onRegenerate,
+  isRegenerating
 }: {
   text: string;
-  final: boolean;
+  isPartial: boolean;
+  message: ConversationMessage | null;
+  onRegenerate?: () => Promise<void>;
+  isRegenerating: boolean;
 }) {
   return (
-    <article className={"timeline-live-turn" + (final ? " timeline-live-turn-final" : " timeline-live-turn-partial")}>
-      <header className="timeline-live-header">
-        <span>HEARD SPEECH</span>
-        <span>{final ? "Final" : "Partial"}</span>
+    <article className="conversation-turn conversation-turn-live">
+      <header className="conversation-turn-header">
+        <div className="conversation-turn-speaker">
+          <span className="conversation-turn-role conversation-turn-role-live">
+            Speaker · Live
+          </span>
+          <span className="conversation-turn-kind">
+            {isPartial ? "Transcript in progress" : "Latest live turn"}
+          </span>
+        </div>
+        {message && (
+          <time dateTime={message.createdAt}>
+            {formatMessageTime(message.createdAt)}
+          </time>
+        )}
       </header>
-      <p>{text}</p>
+
+      <div className="conversation-turn-live-transcript">
+        <span className="conversation-turn-live-label">
+          {isPartial ? "LIVE TRANSCRIPT" : "HEARD SPEECH"}
+        </span>
+        <p>{text}</p>
+      </div>
+
+      {message && (
+        <LiveAiAssistanceCard
+          message={message}
+          onRegenerate={onRegenerate}
+          isRegenerating={isRegenerating}
+        />
+      )}
     </article>
   );
 }
@@ -358,7 +436,7 @@ function LiveAiAssistanceCard({
   isRegenerating?: boolean;
 }) {
   return (
-    <article className="timeline-ai-assistance">
+    <section className="timeline-ai-assistance">
       <header>
         <span>AI ASSISTANCE</span>
         <time dateTime={message.createdAt}>{formatMessageTime(message.createdAt)}</time>
@@ -400,7 +478,7 @@ function LiveAiAssistanceCard({
             : "Question detected."}
         </div>
       )}
-    </article>
+    </section>
   );
 }
 

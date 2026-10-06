@@ -139,3 +139,15 @@ Suggested English replies in the web conversation timeline support:
 - explicit regeneration loading/success/failure feedback.
 
 Regeneration creates a new persisted message rather than modifying the previous AI result. The authenticated conversation boundary remains enforced by the existing assistant endpoint, and copied text never leaves the browser through a separate third-party request.
+
+
+## P31 — Transcript and speaker presentation
+
+The web conversation timeline now makes turn ownership explicit:
+
+- consecutive speaker/user results are grouped into a single visual turn;
+- each turn has a clear speaker label and timestamp based on the first message in that turn;
+- live speech is presented inside a dedicated live-turn container instead of being mixed with saved history;
+- partial transcript state is labeled as in-progress, while the latest live AI assistance stays attached to the same turn;
+- transcript content keeps wrapping safely on long lines and narrow screens;
+- no internal identifiers or provider diagnostics are rendered as part of the presentation.
