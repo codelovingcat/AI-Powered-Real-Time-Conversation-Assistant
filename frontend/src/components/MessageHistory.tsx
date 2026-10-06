@@ -22,6 +22,7 @@ interface MessageHistoryProps {
   liveTranscript?: TranscriptSnapshot;
   liveConnectionState?: LiveConnectionState;
   latestAiResult?: ConversationMessage | null;
+  onAiResultRegenerated?: (message: ConversationMessage) => void;
   onHistorySynchronized?: () => void;
 }
 
@@ -31,6 +32,7 @@ export function MessageHistory({
   liveTranscript,
   liveConnectionState = "idle",
   latestAiResult = null,
+  onAiResultRegenerated,
   onHistorySynchronized
 }: MessageHistoryProps) {
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
@@ -117,11 +119,7 @@ export function MessageHistory({
       );
 
       if (isLiveResult) {
-        setMessages((current) =>
-          current.some((item) => item.id === regenerated.id)
-            ? current
-            : [...current, regenerated]
-        );
+        onAiResultRegenerated?.(regenerated);
         return;
       }
 
