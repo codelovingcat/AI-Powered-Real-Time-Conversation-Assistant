@@ -71,6 +71,34 @@ describe("conversationService", () => {
     );
   });
 
+  it("passes search and updated date filters to the paginated endpoint", async () => {
+    setAccessToken("test-token");
+
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(JSON.stringify({ items: [conversation], nextCursor: null }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        })
+      );
+
+    await expect(
+      listConversations(undefined, undefined, {
+        search: "hotel check-in",
+        updatedFrom: "2026-10-01T00:00:00.000Z",
+        updatedTo: "2026-10-07T00:00:00.000Z"
+      })
+    ).resolves.toEqual({
+      items: [conversation],
+      nextCursor: null
+    });
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "/api/conversations?limit=50&search=hotel+check-in&updatedFrom=2026-10-01T00%3A00%3A00.000Z&updatedTo=2026-10-07T00%3A00%3A00.000Z"
+    );
+  });
+
   it("creates a conversation and returns the validated response", async () => {
     setAccessToken("test-token");
 
