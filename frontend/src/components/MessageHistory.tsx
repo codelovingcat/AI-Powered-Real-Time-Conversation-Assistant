@@ -27,10 +27,11 @@ export function MessageHistory({
     const controller = new AbortController();
 
     setMessages([]);
+    setNextCursor(null);
     setIsLoading(true);
     setError(null);
 
-    void listMessages(conversationId, controller.signal)
+    void listMessages(conversationId, undefined, controller.signal)
       .then((page) => {
         if (!controller.signal.aborted) {
           setMessages(page.items);
@@ -52,8 +53,10 @@ export function MessageHistory({
   }, [conversationId, refreshToken]);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "nearest" });
-  }, [messages]);
+    if (!isLoading) {
+      endRef.current?.scrollIntoView({ block: "nearest" });
+    }
+  }, [isLoading]);
 
   async function loadOlderMessages() {
     if (!nextCursor || isLoadingOlder || isLoading) {
@@ -110,7 +113,7 @@ export function MessageHistory({
           <span className="workspace-kicker">MESSAGE HISTORY</span>
           <h3 id="message-history-title">Conversation</h3>
         </div>
-        <span className="message-count" aria-label={`${messages.length} messages`}>
+        <span className="message-count" aria-label={`${messages.length} messages loaded`}>
           {messages.length}
         </span>
       </div>
@@ -130,15 +133,27 @@ export function MessageHistory({
           </span>
         </div>
       ) : (
-        <div className="message-stream" ref={streamRef} aria-live="polite">
-          {messages.map((message) =>
-            message.role === "speaker" || message.role === "user" ? (
-              <AiResultCard key={message.id} message={message} />
-            ) : (
-              <MessageBubble key={message.id} message={message} />
-            )
+        <>
+          {nextCursor && (
+            <button
+              className="text-button message-history-load-more"
+              type="button"
+              onClick={() => void loadOlderMessages()}
+              disabled={isLoadingOlder}
+            >
+              {isLoadingOlder ? "Loading older messages…" : "Load older messages"}
+            </button>
           )}
-          <div ref={endRef} aria-hidden="true" />
+
+          <div className="message-stream" ref={streamRef} aria-live="polite">
+            {messages.map((message) =>
+              message.role === "speaker" || message.role === "user" ? (
+                <AiResultCard key={message.id} message={message} />
+              ) : (
+                <MessageBubble key={message.id} message={message} />
+              )
+            )}
+            <div ref={endRef} aria-hidden="true" />
           </div>
         </>
       )}
