@@ -229,3 +229,20 @@ Conversation and message history endpoints use cursor pagination rather than ret
 - Cursor values contain only pagination position data. They do not contain conversation content or authorization state.
 - Ownership is applied independently of cursor parameters: conversation pages always filter by `currentUser.UserId`, and message pages first resolve the conversation through the authenticated user before querying messages.
 - Queries request at most one extra row to determine whether another page exists, avoiding a separate count query and keeping history payloads bounded.
+
+
+## P28 — Conversation search and filtering
+
+Conversation listing remains cursor-paginated and now supports server-side search and update-date filters:
+
+- GET `/api/conversations?limit=50&search=hotel`
+- GET `/api/conversations?limit=50&updatedFrom=...&updatedTo=...`
+- Filters can be combined with `cursor` for incremental loading.
+- Search matches conversation title and stored source/target language metadata case-insensitively.
+- `%`, `_`, and `\` in search input are escaped so user text is not interpreted as a SQL `LIKE` pattern.
+- `search` is capped at 100 characters; invalid date ranges are rejected before the repository query.
+- Ownership filtering is always applied from the authenticated user before search/filter predicates.
+- `updatedFrom` is inclusive and `updatedTo` is exclusive; the web UI sends UTC day boundaries.
+- Pagination remains deterministic with `UpdatedAt` and `Id`, and filtered results use the same cursor contract.
+
+The web sidebar applies filters on submit rather than on every keystroke, then keeps loading older pages within the active filter scope.
