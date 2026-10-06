@@ -177,16 +177,21 @@ Start PostgreSQL:
 docker compose up -d
 ```
 
-The compose file creates database `conversa` with user `conversa` and password `conversa`. That password is a local development default, not a production secret.
+The compose file reads PostgreSQL credentials from `.env`. Copy `.env.example` to `.env` and keep the populated file untracked.
 
 Apply configuration and run the API:
 
 ```bash
-export ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=conversa;Username=conversa;Password=conversa"
-export Gemini__ApiKey="your-gemini-api-key"
+cp .env.example .env
+# Edit .env with local values.
+set -a
+source .env
+set +a
 export ASPNETCORE_ENVIRONMENT=Development
 export ASPNETCORE_URLS="http://localhost:5080"
 dotnet run --project src/Conversa.Api
+
+For Windows PowerShell, set the same ASP.NET Core configuration values as environment variables or use dotnet user-secrets; the application does not load .env files automatically.
 ```
 
 In Development the API applies EF Core migrations on startup. Open `http://localhost:5080/health` and `http://localhost:5080/`.
@@ -283,7 +288,7 @@ ASP.NET Core maps `__` to configuration sections. See `.env.example`.
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `ConnectionStrings__DefaultConnection` | Yes, outside the committed Development default | PostgreSQL connection string |
+| `ConnectionStrings__DefaultConnection` | Yes outside Development/Testing | PostgreSQL connection string |
 | `Gemini__ApiKey` | Required to call the assistant | Gemini API key. Never commit this |
 | `Gemini__Model` | No | Defaults to `gemini-3.8-flash` |
 | `Gemini__BaseUrl` | No | Defaults to `https://generativelanguage.googleapis.com/` |
@@ -291,9 +296,14 @@ ASP.NET Core maps `__` to configuration sections. See `.env.example`.
 | `Deepgram__Model` | No | Defaults to `nova-3` |
 | `Deepgram__BaseUrl` | No | Defaults to `https://api.deepgram.com` |
 | `Deepgram__EndpointingMilliseconds` | No | Defaults to `300` |
+| `RateLimiting__RedisConnectionString` | Yes outside Development/Testing | Shared Valkey/Redis endpoint |
+| `Authentication__Issuer` | Yes outside Development/Testing | JWT issuer |
+| `Authentication__Audience` | Yes outside Development/Testing | JWT audience |
+| `Authentication__SigningKey` | Yes outside Development/Testing | Base64 signing secret, at least 32 bytes |
+| `Cors__AllowedOrigins` | Yes outside Development/Testing | Exact HTTPS browser origins, comma-separated |
 
 
-`appsettings.json` ships with an empty API key and an empty connection string. `appsettings.Development.json` contains only the local Docker connection string so `dotnet run` works against compose. Production must set the environment variables and must not run as Development.
+`appsettings.json` contains only non-secret defaults. `appsettings.Development.json` is intentionally empty so local credentials cannot live in source control. Local secrets belong in `.env`/user-secrets or environment variables. Production must provide all required settings and must not run as Development.
 
 ### GitHub Actions Gemini secret
 

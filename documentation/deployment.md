@@ -45,7 +45,7 @@ Render recommends environment variables for production secrets and supports mark
 
 ## Production environment variables
 
-Required:
+Required settings are validated during API startup. Values marked as secrets must be stored in Render/GitHub secret storage and never in source control:
 
 | Variable | Source |
 | --- | --- |
@@ -55,6 +55,7 @@ Required:
 | `Authentication__Issuer` | External identity configuration |
 | `Authentication__Audience` | External identity configuration |
 | `Authentication__SigningKey` | 256-bit-or-longer signing secret, base64 encoded |
+| `RateLimiting__RedisConnectionString` | Render-provided shared Valkey/Redis endpoint |
 | `Cors__AllowedOrigins` | Exact browser origin(s), comma-separated |
 
 Fixed production defaults:

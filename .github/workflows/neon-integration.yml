@@ -39,7 +39,7 @@ jobs:
 
       - name: Verify EF Core migration tooling
         env:
-          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=conversa;Username=conversa;Password=conversa;"
+          ConnectionStrings__DefaultConnection: "Host=localhost;Database=ef-design-time;"
         run: |
           dotnet ef migrations list             --project src/Conversa.Infrastructure/Conversa.Infrastructure.csproj             --startup-project src/Conversa.Api/Conversa.Api.csproj             --configuration Release             --no-build             --no-connect
 

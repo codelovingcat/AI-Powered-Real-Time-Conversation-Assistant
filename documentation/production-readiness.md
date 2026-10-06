@@ -4,7 +4,7 @@ P20 establishes the operational baseline for deploying Conversa.
 
 ## Configuration and secrets
 
-Production secrets must be supplied by the deployment platform or secret store:
+Outside Development and Testing, the API requires these deployment-provided settings:
 
 - ConnectionStrings__DefaultConnection
 - Authentication__Issuer
@@ -12,6 +12,8 @@ Production secrets must be supplied by the deployment platform or secret store:
 - Authentication__SigningKey
 - Gemini__ApiKey
 - Deepgram__ApiKey
+- RateLimiting__RedisConnectionString
+- Cors__AllowedOrigins
 
 Never commit these values to the repository. appsettings.Production.json contains logging defaults only. Local overrides belong in ignored appsettings.*.local.json files or environment variables.
 
@@ -36,9 +38,13 @@ Do not put WebSocket connection state in process-wide static storage.
 
 ## Rate limiting
 
-The current ASP.NET Core limiter is process-local. It protects each instance independently but is not a distributed quota. For a multi-instance deployment, enforce the authoritative user/API quota at the edge or replace the limiter with a shared distributed store before relying on the application limiter as a global quota.
+Rate limiting uses a shared Valkey/Redis store outside Development and Testing. Production and staging must provide `RateLimiting__RedisConnectionString`; the API fails closed with HTTP 503 when the shared store is unavailable.
 
-This avoids silently treating an in-memory limiter as a cross-instance security boundary.
+Authenticated partitions use validated JWT identity claims, not client-supplied headers, and the stored partition key is SHA-256 hashed. This keeps rate-limit state distributed without storing raw user identifiers.
+
+## Production configuration validation
+
+At startup, non-development/non-testing environments reject missing required values, weak authentication signing keys, embedded credentials in provider URLs, insecure CORS origins and known local database defaults. Validation errors name configuration keys only; secret values are never included.
 
 ## Container deployment
 
