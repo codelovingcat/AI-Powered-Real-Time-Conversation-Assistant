@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using Conversa.Application.Abstractions.Identity;
 using Conversa.Application.Abstractions.Persistence;
 using Conversa.Application.Ai;
 using Conversa.Application.Common;
+using Conversa.Application.Observability;
 using Conversa.Domain.Conversations;
 
 namespace Conversa.Application.Conversations;
@@ -20,6 +22,15 @@ public sealed class ConversationAssistant(
         ProcessConversationInputCommand command,
         CancellationToken cancellationToken)
     {
+        using var activity = ConversaTelemetry.ActivitySource.StartActivity(
+            "conversa.assistant.process");
+        var stopwatch = Stopwatch.StartNew();
+        var outcome = "error";
+        activity?.SetTag("conversa.operation", "assistant");
+        activity?.SetTag("conversa.input_kind", command.InputKind.ToString());
+
+        try
+        {
         if (string.IsNullOrWhiteSpace(command.Text))
         {
             throw ValidationException.For("text", "Text is required.");
@@ -85,6 +96,25 @@ public sealed class ConversationAssistant(
         conversation.Touch(now);
         await messages.AddAsync(message, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        outcome = "success";
+        activity?.SetStatus(ActivityStatusCode.Ok);
         return message.ToDto();
+        }
+        catch (OperationCanceledException)
+        {
+            outcome = "cancelled";
+            activity?.SetStatus(ActivityStatusCode.Error, "cancelled");
+            throw;
+        }
+        catch (Exception exception)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
+            throw;
+        }
+        finally
+        {
+            stopwatch.Stop();
+            activity?.SetTag("conversa.outcome", outcome);
+        }
     }
 }
