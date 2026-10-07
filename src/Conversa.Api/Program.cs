@@ -10,6 +10,8 @@ using Conversa.Api.Realtime;
 using Conversa.Application.Abstractions.Identity;
 using Conversa.Application.Conversations;
 using Conversa.Application.Observability;
+using Conversa.Application.Ai;
+using Conversa.Api.Testing;
 using Conversa.Infrastructure;
 using Conversa.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
@@ -255,6 +257,12 @@ else
 }
 
 builder.Services.AddInfrastructure(builder.Configuration);
+
+if (builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddSingleton<IAiProvider, DeterministicAiProvider>();
+}
+
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>(
     "database",
     failureStatus: HealthStatus.Unhealthy,
@@ -415,7 +423,7 @@ app.MapGet("/", () => Results.Json(new
     audioWebSocket = "/ws/conversations/{id}/audio"
 }));
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 {
     await using var scope = app.Services.CreateAsyncScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

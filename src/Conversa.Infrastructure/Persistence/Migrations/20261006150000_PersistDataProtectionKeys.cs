@@ -1,9 +1,11 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Conversa.Infrastructure.Persistence.Migrations;
 
+[DbContext(typeof(AppDbContext))]
 [Migration("20261006150000_PersistDataProtectionKeys")]
 public partial class PersistDataProtectionKeys : Migration
 {
