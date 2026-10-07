@@ -56,7 +56,7 @@ export const test = base.extend<E2EFixtures>({
     await page.getByRole("button", { name: "Sign in" }).click();
 
     await expect(
-      page.getByRole("heading", { name: "Conversa" })
+      page.getByRole("heading", { name: "Conversa", exact: true })
     ).toBeVisible();
 
     await use(page);
