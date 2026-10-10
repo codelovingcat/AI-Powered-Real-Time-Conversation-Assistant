@@ -261,6 +261,9 @@ builder.Services.AddInfrastructure(builder.Configuration);
 if (builder.Environment.IsEnvironment("Testing"))
 {
     builder.Services.AddSingleton<IAiProvider, DeterministicAiProvider>();
+    builder.Services.AddSingleton<
+        Conversa.Application.Speech.ISpeechToTextSessionFactory,
+        DeterministicSpeechToTextSessionFactory>();
 }
 
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>(
