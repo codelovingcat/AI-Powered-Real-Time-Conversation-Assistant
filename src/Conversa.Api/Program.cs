@@ -198,10 +198,12 @@ builder.Services
     {
         options.Cookie.Name = "conversa_session";
         options.Cookie.HttpOnly = true;
-        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        var useLocalCookiePolicy = builder.Environment.IsDevelopment()
+            || builder.Environment.IsEnvironment("Testing");
+        options.Cookie.SecurePolicy = useLocalCookiePolicy
             ? CookieSecurePolicy.SameAsRequest
             : CookieSecurePolicy.Always;
-        options.Cookie.SameSite = builder.Environment.IsDevelopment()
+        options.Cookie.SameSite = useLocalCookiePolicy
             ? SameSiteMode.Lax
             : SameSiteMode.None;
         options.Cookie.Path = "/api/auth";
