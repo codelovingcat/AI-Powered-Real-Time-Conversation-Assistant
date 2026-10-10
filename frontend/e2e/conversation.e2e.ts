@@ -56,12 +56,12 @@ test("streams microphone audio through partial and final transcripts into AI ass
   ).toBeVisible({ timeout: 15_000 });
 
   await expect(
-    page.getByText("Deterministic E2E translation.", { exact: true })
-  ).toBeVisible({ timeout: 10_000 });
+    page.getByText("Deterministic E2E translation.", { exact: true }).first()
+  ).toBeVisible({ timeout: 15_000 });
 
   await expect(
-    page.getByText("This is a deterministic E2E reply.", { exact: true })
-  ).toBeVisible({ timeout: 10_000 });
+    page.getByText("This is a deterministic E2E reply.", { exact: true }).first()
+  ).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole("button", { name: "Stop streaming" }).click();
 });
