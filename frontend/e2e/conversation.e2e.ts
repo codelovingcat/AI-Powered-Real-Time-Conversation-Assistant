@@ -60,3 +60,28 @@ test("streams microphone audio through partial and final transcripts into AI ass
 
   await page.getByRole("button", { name: "Stop streaming" }).click();
 });
+
+test("shows a recoverable error after live audio reconnection attempts fail", async ({
+  authenticatedPage: page
+}) => {
+  await page.getByRole("button", { name: "New conversation" }).click();
+  await page.getByLabel("Title").fill("Audio recovery E2E");
+  await page.getByRole("button", { name: "Create conversation" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Audio recovery E2E" })
+  ).toBeVisible();
+
+  await page.routeWebSocket("**/ws/conversations/**/audio", (socket) => {
+    socket.close({ code: 1011, reason: "synthetic E2E disconnect" });
+  });
+
+  await page.getByRole("button", { name: "Start microphone" }).click();
+
+  await expect(
+    page.getByText(
+      "The audio connection could not be restored. Start the microphone again.",
+      { exact: true }
+    )
+  ).toBeVisible({ timeout: 15_000 });
+});
