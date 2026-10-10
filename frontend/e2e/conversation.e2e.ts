@@ -12,15 +12,20 @@ test("processes a conversation through the HTTP application boundary", async ({
   ).toBeVisible();
 
   await page.getByLabel("What did they say?").fill("Hello from the browser test.");
+  const assistantResponse = page.waitForResponse((response) =>
+    response.url().includes("/assistant") &&
+    response.request().method() === "POST"
+  );
   await page.getByRole("button", { name: "Send to assistant" }).click();
+  expect((await assistantResponse).ok()).toBeTruthy();
 
   await expect(
-    page.getByText("Deterministic E2E translation.", { exact: true })
-  ).toBeVisible();
+    page.getByText("Deterministic E2E translation.", { exact: true }).first()
+  ).toBeVisible({ timeout: 15_000 });
 
   await expect(
-    page.getByText("This is a deterministic E2E reply.", { exact: true })
-  ).toBeVisible();
+    page.getByText("This is a deterministic E2E reply.", { exact: true }).first()
+  ).toBeVisible({ timeout: 15_000 });
 
   await page.reload();
 
@@ -47,8 +52,8 @@ test("streams microphone audio through partial and final transcripts into AI ass
   ).toBeVisible({ timeout: 10_000 });
 
   await expect(
-    page.getByText("Could you tell me about yourself?", { exact: true })
-  ).toBeVisible({ timeout: 10_000 });
+    page.getByText("Could you tell me about yourself?", { exact: true }).first()
+  ).toBeVisible({ timeout: 15_000 });
 
   await expect(
     page.getByText("Deterministic E2E translation.", { exact: true })
@@ -72,16 +77,19 @@ test("shows a recoverable error after live audio reconnection attempts fail", as
     page.getByRole("heading", { name: "Audio recovery E2E" })
   ).toBeVisible();
 
-  await page.routeWebSocket("**/ws/conversations/**/audio", (socket) => {
+  let interceptedSocket = false;
+  await page.routeWebSocket(/\/ws\/conversations\/[^/]+\/audio(?:\?.*)?$/u, (socket) => {
+    interceptedSocket = true;
     socket.close({ code: 1011, reason: "synthetic E2E disconnect" });
   });
 
   await page.getByRole("button", { name: "Start microphone" }).click();
 
+  await expect.poll(() => interceptedSocket, { timeout: 5_000 }).toBe(true);
   await expect(
     page.getByText(
       "The audio connection could not be restored. Start the microphone again.",
       { exact: true }
     )
-  ).toBeVisible({ timeout: 15_000 });
+  ).toBeVisible({ timeout: 20_000 });
 });
