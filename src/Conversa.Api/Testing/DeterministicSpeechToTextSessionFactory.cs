@@ -45,7 +45,7 @@ internal sealed class DeterministicSpeechToTextSessionFactory
                     Confidence: 0.98f),
                 cancellationToken);
 
-            await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken);
+            await Task.Delay(TimeSpan.FromMilliseconds(900), cancellationToken);
 
             await _updates.Writer.WriteAsync(
                 new SpeechTranscriptUpdate(
