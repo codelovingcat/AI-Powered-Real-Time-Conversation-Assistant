@@ -14,7 +14,7 @@ Start PostgreSQL for the test database, then run the API in the Testing environm
     Authentication__SigningKey=<base64-encoded-32-byte-test-key>
     Cors__AllowedOrigins=http://127.0.0.1:5173
 
-The API applies EF Core migrations automatically in Testing and uses a deterministic in-process AI provider. The E2E flow makes no Gemini or Deepgram request.
+The API applies EF Core migrations automatically in Testing and uses deterministic in-process AI and speech-to-text providers. Chromium uses a fake microphone device; the test provider ignores audio bytes and emits synthetic partial/final transcripts. The E2E flow makes no Gemini or Deepgram request and sends no microphone audio to an external service.
 
 In another terminal:
 
