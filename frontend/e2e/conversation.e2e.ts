@@ -69,6 +69,21 @@ test("streams microphone audio through partial and final transcripts into AI ass
 test("shows a recoverable error after live audio reconnection attempts fail", async ({
   authenticatedPage: page
 }) => {
+  let interceptedSocket = false;
+
+  // Register before creating/selecting a conversation so no app WebSocket can
+  // be opened before the route is installed. Match the URL path, independent
+  // of host, query string, or an optional trailing slash.
+  await page.routeWebSocket(
+    (url) =>
+      url.pathname.startsWith("/ws/conversations/") &&
+      url.pathname.endsWith("/audio"),
+    (socket) => {
+      interceptedSocket = true;
+      socket.close({ code: 1011, reason: "synthetic E2E disconnect" });
+    }
+  );
+
   await page.getByRole("button", { name: "New conversation" }).click();
   await page.getByLabel("Title").fill("Audio recovery E2E");
   await page.getByRole("button", { name: "Create conversation" }).click();
@@ -76,12 +91,6 @@ test("shows a recoverable error after live audio reconnection attempts fail", as
   await expect(
     page.getByRole("heading", { name: "Audio recovery E2E" })
   ).toBeVisible();
-
-  let interceptedSocket = false;
-  await page.routeWebSocket(/\/ws\/conversations\/[^/]+\/audio(?:\?.*)?$/u, (socket) => {
-    interceptedSocket = true;
-    socket.close({ code: 1011, reason: "synthetic E2E disconnect" });
-  });
 
   await page.getByRole("button", { name: "Start microphone" }).click();
 
