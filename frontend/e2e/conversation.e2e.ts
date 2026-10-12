@@ -29,9 +29,19 @@ test("processes a conversation through the HTTP application boundary", async ({
 
   await page.reload();
 
+  // Reload intentionally clears the active selection. Reopen the saved
+  // conversation before asserting that its persisted messages are restored.
+  const savedConversation = page.getByRole("button", {
+    name: /E2E conversation/
+  });
+  await savedConversation.click();
   await expect(
-    page.getByText("Deterministic E2E translation.", { exact: true })
+    page.getByRole("heading", { name: "E2E conversation" })
   ).toBeVisible();
+
+  await expect(
+    page.getByText("Deterministic E2E translation.", { exact: true }).first()
+  ).toBeVisible({ timeout: 10_000 });
 });
 
 test("streams microphone audio through partial and final transcripts into AI assistance", async ({
@@ -71,13 +81,10 @@ test("shows a recoverable error after live audio reconnection attempts fail", as
 }) => {
   let interceptedSocket = false;
 
-  // Register before creating/selecting a conversation so no app WebSocket can
-  // be opened before the route is installed. Match the URL path, independent
-  // of host, query string, or an optional trailing slash.
+  // routeWebSocket accepts a URL pattern, not a URL predicate callback.
+  // Match the path suffix so the test is independent of the host and query.
   await page.routeWebSocket(
-    (url) =>
-      url.pathname.startsWith("/ws/conversations/") &&
-      url.pathname.endsWith("/audio"),
+    /\/ws\/conversations\/[^/]+\/audio(?:\?.*)?$/u,
     (socket) => {
       interceptedSocket = true;
       socket.close({ code: 1011, reason: "synthetic E2E disconnect" });
