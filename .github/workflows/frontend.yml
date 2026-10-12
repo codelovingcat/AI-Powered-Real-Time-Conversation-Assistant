@@ -33,6 +33,9 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Update npm
+        run: npm install --global npm@11
+
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
