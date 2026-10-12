@@ -102,6 +102,9 @@ jobs:
           cat "$RUNNER_TEMP/conversa-api.log"
           exit 1
 
+      - name: Update npm
+        run: npm install --global npm@11
+
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm install --no-audit --no-fund
