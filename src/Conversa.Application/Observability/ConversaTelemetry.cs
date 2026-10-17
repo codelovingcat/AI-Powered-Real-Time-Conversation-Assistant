@@ -41,6 +41,12 @@ public static class ConversaTelemetry
             unit: "{turn}",
             description: "Number of oldest historical turns omitted to fit the AI prompt budget.");
 
+    public static readonly Histogram<double> AiContextSummaryIncluded =
+        Meter.CreateHistogram<double>(
+            "conversa.ai.context.summary_included",
+            unit: "{boolean}",
+            description: "Whether the persisted older-context summary was included in the bounded AI prompt (1 or 0).");
+
     public static readonly Counter<long> AiContextBudgetRejections =
         Meter.CreateCounter<long>(
             "conversa.ai.context.budget_rejections",
