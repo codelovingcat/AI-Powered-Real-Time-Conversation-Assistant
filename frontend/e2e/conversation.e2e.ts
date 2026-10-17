@@ -3,12 +3,14 @@ import { expect, test } from "./fixtures/authenticated";
 test("processes a conversation through the HTTP application boundary", async ({
   authenticatedPage: page
 }) => {
+  const conversationTitle = `E2E conversation ${Date.now()}`;
+
   await page.getByRole("button", { name: "New conversation" }).click();
-  await page.getByLabel("Title").fill("E2E conversation");
+  await page.getByLabel("Title").fill(conversationTitle);
   await page.getByRole("button", { name: "Create conversation" }).click();
 
   await expect(
-    page.getByRole("heading", { name: "E2E conversation" })
+    page.getByRole("heading", { name: conversationTitle, exact: true })
   ).toBeVisible();
 
   await page.getByLabel("What did they say?").fill("Hello from the browser test.");
@@ -32,11 +34,11 @@ test("processes a conversation through the HTTP application boundary", async ({
   // Reload intentionally clears the active selection. Reopen the saved
   // conversation before asserting that its persisted messages are restored.
   const savedConversation = page.getByRole("button", {
-    name: /E2E conversation/
-  });
+    name: new RegExp(`^${conversationTitle} EN → TR$`)
+  }).first();
   await savedConversation.click();
   await expect(
-    page.getByRole("heading", { name: "E2E conversation" })
+    page.getByRole("heading", { name: conversationTitle, exact: true })
   ).toBeVisible();
 
   await expect(
@@ -81,10 +83,9 @@ test("shows a recoverable error after live audio reconnection attempts fail", as
 }) => {
   let interceptedSocket = false;
 
-  // routeWebSocket matches against the full WebSocket URL, including the
-  // scheme and host. The host/port remain independent of the endpoint path.
+  // Use a glob for the endpoint path so matching is independent of the WebSocket host.
   await page.routeWebSocket(
-    /^wss?:\/\/[^/]+\/ws\/conversations\/[^/]+\/audio(?:\?.*)?$/u,
+    "**/ws/conversations/*/audio*",
     (socket) => {
       interceptedSocket = true;
       socket.close({ code: 1011, reason: "synthetic E2E disconnect" });
