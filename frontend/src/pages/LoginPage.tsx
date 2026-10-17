@@ -5,23 +5,31 @@ export function LoginPage() {
   const { signIn, state } = useAuth();
   const [token, setToken] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dismissedError, setDismissedError] = useState(false);
 
-  const error =
+  const authError =
     state.status === "unauthenticated" ? state.error : null;
+  const error = dismissedError ? null : authError;
+  const isCredentialError =
+    error === "The access token is invalid or expired." ||
+    error === "Authentication could not be completed. Check the token and try again.";
+  const notice =
+    state.status === "unauthenticated" ? state.notice : null;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!token.trim()) {
+    if (!token.trim() || isSubmitting) {
       return;
     }
 
+    setDismissedError(false);
     setIsSubmitting(true);
 
     try {
       await signIn(token);
     } catch {
-      // The authentication context exposes a user-safe error message.
+      // AuthContext exposes a fixed, user-safe error message.
     } finally {
       setToken("");
       setIsSubmitting(false);
@@ -39,23 +47,43 @@ export function LoginPage() {
           The long-lived browser session is kept in an HttpOnly cookie.
         </p>
 
-        <form className="auth-form" onSubmit={handleSubmit}>
+        {notice && (
+          <p className="auth-notice" role="status">
+            {notice}
+          </p>
+        )}
+
+        <form
+          className="auth-form"
+          onSubmit={handleSubmit}
+          aria-busy={isSubmitting}
+        >
           <label htmlFor="access-token">Access token</label>
           <input
             id="access-token"
             name="access-token"
             type="password"
             value={token}
-            onChange={(event) => setToken(event.target.value)}
+            onChange={(event) => {
+              setToken(event.target.value);
+              setDismissedError(true);
+            }}
             autoComplete="off"
             spellCheck={false}
             placeholder="Paste your access token"
+            aria-describedby={error ? "access-token-help auth-error" : "access-token-help"}
+            aria-invalid={isCredentialError}
+            required
             disabled={isSubmitting}
           />
+          <p id="access-token-help" className="form-help">
+            The token is used only to sign in and is not saved in browser storage.
+          </p>
 
           <button
             className="primary-button"
             type="submit"
+            aria-busy={isSubmitting}
             disabled={isSubmitting || !token.trim()}
           >
             {isSubmitting ? "Signing in…" : "Sign in"}
@@ -63,7 +91,7 @@ export function LoginPage() {
         </form>
 
         {error && (
-          <p className="auth-error" role="alert">
+          <p id="auth-error" className="auth-error" role="alert">
             {error}
           </p>
         )}

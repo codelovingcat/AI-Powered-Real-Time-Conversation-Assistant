@@ -21,16 +21,19 @@ type AuthState =
       status: "checking";
       session: null;
       error: null;
+      notice: null;
     }
   | {
       status: "authenticated";
       session: AuthSession;
       error: null;
+      notice: null;
     }
   | {
       status: "unauthenticated";
       session: null;
       error: string | null;
+      notice: string | null;
     };
 
 interface AuthContextValue {
@@ -45,7 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     status: "checking",
     session: null,
-    error: null
+    error: null,
+    notice: null
   });
 
   useEffect(() => {
@@ -53,7 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setState({
         status: "unauthenticated",
         session: null,
-        error: "Your session has expired. Please sign in again."
+        error: "Your session has expired. Please sign in again.",
+        notice: null
       });
     });
   }, []);
@@ -75,12 +80,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ? {
                 status: "authenticated",
                 session,
-                error: null
+                error: null,
+                notice: null
               }
             : {
                 status: "unauthenticated",
                 session: null,
-                error: null
+                error: null,
+                notice: null
               }
         );
       })
@@ -92,7 +99,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setState({
           status: "unauthenticated",
           session: null,
-          error: getAuthErrorMessage(error)
+          error: getAuthErrorMessage(error),
+          notice: null
         });
       });
 
@@ -105,7 +113,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({
       status: "checking",
       session: null,
-      error: null
+      error: null,
+      notice: null
     });
 
     try {
@@ -113,13 +122,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setState({
         status: "authenticated",
         session,
-        error: null
+        error: null,
+        notice: null
       });
     } catch (error: unknown) {
       setState({
         status: "unauthenticated",
         session: null,
-        error: getAuthErrorMessage(error)
+        error: getAuthErrorMessage(error),
+        notice: null
       });
 
       throw error;
@@ -127,13 +138,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    let notice = "You have signed out successfully.";
+
     try {
       await clearSession();
+    } catch {
+      // The local access token is cleared even when the network request fails.
+      // Do not expose raw network/provider errors to the UI.
+      notice =
+        "You have been signed out on this device, but the server could not confirm logout. Check your connection before leaving this device.";
     } finally {
       setState({
         status: "unauthenticated",
         session: null,
-        error: null
+        error: null,
+        notice
       });
     }
   }, []);
@@ -156,12 +175,23 @@ export function useAuth(): AuthContextValue {
   return value;
 }
 
-function getAuthErrorMessage(error: unknown): string {
+/**
+ * Maps only known authentication failure categories to UI-safe copy.
+ * Error.message is never rendered because it can contain internal details.
+ */
+export function getAuthErrorMessage(error: unknown): string {
   if (error instanceof AuthRequestError) {
-    return error.message;
+    switch (error.kind) {
+      case "unauthorized":
+        return "The access token is invalid or expired.";
+      case "network":
+        return "The authentication service could not be reached. Check your connection and try again.";
+      case "server":
+        return "The authentication service is temporarily unavailable. Please try again later.";
+      case "client":
+        return "Authentication could not be completed. Check the token and try again.";
+    }
   }
 
-  return error instanceof Error
-    ? error.message
-    : "Authentication could not be completed.";
+  return "Authentication could not be completed. Please try again.";
 }

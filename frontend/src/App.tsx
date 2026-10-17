@@ -17,7 +17,7 @@ function AuthenticatedApp() {
   if (state.status === "checking") {
     return (
       <main className="page-shell">
-        <section className="auth-card" aria-live="polite">
+        <section className="auth-card" role="status" aria-live="polite">
           <p className="eyebrow">CONVERSA WEB</p>
           <h1>Checking session</h1>
           <p className="auth-copy">
