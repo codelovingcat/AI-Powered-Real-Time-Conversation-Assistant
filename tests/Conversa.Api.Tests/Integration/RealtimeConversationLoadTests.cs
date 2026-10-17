@@ -133,11 +133,6 @@ public sealed class RealtimeConversationLoadTests(ITestOutputHelper output)
         });
         builder.WebHost.UseTestServer();
         builder.Services.AddRouting();
-        builder.Services.Configure<AudioWebSocketOptions>(options =>
-        {
-            options.MaxMessageBytes = 1024;
-            options.MaxConnectionSeconds = 30;
-        });
         builder.Services.AddSingleton<IConversationRepository>(conversationRepository);
         builder.Services.AddSingleton<ISpeechToTextSessionFactory>(speechFactory);
         builder.Services
