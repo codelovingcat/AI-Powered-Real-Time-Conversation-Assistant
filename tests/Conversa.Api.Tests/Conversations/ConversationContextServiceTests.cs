@@ -3,7 +3,6 @@ using Conversa.Application.Ai;
 using Conversa.Application.Common;
 using Conversa.Application.Conversations;
 using Conversa.Domain.Conversations;
-using Microsoft.Extensions.Logging;
 
 namespace Conversa.Api.Tests.Conversations;
 
@@ -23,12 +22,10 @@ public sealed class ConversationContextServiceTests
         var recent = CreateRecentMessages(conversation.Id, now);
         var repository = new FakeSummaryRepository(pending);
         var summarizer = new FakeSummarizer("Compact durable summary");
-        var logger = new TestLogger<ConversationContextService>();
         var service = new ConversationContextService(
             repository,
             summarizer,
-            TimeProvider.System,
-            logger);
+            TimeProvider.System);
 
         var result = await service.PrepareContextSummaryAsync(
             conversation,
@@ -46,7 +43,6 @@ public sealed class ConversationContextServiceTests
         Assert.Equal(pending[^1].Id, repository.Current!.ThroughMessageId);
         Assert.Equal(pending[^1].CreatedAt, repository.Current.ThroughCreatedAt);
         Assert.Equal("Compact durable summary", repository.Current.Summary);
-        Assert.Empty(logger.Messages);
     }
 
     [Fact]
@@ -88,9 +84,6 @@ public sealed class ConversationContextServiceTests
         Assert.Equal(existing, repository.Current);
         Assert.Equal(0, repository.SaveCount);
         Assert.Equal(1, summarizer.CallCount);
-        Assert.Single(logger.Messages);
-        Assert.Contains(nameof(AiProviderException), logger.Messages[0], StringComparison.Ordinal);
-        Assert.DoesNotContain("PRIVATE_TRANSCRIPT", string.Join(Environment.NewLine, logger.Messages), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -112,8 +105,7 @@ public sealed class ConversationContextServiceTests
         var service = new ConversationContextService(
             repository,
             summarizer,
-            TimeProvider.System,
-            new TestLogger<ConversationContextService>());
+            TimeProvider.System);
 
         var result = await service.PrepareContextSummaryAsync(
             conversation,
@@ -257,23 +249,4 @@ public sealed class ConversationContextServiceTests
         }
     }
 
-    private sealed class TestLogger<T> : ILogger<T>
-    {
-        public List<string> Messages { get; } = [];
-
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull
-            => null;
-
-        public bool IsEnabled(LogLevel logLevel) => true;
-
-        void ILogger.Log<TState>(
-            LogLevel logLevel,
-            EventId eventId,
-            TState state,
-            Exception? exception,
-            Func<TState, Exception?, string> formatter)
-        {
-            Messages.Add(formatter(state, exception));
-        }
-    }
 }
