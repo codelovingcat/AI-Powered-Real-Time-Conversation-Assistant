@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using Conversa.Application.Ai;
 using Conversa.Application.Common;
+using Conversa.Application.Observability;
 using Conversa.Domain.Conversations;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
