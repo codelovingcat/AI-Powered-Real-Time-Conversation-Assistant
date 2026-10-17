@@ -177,8 +177,8 @@ internal static class GeminiPromptBuilder
 
     private static string Escape(string value) => SecurityElement.Escape(value) ?? string.Empty;
 
-    private static string Truncate(string value)
-        => value.Length <= 500 ? value : value[..500];
+    private static string Truncate(string value, int maxLength = 500)
+        => value.Length <= maxLength ? value : value[..maxLength];
 }
 
 internal sealed record BoundedGeminiPrompt(
