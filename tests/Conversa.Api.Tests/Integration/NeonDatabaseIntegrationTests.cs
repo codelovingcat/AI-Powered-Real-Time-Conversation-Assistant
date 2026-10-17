@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using Conversa.Domain.Conversations;
 using Conversa.Infrastructure.Persistence;
+using Conversa.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using System.Data.Common;
