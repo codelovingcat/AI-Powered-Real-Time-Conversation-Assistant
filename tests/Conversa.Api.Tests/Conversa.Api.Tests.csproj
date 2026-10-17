@@ -16,6 +16,9 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <None Update="Fixtures\ai-prompt-regression.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Conversa.Api\Conversa.Api.csproj" />
     <ProjectReference Include="..\..\src\Conversa.Infrastructure\Conversa.Infrastructure.csproj" />
   </ItemGroup>

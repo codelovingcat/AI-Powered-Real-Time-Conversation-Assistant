@@ -84,7 +84,7 @@ function isConversationMessage(value: unknown): value is ConversationMessage {
         "requestDirectedAtOthers",
         "userFormulationRequest",
         "ambiguous"
-      ])
+      ]))
   );
 }
 
