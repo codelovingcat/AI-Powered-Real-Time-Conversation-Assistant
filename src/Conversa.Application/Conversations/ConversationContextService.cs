@@ -101,7 +101,7 @@ public sealed class ConversationContextService(
         {
             throw;
         }
-        catch (Exception exception)
+        catch (Exception)
         {
             // No summary columns are written until generation and validation have succeeded.
             // Record only an outcome count; never log transcript or summary text.
