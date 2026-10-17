@@ -394,7 +394,7 @@
         "When tone or addressee is ambiguous, prefer a neutral translation and no suggested reply unless the intent rules explicitly authorize one."
       ],
       "expectedUserContains": [
-        "That's fine.",
+        "That&apos;s fine.",
         "<source_language>en</source_language>",
         "<target_language>tr</target_language>"
       ],
