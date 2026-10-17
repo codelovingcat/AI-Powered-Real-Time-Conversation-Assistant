@@ -59,11 +59,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const controller = new AbortController();
+    // Do not bind the shared refresh request to this effect's AbortSignal.
+    // React StrictMode can replay this effect: aborting the first request
+    // would also abort the in-flight promise reused by the second setup.
+    let isCurrent = true;
 
-    void validateCurrentSession(controller.signal)
+    void validateCurrentSession()
       .then((session) => {
-        if (controller.signal.aborted) {
+        if (!isCurrent) {
           return;
         }
 
@@ -82,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
       })
       .catch((error: unknown) => {
-        if (controller.signal.aborted) {
+        if (!isCurrent) {
           return;
         }
 
@@ -93,7 +96,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       });
 
-    return () => controller.abort();
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   const signIn = useCallback(async (token: string) => {
