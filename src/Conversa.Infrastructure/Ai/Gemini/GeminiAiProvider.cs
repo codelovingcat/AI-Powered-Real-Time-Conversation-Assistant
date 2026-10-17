@@ -90,12 +90,17 @@ internal sealed class GeminiAiProvider(
                 {
                     try
                     {
-                        var result = GeminiResponseParser.Parse(body);
+                        var result = GeminiResponseParser.Parse(body) with
+                        {
+                            PromptVersion = GeminiPromptBuilder.PromptVersion
+                        };
                         logger.LogInformation(
-                            "Gemini request succeeded on attempt {Attempt} in {ElapsedMilliseconds} ms.",
+                            "Gemini request succeeded on attempt {Attempt} in {ElapsedMilliseconds} ms using prompt version {PromptVersion}.",
                             attempt,
-                            stopwatch.ElapsedMilliseconds);
+                            stopwatch.ElapsedMilliseconds,
+                            GeminiPromptBuilder.PromptVersion);
                         outcome = "success";
+                        activity?.SetTag("conversa.prompt.version", GeminiPromptBuilder.PromptVersion);
                         activity?.SetStatus(ActivityStatusCode.Ok);
                         return result;
                     }
