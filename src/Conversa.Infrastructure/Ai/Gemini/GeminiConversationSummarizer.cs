@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security;
@@ -36,6 +37,37 @@ internal sealed class GeminiConversationSummarizer(
         IReadOnlyList<AiConversationTurn> olderTurns,
         CancellationToken cancellationToken)
     {
+        var stopwatch = Stopwatch.StartNew();
+        var outcome = "error";
+        try
+        {
+            var summary = await SummarizeCoreAsync(
+                activeInstruction,
+                sourceLanguage,
+                targetLanguage,
+                previousSummary,
+                olderTurns,
+                cancellationToken);
+            outcome = "success";
+            return summary;
+        }
+        finally
+        {
+            stopwatch.Stop();
+            var tags = ConversaTelemetry.Tags("gemini", "summarize", outcome);
+            ConversaTelemetry.AiSummaryRequests.Add(1, tags);
+            ConversaTelemetry.AiSummaryDuration.Record(stopwatch.Elapsed.TotalMilliseconds, tags);
+        }
+    }
+
+    private async Task<string> SummarizeCoreAsync(
+        string activeInstruction,
+        string sourceLanguage,
+        string targetLanguage,
+        string? previousSummary,
+        IReadOnlyList<AiConversationTurn> olderTurns,
+        CancellationToken cancellationToken)
+    {
         cancellationToken.ThrowIfCancellationRequested();
         if (olderTurns.Count == 0)
         {
@@ -57,7 +89,11 @@ internal sealed class GeminiConversationSummarizer(
             targetLanguage,
             previousSummary,
             olderTurns);
-        if (systemInstruction.Length + userPrompt.Length > MaxSummaryPromptCharacters)
+        var promptCharacters = systemInstruction.Length + userPrompt.Length;
+        var promptTags = ConversaTelemetry.Tags("gemini", "summary_prompt", "prepared");
+        ConversaTelemetry.AiSummaryPromptCharacters.Record(promptCharacters, promptTags);
+        ConversaTelemetry.AiSummaryInputTurns.Record(olderTurns.Count, promptTags);
+        if (promptCharacters > MaxSummaryPromptCharacters)
         {
             throw new AiProviderException("The older conversation context exceeds the summary input budget.");
         }
@@ -97,7 +133,7 @@ internal sealed class GeminiConversationSummarizer(
                     request,
                     HttpCompletionOption.ResponseHeadersRead,
                     timeout.Token);
-                var body = await response.Content.ReadAsStringAsync(timeout.Token);
+                var body = await ReadBoundedResponseBodyAsync(response, timeout.Token);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -266,6 +302,38 @@ internal sealed class GeminiConversationSummarizer(
         {
             throw new AiProviderException("Gemini returned an invalid conversation summary.", exception);
         }
+    }
+
+    private static async Task<string> ReadBoundedResponseBodyAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        const int maxResponseBytes = 64 * 1024;
+        if (response.Content.Headers.ContentLength is long contentLength && contentLength > maxResponseBytes)
+        {
+            throw new AiProviderException("Gemini conversation summary response exceeded its size limit.");
+        }
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var output = new MemoryStream();
+        var buffer = new byte[8 * 1024];
+        while (true)
+        {
+            var read = await stream.ReadAsync(buffer.AsMemory(), cancellationToken);
+            if (read == 0)
+            {
+                break;
+            }
+
+            if (output.Length + read > maxResponseBytes)
+            {
+                throw new AiProviderException("Gemini conversation summary response exceeded its size limit.");
+            }
+
+            output.Write(buffer, 0, read);
+        }
+
+        return Encoding.UTF8.GetString(output.ToArray());
     }
 
     private static HttpRequestMessage CreateRequest(GeminiOptions settings, string payload)
