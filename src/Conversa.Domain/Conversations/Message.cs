@@ -4,6 +4,7 @@ public sealed class Message
 {
     public const int TextMaxLength = 8000;
     public const int ProviderNameMaxLength = 64;
+    public const int PromptVersionMaxLength = 64;
 
     private Message()
     {
@@ -34,6 +35,8 @@ public sealed class Message
 
     public string? ProviderName { get; private set; }
 
+    public string? PromptVersion { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     public static Message CreateFromAssistant(
@@ -48,7 +51,8 @@ public sealed class Message
         bool questionDetected,
         bool questionDirectedAtUser,
         string providerName,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        string? promptVersion = null)
     {
         if (conversationId == Guid.Empty)
         {
@@ -74,6 +78,7 @@ public sealed class Message
             QuestionDetected = questionDetected,
             QuestionDirectedAtUser = questionDirectedAtUser,
             ProviderName = NormalizeProvider(providerName),
+            PromptVersion = NormalizePromptVersion(promptVersion),
             CreatedAt = now
         };
     }
@@ -116,6 +121,22 @@ public sealed class Message
 
         var trimmed = value.Trim();
         return trimmed.Length <= TextMaxLength ? trimmed : trimmed[..TextMaxLength];
+    }
+
+    private static string? NormalizePromptVersion(string? promptVersion)
+    {
+        if (string.IsNullOrWhiteSpace(promptVersion))
+        {
+            return null;
+        }
+
+        var normalized = promptVersion.Trim();
+        if (normalized.Length > PromptVersionMaxLength)
+        {
+            throw new ArgumentException("Prompt version is too long.", nameof(promptVersion));
+        }
+
+        return normalized;
     }
 
     private static string NormalizeProvider(string providerName)
