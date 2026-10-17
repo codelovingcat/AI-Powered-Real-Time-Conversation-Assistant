@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Conversa.Application.Common;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Conversa.Api.Infrastructure;
 
@@ -59,6 +60,12 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
     private static MappedException? Map(Exception exception) => exception switch
     {
         NotFoundException notFound => new(StatusCodes.Status404NotFound, "Not found", notFound.Message, null),
+        ConflictException conflict => new(StatusCodes.Status409Conflict, "Update conflict", conflict.Message, null),
+        DbUpdateConcurrencyException => new(
+            StatusCodes.Status409Conflict,
+            "Update conflict",
+            "This resource changed while the request was being processed. Refresh and try again.",
+            null),
         ValidationException validation => new(
             StatusCodes.Status400BadRequest,
             "Validation failed",

@@ -1,5 +1,27 @@
 import { expect, test } from "./fixtures/authenticated";
 
+test("renames a conversation and displays created and updated timestamps", async ({
+  authenticatedPage: page
+}) => {
+  const originalTitle = "Rename conversation E2E";
+  const renamedTitle = "Renamed conversation E2E";
+
+  await page.getByRole("button", { name: "New conversation" }).click();
+  await page.getByLabel("Title").fill(originalTitle);
+  await page.getByRole("button", { name: "Create conversation" }).click();
+
+  await expect(page.getByRole("heading", { name: originalTitle, exact: true })).toBeVisible();
+  await expect(page.getByText(/^Created /).first()).toBeVisible();
+  await expect(page.getByText(/^Updated /).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Rename " + originalTitle }).click();
+  await page.getByRole("textbox", { name: "Edit conversation title" }).fill(renamedTitle);
+  await page.getByRole("button", { name: "Save title" }).click();
+
+  await expect(page.getByRole("heading", { name: renamedTitle, exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: new RegExp("^" + renamedTitle + " EN → TR") })).toBeVisible();
+});
+
 test("processes a conversation through the HTTP application boundary", async ({
   authenticatedPage: page
 }) => {
@@ -34,7 +56,7 @@ test("processes a conversation through the HTTP application boundary", async ({
   // Reload intentionally clears the active selection. Reopen the saved
   // conversation before asserting that its persisted messages are restored.
   const savedConversation = page.getByRole("button", {
-    name: new RegExp(`^${conversationTitle} EN → TR$`)
+    name: new RegExp("^" + conversationTitle + " EN → TR")
   }).first();
   await savedConversation.click();
   await expect(

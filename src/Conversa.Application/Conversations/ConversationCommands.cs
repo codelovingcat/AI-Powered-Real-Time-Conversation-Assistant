@@ -13,7 +13,8 @@ public sealed record UpdateConversationCommand(
     string? Title,
     string? Instruction,
     string? SourceLanguage,
-    string? TargetLanguage);
+    string? TargetLanguage,
+    DateTimeOffset? ExpectedUpdatedAt = null);
 
 public sealed record ProcessConversationInputCommand(
     Guid ConversationId,

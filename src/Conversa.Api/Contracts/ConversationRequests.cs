@@ -22,6 +22,8 @@ public sealed class UpdateConversationRequest
     public string? SourceLanguage { get; init; }
 
     public string? TargetLanguage { get; init; }
+
+    public DateTimeOffset? ExpectedUpdatedAt { get; init; }
 }
 
 public sealed class ProcessInputRequest

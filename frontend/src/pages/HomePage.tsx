@@ -91,6 +91,12 @@ export function HomePage() {
     );
   }
 
+  function handleConversationUpdated(conversation: ConversationSummary) {
+    setActiveConversation((current) =>
+      current?.id === conversation.id ? conversation : current
+    );
+  }
+
   function handleConversationSelect(
     conversation: ConversationSummary | null
   ) {
@@ -129,6 +135,7 @@ export function HomePage() {
       <ConversationSidebar
         activeConversationId={activeConversation?.id ?? null}
         onSelect={handleConversationSelect}
+        onConversationUpdated={handleConversationUpdated}
       />
 
       <section className="workspace" aria-labelledby="page-title">
