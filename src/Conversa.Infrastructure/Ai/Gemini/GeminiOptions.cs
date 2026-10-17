@@ -16,6 +16,12 @@ public sealed class GeminiOptions
 
     public int InitialRetryDelayMilliseconds { get; set; } = 250;
 
+    /// <summary>
+    /// Maximum combined character count of the generated system instruction and user prompt.
+    /// This is a deterministic payload guard, not a model-token estimate.
+    /// </summary>
+    public int MaxPromptCharacters { get; set; } = 80_000;
+
     public void Validate()
     {
         if (TimeoutSeconds <= 0)
@@ -26,5 +32,8 @@ public sealed class GeminiOptions
 
         if (InitialRetryDelayMilliseconds < 0 || InitialRetryDelayMilliseconds > 5000)
             throw new InvalidOperationException("Gemini:InitialRetryDelayMilliseconds must be between 0 and 5000.");
+
+        if (MaxPromptCharacters <= 0 || MaxPromptCharacters > 250_000)
+            throw new InvalidOperationException("Gemini:MaxPromptCharacters must be between 1 and 250000.");
     }
 }
