@@ -170,10 +170,17 @@ export class MicrophoneCaptureController {
       });
       return true;
     } catch {
-      await this.cleanupNativeRecorder();
+      let cleanupFailed = false;
+      try {
+        await this.cleanupNativeRecorder();
+      } catch {
+        cleanupFailed = true;
+      }
       this.update({
         phase: "error",
-        message: "Microphone capture could not start. Check device permissions and try again."
+        message: cleanupFailed
+          ? "Microphone capture could not start and temporary audio could not be removed."
+          : "Microphone capture could not start. Check device permissions and try again."
       });
       return false;
     }
@@ -248,20 +255,24 @@ export class MicrophoneCaptureController {
   private async cleanupNativeRecorder(): Promise<void> {
     const uriBeforeStop = this.dependencies.recorder.uri;
 
-    if (this.isPrepared || this.isRecording) {
-      try {
-        await this.dependencies.recorder.stop();
-      } finally {
-        const uriAfterStop = this.dependencies.recorder.uri;
-        const uri = uriAfterStop ?? uriBeforeStop;
-        if (uri) {
-          await this.dependencies.deleteTemporaryFile(uri);
+    try {
+      if (this.isPrepared || this.isRecording) {
+        try {
+          await this.dependencies.recorder.stop();
+        } finally {
+          const uriAfterStop = this.dependencies.recorder.uri;
+          const uri = uriAfterStop ?? uriBeforeStop;
+          if (uri) {
+            await this.dependencies.deleteTemporaryFile(uri);
+          }
         }
       }
+    } finally {
+      // Even if native stop or file deletion fails, do not leave the controller believing
+      // that capture is still active and accidentally permit an overlapping recorder.
+      this.isRecording = false;
+      this.isPrepared = false;
     }
-
-    this.isRecording = false;
-    this.isPrepared = false;
   }
 
   private update(patch: Partial<MicrophoneCaptureState>): void {
