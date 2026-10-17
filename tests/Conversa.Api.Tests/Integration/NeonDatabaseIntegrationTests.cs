@@ -1,12 +1,15 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using Conversa.Domain.Conversations;
 using Conversa.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using System.Data.Common;
+using Xunit.Abstractions;
 
 namespace Conversa.Api.Tests.Integration;
 
-public sealed class NeonDatabaseIntegrationTests
+public sealed class NeonDatabaseIntegrationTests(ITestOutputHelper output)
 {
     [NeonIntegrationFact]
     public async Task Neon_database_supports_migrations_and_conversation_message_crud()
@@ -123,6 +126,198 @@ public sealed class NeonDatabaseIntegrationTests
             "Deleting the conversation must cascade to its message.");
 
         await transaction.RollbackAsync();
+    }
+
+    [NeonIntegrationFact]
+    public async Task Concurrent_synthetic_conversation_writes_complete_and_cleanup()
+    {
+        const int concurrentWrites = 16;
+        var pooledConnectionString = Environment.GetEnvironmentVariable("NEON_DATABASE_URL");
+        var migrationConnectionString = Environment.GetEnvironmentVariable("NEON_DATABASE_URL_UNPOOLED");
+
+        Assert.False(string.IsNullOrWhiteSpace(pooledConnectionString));
+        Assert.False(string.IsNullOrWhiteSpace(migrationConnectionString));
+
+        pooledConnectionString = ConnectionStringNormalizer.Normalize(pooledConnectionString!);
+        migrationConnectionString = ConnectionStringNormalizer.Normalize(migrationConnectionString!);
+
+        var runId = Guid.NewGuid().ToString("N");
+        var userId = Guid.NewGuid();
+        var titlePrefix = $"Synthetic Neon load {runId} ";
+        var now = DateTimeOffset.UtcNow;
+        var conversations = Enumerable.Range(0, concurrentWrites)
+            .Select(index => Conversation.Create(
+                userId,
+                $"{titlePrefix}{index:D2}",
+                "Synthetic concurrent persistence probe.",
+                "en",
+                "tr",
+                now))
+            .ToArray();
+
+        var latencies = new ConcurrentBag<double>();
+        var failures = 0;
+        var completedWrites = 0;
+        var verifiedMessages = 0;
+        var schemaReady = false;
+        var totalWatch = Stopwatch.StartNew();
+
+        try
+        {
+            await using (var migrationDb = CreateDbContext(migrationConnectionString!))
+            {
+                await migrationDb.Database.MigrateAsync();
+            }
+
+            schemaReady = true;
+
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(25));
+            var startGate = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var tasks = conversations.Select(async (conversation, index) =>
+            {
+                await startGate.Task.WaitAsync(timeout.Token);
+                try
+                {
+                    await using var worker = CreateDbContext(pooledConnectionString!);
+                    var message = Message.CreateFromAssistant(
+                        conversation.Id,
+                        MessageRole.Speaker,
+                        $"Synthetic concurrent input {index}",
+                        $"Synthetic concurrent translation {index}",
+                        null,
+                        null,
+                        null,
+                        AiResponseType.Translation,
+                        false,
+                        false,
+                        "neon-load-test",
+                        now);
+
+                    var watch = Stopwatch.StartNew();
+                    await worker.Conversations.AddAsync(conversation, timeout.Token);
+                    await worker.Messages.AddAsync(message, timeout.Token);
+                    await worker.SaveChangesAsync(timeout.Token);
+                    watch.Stop();
+
+                    latencies.Add(watch.Elapsed.TotalMilliseconds);
+                    Interlocked.Increment(ref completedWrites);
+                }
+                catch
+                {
+                    Interlocked.Increment(ref failures);
+                    throw;
+                }
+            }).ToArray();
+
+            startGate.TrySetResult(true);
+            var allWrites = Task.WhenAll(tasks);
+            try
+            {
+                await allWrites.WaitAsync(timeout.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                try
+                {
+                    await allWrites;
+                }
+                catch
+                {
+                    // Preserve the timeout/cancellation signal after all workers settle for cleanup.
+                }
+
+                throw;
+            }
+
+            await using var verificationDb = CreateDbContext(pooledConnectionString!);
+            var storedConversations = await verificationDb.Conversations
+                .Where(conversation =>
+                    conversation.UserId == userId &&
+                    conversation.Title.StartsWith(titlePrefix))
+                .ToArrayAsync(timeout.Token);
+            Assert.Equal(concurrentWrites, storedConversations.Length);
+
+            var storedIds = storedConversations.Select(conversation => conversation.Id).ToArray();
+            verifiedMessages = await verificationDb.Messages
+                .CountAsync(message => storedIds.Contains(message.ConversationId), timeout.Token);
+            Assert.Equal(concurrentWrites, verifiedMessages);
+        }
+        finally
+        {
+            if (schemaReady)
+            {
+                await using var cleanupDb = CreateDbContext(pooledConnectionString!);
+                var syntheticConversations = await cleanupDb.Conversations
+                    .Where(conversation =>
+                        conversation.UserId == userId &&
+                        conversation.Title.StartsWith(titlePrefix))
+                    .ToArrayAsync();
+                var syntheticIds = syntheticConversations
+                    .Select(conversation => conversation.Id)
+                    .ToArray();
+
+                if (syntheticIds.Length > 0)
+                {
+                    var syntheticMessages = await cleanupDb.Messages
+                        .Where(message => syntheticIds.Contains(message.ConversationId))
+                        .ToArrayAsync();
+                    cleanupDb.Messages.RemoveRange(syntheticMessages);
+                    cleanupDb.Conversations.RemoveRange(syntheticConversations);
+                    await cleanupDb.SaveChangesAsync();
+                }
+
+                cleanupDb.ChangeTracker.Clear();
+                Assert.Equal(
+                    0,
+                    await cleanupDb.Conversations.CountAsync(conversation =>
+                        conversation.UserId == userId &&
+                        conversation.Title.StartsWith(titlePrefix)));
+                if (syntheticIds.Length > 0)
+                {
+                    Assert.Equal(
+                        0,
+                        await cleanupDb.Messages.CountAsync(message =>
+                            syntheticIds.Contains(message.ConversationId)));
+                }
+            }
+        }
+
+        totalWatch.Stop();
+        var values = latencies.Order().ToArray();
+        var p50 = Percentile(values, 0.50);
+        var p95 = Percentile(values, 0.95);
+
+        output.WriteLine(
+            "scenario=neon-postgres-concurrency writes={0} total_ms={1:F1} p50_write_ms={2:F1} p95_write_ms={3:F1} completed={4} verified_messages={5} failures={6} synthetic_rows_cleaned=true",
+            concurrentWrites,
+            totalWatch.Elapsed.TotalMilliseconds,
+            p50,
+            p95,
+            completedWrites,
+            verifiedMessages,
+            failures);
+
+        Assert.Equal(concurrentWrites, completedWrites);
+        Assert.Equal(0, failures);
+        Assert.True(
+            totalWatch.Elapsed < TimeSpan.FromSeconds(20),
+            $"The {concurrentWrites}-write synthetic Neon probe exceeded 20 seconds including cleanup.");
+    }
+
+    private static double Percentile(IReadOnlyList<double> orderedSamples, double percentile)
+    {
+        if (orderedSamples.Count == 0)
+        {
+            throw new InvalidOperationException("The database load probe produced no latency samples.");
+        }
+
+        var index = Math.Clamp(
+            (int)Math.Ceiling(percentile * orderedSamples.Count) - 1,
+            0,
+            orderedSamples.Count - 1);
+        return orderedSamples[index];
     }
 
     private static string DescribeConnectionStringFormat(string connectionString)
