@@ -17,22 +17,41 @@ import {
   type TranscriptSnapshot
 } from "../services/audio/transcriptState";
 import type { LiveConnectionState } from "../services/audio/conversationTimelineState";
+import {
+  transitionConversationLifecycle,
+  type ConversationLifecycleAction,
+  type ConversationLifecycleState
+} from "../services/api/conversationService";
+import { getConversationErrorMessage } from "../services/api/conversationService";
 import { ConversationStatus } from "./ConversationStatus";
 
 interface MicrophoneCapturePanelProps {
   conversationId: string | null;
+  lifecycleState: ConversationLifecycleState;
+  onLifecycleStateChange: (state: ConversationLifecycleState) => void;
   onFinalTranscript?: (text: string) => void;
   onTranscriptChange?: (transcript: TranscriptSnapshot) => void;
   onConnectionStateChange?: (state: LiveConnectionState) => void;
 }
 
-type PanelStatus = "idle" | "connecting" | "reconnecting" | "capturing" | "error";
+type PanelStatus =
+  | "idle"
+  | "connecting"
+  | "reconnecting"
+  | "capturing"
+  | "paused"
+  | "finishing"
+  | "error";
+
+type RetryAction = "capture" | "finish" | null;
 
 const MAX_RECONNECT_ATTEMPTS = 3;
 const RECONNECT_DELAY_MS = 1200;
 
 export function MicrophoneCapturePanel({
   conversationId,
+  lifecycleState,
+  onLifecycleStateChange,
   onFinalTranscript,
   onTranscriptChange,
   onConnectionStateChange
@@ -40,6 +59,8 @@ export function MicrophoneCapturePanel({
   const [status, setStatus] = useState<PanelStatus>("idle");
   const [socketStatus, setSocketStatus] = useState<AudioWebSocketStatus>("closed");
   const [error, setError] = useState<string | null>(null);
+  const [retryAction, setRetryAction] = useState<RetryAction>(null);
+  const [isLifecycleBusy, setIsLifecycleBusy] = useState(false);
   const [chunkCount, setChunkCount] = useState(0);
   const [bytesCaptured, setBytesCaptured] = useState(0);
   const [transcript, setTranscript] = useState<TranscriptSnapshot>(EMPTY_TRANSCRIPT);
@@ -47,7 +68,9 @@ export function MicrophoneCapturePanel({
   const sessionRef = useRef<MicrophoneCaptureSession | null>(null);
   const socketRef = useRef<AudioWebSocketClient | null>(null);
   const captureStartingRef = useRef(false);
+  const lifecycleActionInFlightRef = useRef(false);
   const manualStopRef = useRef(false);
+  const pausedRef = useRef(false);
   const reconnectTimerRef = useRef<number | null>(null);
   const reconnectAttemptRef = useRef(0);
 
@@ -67,38 +90,88 @@ export function MicrophoneCapturePanel({
     }
   }
 
+  function lockLifecycleAction(): boolean {
+    if (lifecycleActionInFlightRef.current) {
+      return false;
+    }
+
+    lifecycleActionInFlightRef.current = true;
+    setIsLifecycleBusy(true);
+    return true;
+  }
+
+  function unlockLifecycleAction() {
+    lifecycleActionInFlightRef.current = false;
+    setIsLifecycleBusy(false);
+  }
+
   async function handleStart() {
-    if (!conversationId) {
-      setError("Select a conversation before starting microphone streaming.");
-      setStatus("error");
+    if (
+      !conversationId ||
+      lifecycleState === "completed" ||
+      lifecycleActionInFlightRef.current ||
+      captureStartingRef.current ||
+      status === "connecting" ||
+      status === "reconnecting" ||
+      status === "capturing"
+    ) {
       return;
     }
 
     if (!isMicrophoneCaptureSupported()) {
       setError(getMicrophoneErrorMessage("unsupported"));
+      setRetryAction("capture");
       setStatus("error");
       return;
     }
 
+    if (!lockLifecycleAction()) {
+      return;
+    }
+
+    const action: ConversationLifecycleAction =
+      lifecycleState === "paused" ? "resume" : "start";
+
     manualStopRef.current = false;
+    pausedRef.current = false;
     reconnectAttemptRef.current = 0;
     setReconnectAttempt(0);
-    captureStartingRef.current = false;
     setStatus("connecting");
     setSocketStatus("connecting");
     onConnectionStateChange?.("connecting");
     setError(null);
-    setChunkCount(0);
-    setBytesCaptured(0);
-    setTranscript(EMPTY_TRANSCRIPT);
-    onTranscriptChange?.(EMPTY_TRANSCRIPT);
+    setRetryAction(null);
     clearReconnectTimer();
 
-    await connectSocket(conversationId);
+    if (lifecycleState === "ready") {
+      setChunkCount(0);
+      setBytesCaptured(0);
+      setTranscript(EMPTY_TRANSCRIPT);
+      onTranscriptChange?.(EMPTY_TRANSCRIPT);
+    }
+
+    try {
+      const updated = await transitionConversationLifecycle(conversationId, action);
+      onLifecycleStateChange(updated.lifecycleState ?? "active");
+      await connectSocket(conversationId);
+    } catch (requestError: unknown) {
+      manualStopRef.current = true;
+      await cleanupCapture();
+      const socket = socketRef.current;
+      socketRef.current = null;
+      if (socket) socket.close();
+      setError(getConversationErrorMessage(requestError));
+      setRetryAction(action === "resume" ? "capture" : "capture");
+      setStatus("error");
+      setSocketStatus("closed");
+      onConnectionStateChange?.("error");
+    } finally {
+      unlockLifecycleAction();
+    }
   }
 
   async function connectSocket(targetConversationId: string) {
-    if (manualStopRef.current) return;
+    if (manualStopRef.current || pausedRef.current) return;
 
     try {
       const socket = openAudioWebSocket(targetConversationId, {
@@ -119,10 +192,16 @@ export function MicrophoneCapturePanel({
           setSocketStatus(nextStatus);
 
           if (nextStatus === "open") {
+            if (manualStopRef.current || pausedRef.current) {
+              socket.close();
+              return;
+            }
+
             onConnectionStateChange?.("connected");
             reconnectAttemptRef.current = 0;
             setReconnectAttempt(0);
             setError(null);
+            setRetryAction(null);
             void beginCapture(socket);
             return;
           }
@@ -130,17 +209,24 @@ export function MicrophoneCapturePanel({
           if (nextStatus === "error" && !manualStopRef.current) {
             onConnectionStateChange?.("error");
             setError("The audio connection was interrupted.");
+            setRetryAction("capture");
           }
 
           if (nextStatus === "closed" && !manualStopRef.current) {
             onConnectionStateChange?.("disconnected");
+            if (pausedRef.current) {
+              void cleanupCapture();
+              setStatus("paused");
+              return;
+            }
             void cleanupCapture();
             scheduleReconnect(targetConversationId);
           }
         },
-        onError: (nextError) => {
+        onError: () => {
           if (!manualStopRef.current) {
-            setError(nextError.message);
+            setError("The audio connection was interrupted.");
+            setRetryAction("capture");
           }
         }
       });
@@ -154,6 +240,7 @@ export function MicrophoneCapturePanel({
             ? streamError.message
             : "Microphone streaming could not be started."
         );
+        setRetryAction("capture");
         setStatus("error");
         setSocketStatus("closed");
       }
@@ -161,8 +248,14 @@ export function MicrophoneCapturePanel({
   }
 
   function scheduleReconnect(targetConversationId: string) {
+    if (pausedRef.current) {
+      setStatus("paused");
+      return;
+    }
+
     if (reconnectAttemptRef.current >= MAX_RECONNECT_ATTEMPTS) {
       setStatus("error");
+      setRetryAction("capture");
       onConnectionStateChange?.("error");
       setError("The audio connection could not be restored. Start the microphone again.");
       return;
@@ -181,18 +274,25 @@ export function MicrophoneCapturePanel({
   }
 
   async function beginCapture(socket: AudioWebSocketClient) {
-    if (captureStartingRef.current || sessionRef.current) return;
+    if (captureStartingRef.current || sessionRef.current || pausedRef.current) return;
 
     captureStartingRef.current = true;
 
     try {
       const session = await startMicrophoneCapture((chunk) => {
+        if (pausedRef.current || manualStopRef.current) {
+          return;
+        }
         socket.sendAudioChunk(chunk);
         setChunkCount((count) => count + 1);
         setBytesCaptured((bytes) => bytes + chunk.byteLength);
       });
 
-      if (manualStopRef.current || socketRef.current !== socket) {
+      if (
+        manualStopRef.current ||
+        pausedRef.current ||
+        socketRef.current !== socket
+      ) {
         await session.stop();
         return;
       }
@@ -203,6 +303,7 @@ export function MicrophoneCapturePanel({
       socket.close();
       onConnectionStateChange?.("error");
       setError(getMicrophoneErrorMessage(captureError));
+      setRetryAction("capture");
       setStatus("error");
     } finally {
       captureStartingRef.current = false;
@@ -230,29 +331,127 @@ export function MicrophoneCapturePanel({
     onConnectionStateChange?.("idle");
   }
 
+  async function handlePause() {
+    if (
+      !conversationId ||
+      lifecycleState !== "active" ||
+      status !== "capturing" ||
+      !lockLifecycleAction()
+    ) {
+      return;
+    }
+
+    setError(null);
+    setRetryAction(null);
+
+    try {
+      const updated = await transitionConversationLifecycle(conversationId, "pause");
+      onLifecycleStateChange(updated.lifecycleState ?? "paused");
+
+      pausedRef.current = true;
+      manualStopRef.current = true;
+      clearReconnectTimer();
+      await cleanupCapture();
+
+      const socket = socketRef.current;
+      socketRef.current = null;
+      if (socket) socket.close();
+
+      setSocketStatus("closed");
+      setStatus("paused");
+      onConnectionStateChange?.("idle");
+    } catch (requestError: unknown) {
+      setError(getConversationErrorMessage(requestError));
+      setRetryAction(null);
+    } finally {
+      unlockLifecycleAction();
+    }
+  }
+
+  async function handleFinish() {
+    if (
+      !conversationId ||
+      lifecycleState === "completed" ||
+      !lockLifecycleAction()
+    ) {
+      return;
+    }
+
+    manualStopRef.current = true;
+    pausedRef.current = false;
+    clearReconnectTimer();
+    setStatus("finishing");
+    setError(null);
+    setRetryAction(null);
+
+    // Stop local capture immediately, even if the API is temporarily unavailable.
+    await cleanupCapture();
+    const socket = socketRef.current;
+    socketRef.current = null;
+    if (socket) socket.close();
+    setSocketStatus("closed");
+    onConnectionStateChange?.("idle");
+
+    try {
+      const updated = await transitionConversationLifecycle(conversationId, "finish");
+      onLifecycleStateChange(updated.lifecycleState ?? "completed");
+      setStatus("idle");
+      setError(null);
+    } catch {
+      setStatus("error");
+      setRetryAction("finish");
+      setError(
+        "The microphone was stopped, but the conversation could not be marked as finished. Check your connection and try again."
+      );
+    } finally {
+      unlockLifecycleAction();
+    }
+  }
+
+  const lifecycleIsCompleted = lifecycleState === "completed";
   const startDisabled =
     !conversationId ||
+    lifecycleIsCompleted ||
+    isLifecycleBusy ||
     status === "connecting" ||
     status === "reconnecting" ||
-    status === "capturing";
+    status === "capturing" ||
+    status === "finishing";
+  const statusLabel = lifecycleIsCompleted
+    ? "Finished"
+    : status === "connecting"
+      ? "Connecting…"
+      : status === "reconnecting"
+        ? "Reconnecting…"
+        : status === "capturing"
+          ? "Streaming"
+          : status === "paused" || lifecycleState === "paused"
+            ? "Paused"
+            : status === "finishing"
+              ? "Finishing…"
+              : status === "error"
+                ? "Interrupted"
+                : lifecycleState === "ready"
+                  ? "Ready to start"
+                  : "Not recording";
+  const startLabel =
+    status === "connecting" || status === "reconnecting"
+      ? "Connecting…"
+      : lifecycleState === "paused"
+        ? "Resume conversation"
+        : lifecycleState === "ready"
+          ? "Start conversation & microphone"
+          : "Start microphone";
 
   return (
     <section className="microphone-panel" aria-labelledby="microphone-panel-title">
       <div className="microphone-panel-header">
         <div>
-          <span className="workspace-kicker">MICROPHONE</span>
-          <h3 id="microphone-panel-title">Live audio streaming</h3>
+          <span className="workspace-kicker">CONVERSATION LIFECYCLE</span>
+          <h3 id="microphone-panel-title">Live conversation</h3>
         </div>
         <span className={"microphone-status microphone-status-" + status} role="status">
-          {status === "connecting"
-            ? "Connecting…"
-            : status === "reconnecting"
-              ? "Reconnecting…"
-              : status === "capturing"
-                ? "Streaming"
-                : status === "error"
-                  ? "Disconnected"
-                  : "Ready"}
+          {statusLabel}
         </span>
       </div>
 
@@ -267,17 +466,29 @@ export function MicrophoneCapturePanel({
       {status === "error" && error && (
         <ConversationStatus
           tone="error"
-          title="Microphone unavailable"
+          title={retryAction === "finish" ? "Conversation finish not saved" : "Microphone or connection interrupted"}
           detail={error}
-          actionLabel="Try again"
-          onAction={() => void handleStart()}
+          actionLabel={retryAction === "finish" ? "Retry finish" : "Try again"}
+          onAction={() => {
+            if (retryAction === "finish") {
+              void handleFinish();
+            } else {
+              void handleStart();
+            }
+          }}
         />
       )}
 
       <p className="microphone-description">
-        {conversationId
-          ? "Allow microphone access to stream mono PCM audio to the active conversation."
-          : "Select a conversation to enable microphone streaming."}
+        {lifecycleIsCompleted
+          ? "This conversation is finished. Its messages remain available in history."
+          : lifecycleState === "paused"
+            ? "Recording is paused and the microphone has been released. Resume when you're ready."
+            : lifecycleState === "ready"
+              ? "Start the conversation to open a secure audio stream and request microphone access."
+              : status === "capturing"
+                ? "Audio is being streamed to the active conversation. Pause to stop sending audio, or finish to close the session."
+                : "Your conversation is active. Start or retry the microphone stream to continue recording."}
       </p>
 
       <div className="microphone-format">
@@ -286,36 +497,49 @@ export function MicrophoneCapturePanel({
       </div>
 
       <div className="microphone-actions">
-        {status === "capturing" ? (
-          <button
-            className="ghost-button"
-            type="button"
-            onClick={() => {
-              manualStopRef.current = true;
-              void stopStreaming();
-            }}
-          >
-            Stop streaming
-          </button>
-        ) : (
-          <button
-            className="primary-button"
-            type="button"
-            onClick={() => void handleStart()}
-            disabled={startDisabled}
-          >
-            {status === "connecting" || status === "reconnecting"
-              ? "Connecting…"
-              : "Start microphone"}
-          </button>
+        {!lifecycleIsCompleted && (
+          <>
+            {status === "capturing" ? (
+              <button
+                className="ghost-button"
+                type="button"
+                onClick={() => void handlePause()}
+                disabled={isLifecycleBusy}
+              >
+                {isLifecycleBusy ? "Pausing…" : "Pause conversation"}
+              </button>
+            ) : (
+              <button
+                className="primary-button"
+                type="button"
+                onClick={() => void handleStart()}
+                disabled={startDisabled}
+                aria-label={lifecycleState === "paused" ? "Resume conversation" : "Start microphone"}
+                aria-busy={status === "connecting" || status === "reconnecting"}
+              >
+                {startLabel}
+              </button>
+            )}
+
+            <button
+              className="ghost-button finish-conversation-button"
+              type="button"
+              onClick={() => void handleFinish()}
+              disabled={isLifecycleBusy || status === "finishing"}
+            >
+              {status === "finishing" ? "Finishing…" : "Finish conversation"}
+            </button>
+          </>
         )}
 
         <span className="microphone-metrics" aria-live="polite">
-          {socketStatus === "open"
+          {socketStatus === "open" && status === "capturing"
             ? "WebSocket connected"
             : status === "reconnecting"
               ? "WebSocket reconnecting"
-              : "WebSocket disconnected"}
+              : status === "paused"
+                ? "Microphone released · Conversation paused"
+                : "WebSocket disconnected"}
           {status === "capturing" &&
             " · " + chunkCount + " chunks · " + bytesCaptured.toLocaleString() + " bytes"}
         </span>
