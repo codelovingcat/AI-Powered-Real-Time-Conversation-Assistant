@@ -49,18 +49,11 @@ if (observabilityOptions.Enabled)
     openTelemetry.WithTracing(tracing =>
     {
         tracing
-            .AddAspNetCoreInstrumentation(options =>
-            {
-                options.EnrichWithHttpRequest = (activity, _) =>
-                    TelemetryPrivacyFilter.RedactUrlDetails(activity);
-            })
-            .AddHttpClientInstrumentation(options =>
-            {
-                options.EnrichWithHttpRequestMessage = (activity, _) =>
-                    TelemetryPrivacyFilter.RedactUrlDetails(activity);
-            })
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
             .AddSource(ConversaTelemetry.ActivitySourceName);
 
+        tracing.AddProcessor(new TelemetryPrivacyProcessor());
         tracing.AddOtlpExporter(exporter =>
         {
             if (!string.IsNullOrWhiteSpace(observabilityOptions.OtlpEndpoint))

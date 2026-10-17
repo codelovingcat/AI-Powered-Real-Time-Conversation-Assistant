@@ -27,7 +27,7 @@ public sealed class TelemetryPrivacyFilterTests
         activity.SetTag("http.route", "/api/conversations/{id}");
         activity.SetTag("http.request.method", "POST");
 
-        TelemetryPrivacyFilter.RedactUrlDetails(activity);
+        new TelemetryPrivacyProcessor().OnEnd(activity);
 
         foreach (var tagName in rawUrlTags)
         {
