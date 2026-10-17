@@ -67,6 +67,7 @@ public static class DependencyInjection
         }
 
         services.AddScoped<IConversationRepository, ConversationRepository>();
+        services.AddScoped<IUserAssistantPreferencesRepository, UserAssistantPreferencesRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
         services.AddScoped<IConversationContextSummaryRepository, ConversationContextSummaryRepository>();
         services.AddScoped<IConversationContextService, ConversationContextService>();
