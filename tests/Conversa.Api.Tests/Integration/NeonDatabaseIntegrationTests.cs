@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using Conversa.Domain.Conversations;
 using Conversa.Infrastructure.Persistence;
+using Conversa.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using System.Data.Common;
@@ -304,6 +305,109 @@ public sealed class NeonDatabaseIntegrationTests(ITestOutputHelper output)
         Assert.True(
             totalWatch.Elapsed < TimeSpan.FromSeconds(20),
             $"The {concurrentWrites}-write synthetic Neon probe exceeded 20 seconds including cleanup.");
+    }
+
+    [NeonIntegrationFact]
+    public async Task Conversation_summaries_are_owner_scoped_and_revisions_are_optimistic()
+    {
+        var migrationConnectionString = Environment.GetEnvironmentVariable("NEON_DATABASE_URL_UNPOOLED");
+        Assert.False(string.IsNullOrWhiteSpace(migrationConnectionString));
+        migrationConnectionString = ConnectionStringNormalizer.Normalize(migrationConnectionString!);
+
+        await using var db = CreateDbContext(migrationConnectionString!);
+        await db.Database.MigrateAsync();
+        await using var transaction = await db.Database.BeginTransactionAsync();
+
+        var ownerA = Guid.NewGuid();
+        var ownerB = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var conversationA = Conversation.Create(ownerA, $"summary-owner-a-{Guid.NewGuid():N}", "Current instruction A", "en", "tr", now);
+        var conversationB = Conversation.Create(ownerB, $"summary-owner-b-{Guid.NewGuid():N}", "Current instruction B", "en", "tr", now);
+        await db.Conversations.AddRangeAsync(conversationA, conversationB);
+
+        var messages = Enumerable.Range(0, 3)
+            .Select(index => Message.CreateFromAssistant(
+                conversationA.Id,
+                MessageRole.Speaker,
+                $"synthetic summary cursor {index}",
+                $"synthetic translation {index}",
+                null,
+                null,
+                null,
+                AiResponseType.Translation,
+                false,
+                false,
+                "summary-ownership-test",
+                now.AddMinutes(-3 + index)))
+            .ToArray();
+        await db.Messages.AddRangeAsync(messages);
+        await db.SaveChangesAsync();
+
+        var repository = new ConversationContextSummaryRepository(db);
+        Assert.Null(await repository.GetByConversationIdAsync(conversationA.Id, ownerB, CancellationToken.None));
+        Assert.True(await repository.TrySaveAsync(
+            conversationA.Id,
+            ownerA,
+            expectedRevision: 0,
+            summary: "Synthetic summary revision one",
+            throughCreatedAt: messages[0].CreatedAt,
+            throughMessageId: messages[0].Id,
+            updatedAt: now,
+            cancellationToken: CancellationToken.None));
+
+        var ownerScoped = await repository.GetByConversationIdAsync(conversationA.Id, ownerA, CancellationToken.None);
+        Assert.NotNull(ownerScoped);
+        Assert.Equal(1, ownerScoped.Revision);
+        Assert.Equal("Synthetic summary revision one", ownerScoped.Summary);
+        Assert.Null(await repository.GetByConversationIdAsync(conversationA.Id, ownerB, CancellationToken.None));
+        Assert.Null(await repository.GetByConversationIdAsync(conversationB.Id, ownerA, CancellationToken.None));
+
+        var pending = await repository.ListUnsummarizedMessagesAsync(
+            conversationA.Id,
+            ownerA,
+            messages[0].CreatedAt,
+            messages[0].Id,
+            messages[2].CreatedAt,
+            messages[2].Id,
+            take: 8,
+            CancellationToken.None);
+        Assert.Collection(pending, message => Assert.Equal(messages[1].Id, message.Id));
+        Assert.Empty(await repository.ListUnsummarizedMessagesAsync(
+            conversationA.Id,
+            ownerB,
+            messages[0].CreatedAt,
+            messages[0].Id,
+            messages[2].CreatedAt,
+            messages[2].Id,
+            take: 8,
+            CancellationToken.None));
+
+        Assert.True(await repository.TrySaveAsync(
+            conversationA.Id,
+            ownerA,
+            expectedRevision: 1,
+            summary: "Synthetic summary revision two",
+            throughCreatedAt: messages[1].CreatedAt,
+            throughMessageId: messages[1].Id,
+            updatedAt: now.AddMinutes(1),
+            cancellationToken: CancellationToken.None));
+        Assert.False(await repository.TrySaveAsync(
+            conversationA.Id,
+            ownerA,
+            expectedRevision: 1,
+            summary: "Stale writer must not replace the newer summary",
+            throughCreatedAt: messages[2].CreatedAt,
+            throughMessageId: messages[2].Id,
+            updatedAt: now.AddMinutes(2),
+            cancellationToken: CancellationToken.None));
+
+        var latest = await repository.GetByConversationIdAsync(conversationA.Id, ownerA, CancellationToken.None);
+        Assert.NotNull(latest);
+        Assert.Equal(2, latest.Revision);
+        Assert.Equal("Synthetic summary revision two", latest.Summary);
+        Assert.Equal(messages[1].Id, latest.ThroughMessageId);
+        // This test intentionally leaves its unique synthetic rows uncommitted; disposing the
+        // PostgreSQL transaction rolls them all back, including both summary revisions.
     }
 
     private static double Percentile(IReadOnlyList<double> orderedSamples, double percentile)

@@ -32,3 +32,22 @@ dotnet test tests/Conversa.Api.Tests/Conversa.Api.Tests.csproj \
   --configuration Release \
   --filter "FullyQualifiedName~GeminiAiProviderTests"
 ```
+
+
+## Persisted long-conversation summary
+
+After at least eight older messages fall outside the verbatim recent window, the application may summarize exactly eight not-yet-summarized messages. The remaining recent messages stay verbatim. Each summary record is keyed by conversation ID and stores the last represented message cursor (CreatedAt and Id), update time, and a monotonically increasing revision.
+
+- A refresh consumes only messages belonging to the already owner-authorized conversation, between the last committed summary cursor and the oldest message in the verbatim recent window.
+- Summary generation receives the current instruction as a relevance hint, the previous committed summary, and at most eight older turns. Fields are individually bounded before escaping; the generated system/user prompt has a 48,000-character ceiling. The model output must be a non-empty JSON summary no longer than 8,000 characters; the provider response body is capped at 64 KiB.
+- At most two model attempts are made, with a 15-second per-attempt timeout cap. No transcript, summary, API key, or raw provider error body is written to logs.
+- A summary is committed only after successful generation and validation. Optimistic revision checks stop concurrent refreshes from overwriting a newer summary; a failed or stale refresh uses the last committed summary. A failed refresh never mutates the conversation transcript.
+- Summary rows cascade with conversation deletion. Summary/message lookup and writes also verify the owning user in the repository query.
+- When assembling the final AI prompt, oldest verbatim history turns are removed first if needed; the older summary is omitted only after those turns are removed. The active instruction and latest input are never truncated to make room for history.
+- Summary generation is a separate idempotent provider operation. It is bounded to two attempts and may be repeated after a failed commit; the saved cursor ensures successfully committed batches are not summarized again.
+
+Additional low-cardinality metrics:
+
+- conversa.ai.summary.requests and conversa.ai.summary.duration record outcome and latency including retries.
+- conversa.ai.summary.prompt.characters and conversa.ai.summary.input.turns record bounded input size without recording transcript text.
+- conversa.ai.context.summary_included indicates whether the stored summary survived final prompt budgeting.

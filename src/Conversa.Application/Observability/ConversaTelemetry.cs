@@ -23,6 +23,30 @@ public static class ConversaTelemetry
             unit: "ms",
             description: "AI provider operation duration.");
 
+    public static readonly Counter<long> AiSummaryRequests =
+        Meter.CreateCounter<long>(
+            "conversa.ai.summary.requests",
+            unit: "{request}",
+            description: "Conversation summary generation operations by outcome.");
+
+    public static readonly Histogram<double> AiSummaryDuration =
+        Meter.CreateHistogram<double>(
+            "conversa.ai.summary.duration",
+            unit: "ms",
+            description: "Duration of a bounded conversation summary operation, including retries.");
+
+    public static readonly Histogram<double> AiSummaryPromptCharacters =
+        Meter.CreateHistogram<double>(
+            "conversa.ai.summary.prompt.characters",
+            unit: "{character}",
+            description: "Character count of the escaped bounded summary prompt.");
+
+    public static readonly Histogram<double> AiSummaryInputTurns =
+        Meter.CreateHistogram<double>(
+            "conversa.ai.summary.input.turns",
+            unit: "{turn}",
+            description: "Number of older transcript turns supplied to a summary operation.");
+
     public static readonly Histogram<double> AiPromptCharacters =
         Meter.CreateHistogram<double>(
             "conversa.ai.prompt.characters",
@@ -40,6 +64,18 @@ public static class ConversaTelemetry
             "conversa.ai.context.turns.dropped",
             unit: "{turn}",
             description: "Number of oldest historical turns omitted to fit the AI prompt budget.");
+
+    public static readonly Histogram<double> AiContextSummaryIncluded =
+        Meter.CreateHistogram<double>(
+            "conversa.ai.context.summary_included",
+            unit: "{boolean}",
+            description: "Whether the persisted older-context summary was included in the bounded AI prompt (1 or 0).");
+
+    public static readonly Counter<long> AiContextSummaryRefreshFailures =
+        Meter.CreateCounter<long>(
+            "conversa.ai.context.summary_refresh_failures",
+            unit: "{request}",
+            description: "Summary refresh operations that failed and fell back to the last committed summary.");
 
     public static readonly Counter<long> AiContextBudgetRejections =
         Meter.CreateCounter<long>(

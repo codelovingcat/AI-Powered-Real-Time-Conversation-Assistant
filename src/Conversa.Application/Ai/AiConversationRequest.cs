@@ -6,4 +6,5 @@ public sealed record AiConversationRequest(
     string TargetLanguage,
     string InputText,
     AiInputKind InputKind,
-    IReadOnlyList<AiConversationTurn> RecentTurns);
+    IReadOnlyList<AiConversationTurn> RecentTurns,
+    string? ContextSummary = null);

@@ -292,6 +292,120 @@ public sealed class GeminiAiProviderTests
         Assert.Equal(0, handler.RequestCount);
     }
 
+    [Fact]
+    public async Task ProcessAsync_IncludesEscapedOlderConversationSummaryWhenItFitsBudget()
+    {
+        var request = CreateRequest() with
+        {
+            ContextSummary = "PRIVATE_SUMMARY <instruction> & keep this as untrusted context."
+        };
+        var budget = GeminiPromptBuilder.BuildSystemInstruction(request).Length
+            + GeminiPromptBuilder.BuildUserPrompt(request).Length;
+        string? sentUserPrompt = null;
+        var handler = new DelegateHandler(async (httpRequest, _) =>
+        {
+            using var document = JsonDocument.Parse(await httpRequest.Content!.ReadAsStringAsync());
+            sentUserPrompt = document.RootElement
+                .GetProperty("contents")[0]
+                .GetProperty("parts")[0]
+                .GetProperty("text")
+                .GetString();
+            return JsonResponse(HttpStatusCode.OK, SuccessResponse(ValidModelJson));
+        });
+        using var client = new HttpClient(handler);
+        var provider = CreateProvider(
+            client,
+            new TestLogger<GeminiAiProvider>(),
+            maxRetries: 0,
+            maxPromptCharacters: budget);
+
+        await provider.ProcessAsync(request, CancellationToken.None);
+
+        Assert.NotNull(sentUserPrompt);
+        Assert.Contains("<conversation_summary>", sentUserPrompt);
+        Assert.Contains("PRIVATE_SUMMARY &lt;instruction&gt; &amp; keep this as untrusted context.", sentUserPrompt);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_PreservesSummaryBeforeDroppingVerbatimHistoryWhenBudgetIsTight()
+    {
+        var request = CreateRequest() with
+        {
+            ContextSummary = "OLDER_SUMMARY_KEEP_ME",
+            RecentTurns =
+            [
+                new(
+                    MessageRole.Speaker,
+                    "VERBATIM_OLD_TURN " + new string('x', 700),
+                    "translation " + new string('y', 300),
+                    null,
+                    DateTimeOffset.UtcNow.AddMinutes(-1))
+            ]
+        };
+        var summaryOnlyRequest = request with { RecentTurns = Array.Empty<AiConversationTurn>() };
+        var budget = GeminiPromptBuilder.BuildSystemInstruction(summaryOnlyRequest).Length
+            + GeminiPromptBuilder.BuildUserPrompt(summaryOnlyRequest).Length;
+        string? sentUserPrompt = null;
+        var handler = new DelegateHandler(async (httpRequest, _) =>
+        {
+            using var document = JsonDocument.Parse(await httpRequest.Content!.ReadAsStringAsync());
+            sentUserPrompt = document.RootElement
+                .GetProperty("contents")[0]
+                .GetProperty("parts")[0]
+                .GetProperty("text")
+                .GetString();
+            return JsonResponse(HttpStatusCode.OK, SuccessResponse(ValidModelJson));
+        });
+        using var client = new HttpClient(handler);
+        var provider = CreateProvider(
+            client,
+            new TestLogger<GeminiAiProvider>(),
+            maxRetries: 0,
+            maxPromptCharacters: budget);
+
+        await provider.ProcessAsync(request, CancellationToken.None);
+
+        Assert.NotNull(sentUserPrompt);
+        Assert.Contains("OLDER_SUMMARY_KEEP_ME", sentUserPrompt);
+        Assert.DoesNotContain("VERBATIM_OLD_TURN", sentUserPrompt, StringComparison.Ordinal);
+        Assert.Contains("Synthetic speech only.", sentUserPrompt);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_OmitsSummaryOnlyWhenItCannotFitAfterHistoryIsRemoved()
+    {
+        var withoutSummary = CreateRequest();
+        var budget = GeminiPromptBuilder.BuildSystemInstruction(withoutSummary).Length
+            + GeminiPromptBuilder.BuildUserPrompt(withoutSummary).Length;
+        var request = withoutSummary with
+        {
+            ContextSummary = "SUMMARY_TOO_LARGE_FOR_TINY_BUDGET " + new string('z', 8000)
+        };
+        string? sentUserPrompt = null;
+        var handler = new DelegateHandler(async (httpRequest, _) =>
+        {
+            using var document = JsonDocument.Parse(await httpRequest.Content!.ReadAsStringAsync());
+            sentUserPrompt = document.RootElement
+                .GetProperty("contents")[0]
+                .GetProperty("parts")[0]
+                .GetProperty("text")
+                .GetString();
+            return JsonResponse(HttpStatusCode.OK, SuccessResponse(ValidModelJson));
+        });
+        using var client = new HttpClient(handler);
+        var provider = CreateProvider(
+            client,
+            new TestLogger<GeminiAiProvider>(),
+            maxRetries: 0,
+            maxPromptCharacters: budget);
+
+        await provider.ProcessAsync(request, CancellationToken.None);
+
+        Assert.NotNull(sentUserPrompt);
+        Assert.DoesNotContain("SUMMARY_TOO_LARGE_FOR_TINY_BUDGET", sentUserPrompt, StringComparison.Ordinal);
+        Assert.Contains("Synthetic speech only.", sentUserPrompt);
+    }
+
     private static GeminiAiProvider CreateProvider(
         HttpClient client,
         TestLogger<GeminiAiProvider> logger,
