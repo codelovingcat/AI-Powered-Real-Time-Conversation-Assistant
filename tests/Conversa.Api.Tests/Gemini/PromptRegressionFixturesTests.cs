@@ -108,6 +108,30 @@ public sealed class PromptRegressionFixturesTests
         }
     }
 
+    [Fact]
+    public void SystemInstruction_UsesFixedInstructionsForSelectedPreferences()
+    {
+        var request = new AiConversationRequest(
+            "Translate naturally into Turkish.",
+            "en",
+            "tr",
+            "Could we reschedule?",
+            AiInputKind.HeardSpeech,
+            Array.Empty<AiConversationTurn>(),
+            Preferences: new AssistantResponsePreferences(
+                "concise",
+                "formal",
+                "detailed",
+                false));
+
+        var instruction = GeminiPromptBuilder.BuildSystemInstruction(request);
+
+        Assert.Contains("Response length: concise", instruction);
+        Assert.Contains("Tone: formal", instruction);
+        Assert.Contains("Explanation detail: detailed", instruction);
+        Assert.Contains("do not generate suggested replies for heard speech", instruction);
+    }
+
     private static string ToFixtureIntent(ConversationIntent intent) => intent switch
     {
         ConversationIntent.Statement => "statement",
