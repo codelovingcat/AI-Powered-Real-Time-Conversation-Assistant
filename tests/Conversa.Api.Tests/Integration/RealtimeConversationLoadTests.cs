@@ -138,11 +138,11 @@ public sealed class RealtimeConversationLoadTests(ITestOutputHelper output)
         builder.Services
             .AddAuthentication(options =>
             {
-                options.DefaultAuthenticateScheme = LoadTestAuthenticationHandler.SchemeName;
-                options.DefaultChallengeScheme = LoadTestAuthenticationHandler.Scheme;
+                options.DefaultAuthenticateScheme = LoadTestAuthenticationHandler.SchemeNameName;
+                options.DefaultChallengeScheme = LoadTestAuthenticationHandler.SchemeName;
             })
             .AddScheme<AuthenticationSchemeOptions, LoadTestAuthenticationHandler>(
-                LoadTestAuthenticationHandler.Scheme,
+                LoadTestAuthenticationHandler.SchemeName,
                 _ => { });
         builder.Services.AddAuthorization();
 
