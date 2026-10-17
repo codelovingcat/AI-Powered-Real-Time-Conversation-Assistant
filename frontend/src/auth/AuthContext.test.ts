@@ -1,10 +1,6 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { AuthRequestError } from "../services/auth/authSession";
 import { getAuthErrorMessage } from "./AuthContext";
-
-afterEach(() => {
-  // Keep tests deterministic even if a future helper uses module-local state.
-});
 
 describe("getAuthErrorMessage", () => {
   it("maps invalid credentials to a safe, actionable message", () => {
