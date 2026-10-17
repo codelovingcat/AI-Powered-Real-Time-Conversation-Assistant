@@ -53,7 +53,13 @@ public sealed class ConversationsController(
     [RequestSizeLimit(ConversationInputValidator.MaxRequestBodyBytes)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateConversationRequest request, CancellationToken cancellationToken)
         => Ok(await conversations.UpdateAsync(
-            new UpdateConversationCommand(id, request.Title, request.Instruction, request.SourceLanguage, request.TargetLanguage),
+            new UpdateConversationCommand(
+                id,
+                request.Title,
+                request.Instruction,
+                request.SourceLanguage,
+                request.TargetLanguage,
+                request.ExpectedUpdatedAt),
             cancellationToken));
 
     [HttpPost("{id:guid}/lifecycle")]

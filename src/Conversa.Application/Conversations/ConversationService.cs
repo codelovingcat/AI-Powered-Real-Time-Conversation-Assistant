@@ -115,12 +115,20 @@ public sealed class ConversationService(
         }
 
         var conversation = await RequireAsync(command.ConversationId, cancellationToken);
+        if (command.ExpectedUpdatedAt is { } expectedUpdatedAt
+            && expectedUpdatedAt != conversation.UpdatedAt)
+        {
+            throw new ConflictException(
+                "This conversation changed since it was last loaded. Refresh it and try again.");
+        }
+
         var now = timeProvider.GetUtcNow();
         var instructionChanged = false;
 
         try
         {
-            if (command.Title is not null)
+            if (command.Title is not null
+                && !string.Equals(command.Title.Trim(), conversation.Title, StringComparison.Ordinal))
             {
                 conversation.Rename(command.Title, now);
             }

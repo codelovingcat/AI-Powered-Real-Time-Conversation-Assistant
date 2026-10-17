@@ -159,3 +159,8 @@ See [authentication-ux.md](authentication-ux.md) for sign-in validation, fixed u
 ## P44 — Conversation lifecycle controls
 
 See [conversation-lifecycle.md](../docs/conversation-lifecycle.md) for the persisted `ready → active ↔ paused → completed` model and its authenticated API contract. The web microphone panel supports start, pause, resume and finish. Pause releases the microphone and closes the audio socket; resume starts a fresh socket after the server confirms the lifecycle transition. Finish stops local audio immediately and persists the completed state, with an explicit retryable warning if persistence fails. Completed conversations no longer accept new assistant input, and the audio WebSocket is restricted to active conversations server-side.
+
+
+## P45 — Conversation title and metadata management
+
+See docs/conversation-metadata.md for owner-scoped title editing, localised created/updated timestamps, the 200-character title limit, and optimistic updates with safe rollback/reload behaviour when a save fails or a concurrent update is detected.

@@ -33,7 +33,9 @@ internal sealed class ConversationConfiguration : IEntityTypeConfiguration<Conve
             .IsRequired();
 
         builder.Property(conversation => conversation.CreatedAt).IsRequired();
-        builder.Property(conversation => conversation.UpdatedAt).IsRequired();
+        builder.Property(conversation => conversation.UpdatedAt)
+            .IsRequired()
+            .IsConcurrencyToken();
 
         builder.Property(conversation => conversation.LifecycleState)
             .HasConversion<string>()

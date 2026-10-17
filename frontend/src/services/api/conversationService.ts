@@ -116,6 +116,23 @@ export async function listConversations(
   return parseConversationPage(await response.json());
 }
 
+export async function getConversation(
+  conversationId: string,
+  signal?: AbortSignal
+): Promise<ConversationSummary> {
+  const response = await apiGet(
+    "/api/conversations/" + encodeURIComponent(conversationId),
+    signal
+  );
+  const payload: unknown = await response.json();
+
+  if (!isConversationSummary(payload)) {
+    throw new Error("The conversation response is invalid.");
+  }
+
+  return payload;
+}
+
 export async function createConversation(
   input: CreateConversationInput,
   signal?: AbortSignal
@@ -152,6 +169,31 @@ export async function transitionConversationLifecycle(
   };
 }
 
+export async function updateConversationTitle(
+  conversationId: string,
+  title: string,
+  expectedUpdatedAt: string,
+  signal?: AbortSignal
+): Promise<ConversationSummary> {
+  const normalizedTitle = title.trim();
+  if (!normalizedTitle || normalizedTitle.length > 200) {
+    throw new Error("The title must contain between 1 and 200 characters.");
+  }
+
+  const response = await apiPatch(
+    "/api/conversations/" + encodeURIComponent(conversationId),
+    { title: normalizedTitle, expectedUpdatedAt },
+    signal
+  );
+
+  const payload: unknown = await response.json();
+  if (!isConversationSummary(payload)) {
+    throw new Error("The updated conversation response is invalid.");
+  }
+
+  return payload;
+}
+
 export async function updateConversationInstruction(
   conversationId: string,
   instruction: string,
@@ -184,6 +226,10 @@ export async function deleteConversation(
 
 export function getConversationErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
+    if (error.status === 409) {
+      return "This conversation changed while you were editing. Its latest details were reloaded; review the title and save again.";
+    }
+
     switch (error.kind) {
       case "unauthorized":
         return "Your session has expired. Please sign in again.";

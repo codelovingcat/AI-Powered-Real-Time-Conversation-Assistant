@@ -1,0 +1,67 @@
+.conversation-timestamps {
+  display: grid;
+  gap: 3px;
+  margin-top: 7px;
+  color: #71809a;
+  font-size: 0.68rem;
+  letter-spacing: normal;
+  line-height: 1.35;
+  text-transform: none;
+}
+
+.conversation-timestamps time { display: block; }
+
+.conversation-item-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 4px 0 0;
+}
+
+.conversation-rename-form {
+  display: grid;
+  gap: 8px;
+  grid-column: 1 / -1;
+  padding: 10px;
+  border: 1px solid rgba(166, 187, 217, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.conversation-rename-form label {
+  color: #aebbd0;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.conversation-rename-form input {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid rgba(166, 187, 217, 0.2);
+  border-radius: 9px;
+  outline: none;
+  color: #e8eef8;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.conversation-rename-form input:focus {
+  border-color: #85a8ff;
+  box-shadow: 0 0 0 3px rgba(133, 168, 255, 0.12);
+}
+
+.conversation-rename-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.conversation-rename-actions .primary-button {
+  min-height: 34px;
+  margin-top: 0;
+  padding: 0 10px;
+  font-size: 0.75rem;
+}
+
+.conversation-rename-actions .text-button { min-height: 34px; }
