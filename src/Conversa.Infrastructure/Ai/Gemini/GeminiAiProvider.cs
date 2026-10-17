@@ -64,6 +64,7 @@ internal sealed class GeminiAiProvider(
         activity?.SetTag("conversa.ai.context_turns_dropped", boundedPrompt.DroppedTurnCount);
         activity?.SetTag("conversa.ai.context_summary_included", boundedPrompt.SummaryIncluded);
 
+        activity?.SetTag("conversa.prompt.version", GeminiPromptBuilder.PromptVersion);
         var payload = BuildPayload(boundedPrompt.SystemInstruction, boundedPrompt.UserPrompt);
         var maxAttempts = settings.MaxRetries + 1;
 
