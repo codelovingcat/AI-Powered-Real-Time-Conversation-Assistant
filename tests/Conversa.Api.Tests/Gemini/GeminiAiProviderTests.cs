@@ -253,13 +253,12 @@ public sealed class GeminiAiProviderTests
 
         public bool IsEnabled(LogLevel logLevel) => true;
 
-        public void Log<TState>(
+        void ILogger.Log<TState>(
             LogLevel logLevel,
             EventId eventId,
             TState state,
             Exception? exception,
             Func<TState, Exception?, string> formatter)
-            where TState : notnull
         {
             Messages.Add(formatter(state, exception));
         }
