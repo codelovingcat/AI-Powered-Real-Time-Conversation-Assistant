@@ -4,7 +4,9 @@ Conversa records prompt versions so a stored AI response can be tied to the inst
 
 ## Version identifiers
 
-- `conversa-gemini-v1` identifies the main conversation system/user prompt contract assembled by `GeminiPromptBuilder`.
+- `conversa-gemini-v1` identifies the original conversation prompt contract.
+- `conversa-gemini-v2` adds explicit conversation-intent classification.
+- `conversa-gemini-v3` adds naturalness/register guidance and a clearer JSON-only output contract while preserving the structured response fields.
 - `conversa-summary-v1` identifies the bounded older-context summarization prompt.
 
 When changing semantic instructions, field meanings, the structured output contract, or prompt context sections, review the synthetic regression cases and deliberately decide whether the version should increment. Operational-only provider changes do not automatically require a version change.
@@ -18,13 +20,14 @@ When changing semantic instructions, field meanings, the structured output contr
 
 ## Regression fixtures
 
-`tests/Conversa.Api.Tests/Fixtures/ai-prompt-regression.json` contains synthetic, non-customer scenarios for translation-only behavior, a question directed at the user, a user formulation request, and delimiter-looking text treated as untrusted input.
+`tests/Conversa.Api.Tests/Fixtures/ai-prompt-regression.json` contains synthetic, non-customer scenarios for intent classification, untrusted delimiter-looking input, and response-quality examples marked casual, formal, and ambiguous. The quality examples lock down natural target-language phrasing, register preservation, and ambiguity handling without calling a live model.
 
 `PromptRegressionFixturesTests` validates:
 - required prompt markers and escaping;
 - absence of raw delimiter-injection sequences;
 - structured response parsing for every fixture;
-- the fixture schema's declared prompt version against the source constant.
+- the fixture schema's declared prompt version against the source constant;
+- casual/formal/ambiguous quality-profile coverage and expected structured response fields.
 
 Run the focused suite with:
 
