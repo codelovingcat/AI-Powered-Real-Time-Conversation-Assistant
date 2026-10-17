@@ -81,10 +81,10 @@ test("shows a recoverable error after live audio reconnection attempts fail", as
 }) => {
   let interceptedSocket = false;
 
-  // routeWebSocket accepts a URL pattern, not a URL predicate callback.
-  // Match the path suffix so the test is independent of the host and query.
+  // routeWebSocket matches against the full WebSocket URL, including the
+  // scheme and host. The host/port remain independent of the endpoint path.
   await page.routeWebSocket(
-    /\/ws\/conversations\/[^/]+\/audio(?:\?.*)?$/u,
+    /^wss?:\/\/[^/]+\/ws\/conversations\/[^/]+\/audio(?:\?.*)?$/u,
     (socket) => {
       interceptedSocket = true;
       socket.close({ code: 1011, reason: "synthetic E2E disconnect" });
