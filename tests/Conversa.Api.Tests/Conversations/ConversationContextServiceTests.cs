@@ -68,12 +68,10 @@ public sealed class ConversationContextServiceTests
             .ToArray();
         var repository = new FakeSummaryRepository(pending, existing);
         var summarizer = new FakeSummarizer(failure: new AiProviderException("synthetic private transcript failure"));
-        var logger = new TestLogger<ConversationContextService>();
         var service = new ConversationContextService(
             repository,
             summarizer,
-            TimeProvider.System,
-            logger);
+            TimeProvider.System);
 
         var result = await service.PrepareContextSummaryAsync(
             conversation,
