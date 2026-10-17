@@ -91,7 +91,8 @@ public sealed class ConversationAssistant(
                 result.QuestionDetected,
                 result.QuestionDirectedAtUser,
                 aiProvider.Name,
-                now);
+                now,
+                result.PromptVersion);
         }
         catch (ArgumentException exception)
         {
