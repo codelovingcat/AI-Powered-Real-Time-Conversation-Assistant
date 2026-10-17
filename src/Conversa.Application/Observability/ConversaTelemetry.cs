@@ -23,6 +23,30 @@ public static class ConversaTelemetry
             unit: "ms",
             description: "AI provider operation duration.");
 
+    public static readonly Histogram<double> AiPromptCharacters =
+        Meter.CreateHistogram<double>(
+            "conversa.ai.prompt.characters",
+            unit: "{character}",
+            description: "Character count of the bounded system instruction and user prompt.");
+
+    public static readonly Histogram<double> AiContextTurnsIncluded =
+        Meter.CreateHistogram<double>(
+            "conversa.ai.context.turns.included",
+            unit: "{turn}",
+            description: "Number of historical turns included in the bounded AI prompt.");
+
+    public static readonly Histogram<double> AiContextTurnsDropped =
+        Meter.CreateHistogram<double>(
+            "conversa.ai.context.turns.dropped",
+            unit: "{turn}",
+            description: "Number of oldest historical turns omitted to fit the AI prompt budget.");
+
+    public static readonly Counter<long> AiContextBudgetRejections =
+        Meter.CreateCounter<long>(
+            "conversa.ai.context.budget_rejections",
+            unit: "{request}",
+            description: "Requests rejected because instruction and latest input alone exceed the prompt budget.");
+
     public static readonly Counter<long> SttRequests =
         Meter.CreateCounter<long>(
             "conversa.stt.requests",
