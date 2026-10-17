@@ -155,3 +155,7 @@ The web conversation timeline now makes turn ownership explicit:
 ## P43 — Authentication lifecycle UX
 
 See [authentication-ux.md](authentication-ux.md) for sign-in validation, fixed user-safe errors, session-expiry handling, pending sign-out feedback, and the warning shown when the server cannot confirm logout. Browser E2E and unit tests cover these states. Raw tokens, claims, server responses, and internal exception details are never presented as user-facing error copy.
+
+## P44 — Conversation lifecycle controls
+
+See [conversation-lifecycle.md](../docs/conversation-lifecycle.md) for the persisted `ready → active ↔ paused → completed` model and its authenticated API contract. The web microphone panel supports start, pause, resume and finish. Pause releases the microphone and closes the audio socket; resume starts a fresh socket after the server confirms the lifecycle transition. Finish stops local audio immediately and persists the completed state, with an explicit retryable warning if persistence fails. Completed conversations no longer accept new assistant input, and the audio WebSocket is restricted to active conversations server-side.
