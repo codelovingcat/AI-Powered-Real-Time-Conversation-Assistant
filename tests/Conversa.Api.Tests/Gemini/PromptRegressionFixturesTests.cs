@@ -25,6 +25,13 @@ public sealed class PromptRegressionFixturesTests
 
         var cases = root.GetProperty("cases").EnumerateArray().ToArray();
         Assert.Equal(Enum.GetNames<ConversationIntent>().Length, cases.Select(item => item.GetProperty("intent").GetString()).Distinct().Count());
+        var qualityProfiles = cases
+            .Where(item => item.TryGetProperty("qualityProfile", out _))
+            .Select(item => item.GetProperty("qualityProfile").GetString())
+            .ToHashSet(StringComparer.Ordinal);
+        Assert.Contains("casual", qualityProfiles);
+        Assert.Contains("formal", qualityProfiles);
+        Assert.Contains("ambiguous", qualityProfiles);
 
         foreach (var regressionCase in cases)
         {
