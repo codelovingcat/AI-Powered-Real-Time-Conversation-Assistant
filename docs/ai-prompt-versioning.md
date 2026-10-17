@@ -35,3 +35,12 @@ dotnet test tests/Conversa.Api.Tests/Conversa.Api.Tests.csproj \
 ```
 
 The fixtures intentionally do not use live user transcripts or call Gemini. The Neon integration test uses synthetic entities inside a rolled-back transaction to verify prompt-version persistence in both message and summary rows.
+
+
+## Intent classification (P40)
+
+The assistant also records an `intent` independently of `responseType`: `statement`, `questionDirectedAtUser`, `questionDirectedAtOthers`, `rhetoricalQuestion`, `requestDirectedAtUser`, `requestDirectedAtOthers`, `userFormulationRequest`, or `ambiguous`.
+
+Only a genuine question or request clearly directed at the user can preserve a suggested reply, and only when the trusted conversation instruction permits suggestions. Questions to other people, rhetorical questions, ordinary statements, requests to others, and ambiguous utterances are normalized to translation-only responses. User formulation input stays a separate input mode.
+
+The prompt contract changed, so the assistant prompt version is bumped to `conversa-gemini-v2`. Synthetic fixtures cover all eight intent categories. Existing message rows retain a null intent until reprocessed.

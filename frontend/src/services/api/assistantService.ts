@@ -70,6 +70,18 @@ function isConversationMessage(value: unknown): value is ConversationMessage {
     typeof candidate.questionDetected === "boolean" &&
     typeof candidate.questionDirectedAtUser === "boolean" &&
     (candidate.providerName === null || typeof candidate.providerName === "string") &&
-    typeof candidate.createdAt === "string"
+    typeof candidate.createdAt === "string" &&
+    (candidate.intent === undefined ||
+      candidate.intent === null ||
+      [
+        "statement",
+        "questionDirectedAtUser",
+        "questionDirectedAtOthers",
+        "rhetoricalQuestion",
+        "requestDirectedAtUser",
+        "requestDirectedAtOthers",
+        "userFormulationRequest",
+        "ambiguous"
+      ].includes(candidate.intent as string))
   );
 }

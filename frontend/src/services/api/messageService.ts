@@ -7,6 +7,16 @@ export type AiResponseType =
   | "answer"
   | "instruction";
 
+export type ConversationIntent =
+  | "statement"
+  | "questionDirectedAtUser"
+  | "questionDirectedAtOthers"
+  | "rhetoricalQuestion"
+  | "requestDirectedAtUser"
+  | "requestDirectedAtOthers"
+  | "userFormulationRequest"
+  | "ambiguous";
+
 export interface ConversationMessage {
   id: string;
   conversationId: string;
@@ -21,6 +31,7 @@ export interface ConversationMessage {
   questionDirectedAtUser: boolean;
   providerName: string | null;
   createdAt: string;
+  intent?: ConversationIntent | null;
 }
 
 function isEnumValue<T extends string>(
@@ -61,7 +72,19 @@ function isConversationMessage(value: unknown): value is ConversationMessage {
     typeof candidate.questionDirectedAtUser === "boolean" &&
     (candidate.providerName === null ||
       typeof candidate.providerName === "string") &&
-    typeof candidate.createdAt === "string"
+    typeof candidate.createdAt === "string" &&
+    (candidate.intent === undefined ||
+      candidate.intent === null ||
+      isEnumValue(candidate.intent, [
+        "statement",
+        "questionDirectedAtUser",
+        "questionDirectedAtOthers",
+        "rhetoricalQuestion",
+        "requestDirectedAtUser",
+        "requestDirectedAtOthers",
+        "userFormulationRequest",
+        "ambiguous"
+      ]))
   );
 }
 

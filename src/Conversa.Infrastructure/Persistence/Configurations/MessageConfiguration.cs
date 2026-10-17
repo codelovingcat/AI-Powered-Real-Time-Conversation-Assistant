@@ -43,6 +43,10 @@ internal sealed class MessageConfiguration : IEntityTypeConfiguration<Message>
         builder.Property(message => message.PromptVersion)
             .HasMaxLength(Message.PromptVersionMaxLength);
 
+        builder.Property(message => message.Intent)
+            .HasConversion<string>()
+            .HasMaxLength(32);
+
         builder.Property(message => message.CreatedAt).IsRequired();
 
         builder.HasIndex(message => new { message.ConversationId, message.CreatedAt });

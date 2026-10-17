@@ -91,10 +91,11 @@ internal sealed class GeminiAiProvider(
                 {
                     try
                     {
-                        var result = GeminiResponseParser.Parse(body) with
+                        var parsedResult = GeminiResponseParser.Parse(body) with
                         {
                             PromptVersion = GeminiPromptBuilder.PromptVersion
                         };
+                        var result = AiAssistantResponsePolicy.Normalize(parsedResult, request.InputKind);
                         logger.LogInformation(
                             "Gemini request succeeded on attempt {Attempt} in {ElapsedMilliseconds} ms using prompt version {PromptVersion}.",
                             attempt,
