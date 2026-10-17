@@ -71,6 +71,12 @@ public static class ConversaTelemetry
             unit: "{boolean}",
             description: "Whether the persisted older-context summary was included in the bounded AI prompt (1 or 0).");
 
+    public static readonly Counter<long> AiContextSummaryRefreshFailures =
+        Meter.CreateCounter<long>(
+            "conversa.ai.context.summary_refresh_failures",
+            unit: "{request}",
+            description: "Summary refresh operations that failed and fell back to the last committed summary.");
+
     public static readonly Counter<long> AiContextBudgetRejections =
         Meter.CreateCounter<long>(
             "conversa.ai.context.budget_rejections",
