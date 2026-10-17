@@ -6,6 +6,9 @@ import {
   ApiError
 } from "./apiClient";
 
+export type ConversationLifecycleState = "ready" | "active" | "paused" | "completed";
+export type ConversationLifecycleAction = "start" | "pause" | "resume" | "finish";
+
 export interface ConversationSummary {
   id: string;
   title: string;
@@ -14,6 +17,7 @@ export interface ConversationSummary {
   targetLanguage: string;
   createdAt: string;
   updatedAt: string;
+  lifecycleState?: ConversationLifecycleState;
 }
 
 function isConversationSummary(value: unknown): value is ConversationSummary {
@@ -23,6 +27,8 @@ function isConversationSummary(value: unknown): value is ConversationSummary {
 
   const candidate = value as Record<string, unknown>;
 
+  const lifecycleState = candidate.lifecycleState;
+
   return (
     typeof candidate.id === "string" &&
     typeof candidate.title === "string" &&
@@ -30,7 +36,12 @@ function isConversationSummary(value: unknown): value is ConversationSummary {
     typeof candidate.sourceLanguage === "string" &&
     typeof candidate.targetLanguage === "string" &&
     typeof candidate.createdAt === "string" &&
-    typeof candidate.updatedAt === "string"
+    typeof candidate.updatedAt === "string" &&
+    (lifecycleState === undefined ||
+      lifecycleState === "ready" ||
+      lifecycleState === "active" ||
+      lifecycleState === "paused" ||
+      lifecycleState === "completed")
   );
 }
 
@@ -117,6 +128,28 @@ export async function createConversation(
   }
 
   return payload;
+}
+
+export async function transitionConversationLifecycle(
+  conversationId: string,
+  action: ConversationLifecycleAction,
+  signal?: AbortSignal
+): Promise<ConversationSummary> {
+  const response = await apiPost(
+    `/api/conversations/${encodeURIComponent(conversationId)}/lifecycle`,
+    { action },
+    signal
+  );
+
+  const payload: unknown = await response.json();
+  if (!isConversationSummary(payload)) {
+    throw new Error("The conversation lifecycle response is invalid.");
+  }
+
+  return {
+    ...payload,
+    lifecycleState: payload.lifecycleState ?? "active"
+  };
 }
 
 export async function updateConversationInstruction(

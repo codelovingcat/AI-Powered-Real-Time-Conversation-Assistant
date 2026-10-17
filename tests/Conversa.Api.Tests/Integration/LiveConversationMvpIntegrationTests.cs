@@ -33,6 +33,7 @@ public sealed class LiveConversationMvpIntegrationTests
             "en",
             "tr",
             DateTimeOffset.UtcNow);
+        conversation.Start(DateTimeOffset.UtcNow);
 
         var messages = new RecordingMessageRepository();
         var aiProvider = new RecordingAiProvider(
@@ -296,6 +297,9 @@ public sealed class LiveConversationMvpIntegrationTests
     {
         public int ReceivedChunkCount { get; private set; }
 
+        public TaskCompletionSource<object?> AudioReceived { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         public TaskCompletionSource<object?> Disposed { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -304,6 +308,7 @@ public sealed class LiveConversationMvpIntegrationTests
             CancellationToken cancellationToken)
         {
             ReceivedChunkCount++;
+            AudioReceived.TrySetResult(null);
             return ValueTask.CompletedTask;
         }
 
@@ -311,7 +316,7 @@ public sealed class LiveConversationMvpIntegrationTests
             [System.Runtime.CompilerServices.EnumeratorCancellation]
             CancellationToken cancellationToken)
         {
-            await Task.Yield();
+            await AudioReceived.Task.WaitAsync(cancellationToken);
 
             yield return new SpeechTranscriptUpdate(
                 "Would you like some coffee",

@@ -23,6 +23,8 @@ public interface IConversationService
 
     Task<ConversationSummaryDto> UpdateAsync(UpdateConversationCommand command, CancellationToken cancellationToken);
 
+    Task<ConversationSummaryDto> TransitionLifecycleAsync(Guid conversationId, ConversationLifecycleAction action, CancellationToken cancellationToken);
+
     Task DeleteAsync(Guid conversationId, CancellationToken cancellationToken);
 
     Task<CursorPageDto<MessageDto>> ListMessagesAsync(

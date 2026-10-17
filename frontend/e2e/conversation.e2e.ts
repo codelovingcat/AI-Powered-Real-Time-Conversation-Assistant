@@ -75,7 +75,36 @@ test("streams microphone audio through partial and final transcripts into AI ass
     page.getByText("This is a deterministic E2E reply.", { exact: true }).first()
   ).toBeVisible({ timeout: 15_000 });
 
-  await page.getByRole("button", { name: "Stop streaming" }).click();
+  await page.getByRole("button", { name: "Pause conversation" }).click();
+  await expect(page.getByRole("status").getByText("Paused", { exact: true })).toBeVisible();
+});
+
+test("starts, pauses, resumes, and finishes a conversation without duplicate actions", async ({
+  authenticatedPage: page
+}) => {
+  await page.getByRole("button", { name: "New conversation" }).click();
+  await page.getByLabel("Title").fill("Lifecycle controls E2E");
+  await page.getByRole("button", { name: "Create conversation" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Lifecycle controls E2E" })
+  ).toBeVisible();
+  const lifecyclePanel = page.locator(".microphone-panel");
+  await expect(lifecyclePanel.getByText("Ready to start", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Start microphone" }).click();
+  await expect(lifecyclePanel.getByText("Streaming", { exact: true })).toBeVisible({ timeout: 10_000 });
+
+  await page.getByRole("button", { name: "Pause conversation" }).click();
+  await expect(lifecyclePanel.getByText("Paused", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Resume conversation" }).click();
+  await expect(lifecyclePanel.getByText("Streaming", { exact: true })).toBeVisible({ timeout: 10_000 });
+
+  await page.getByRole("button", { name: "Finish conversation" }).click();
+  await expect(lifecyclePanel.getByText("Finished", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Finish conversation" })).toHaveCount(0);
+  await expect(page.getByText("This conversation is read-only for new assistant inputs.")).toBeVisible();
 });
 
 test("shows a recoverable error after live audio reconnection attempts fail", async ({

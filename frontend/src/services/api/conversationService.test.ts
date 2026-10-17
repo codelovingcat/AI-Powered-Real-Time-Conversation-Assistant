@@ -4,7 +4,8 @@ import {
   deleteConversation,
   updateConversationInstruction,
   getConversationErrorMessage,
-  listConversations
+  listConversations,
+  transitionConversationLifecycle
 } from "./conversationService";
 import { clearAccessToken, setAccessToken } from "../auth/accessTokenStore";
 
@@ -125,6 +126,44 @@ describe("conversationService", () => {
         instruction: "Translate English into natural Turkish."
       })
     );
+  });
+
+  it("transitions lifecycle state through the authenticated API", async () => {
+    setAccessToken("test-token");
+
+    const active = { ...conversation, lifecycleState: "active" };
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(JSON.stringify(active), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        })
+      );
+
+    await expect(
+      transitionConversationLifecycle(conversation.id, "start")
+    ).resolves.toEqual(active);
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "/api/conversations/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/lifecycle"
+    );
+    expect(fetchMock.mock.calls[0][1]?.method).toBe("POST");
+    expect(fetchMock.mock.calls[0][1]?.body).toBe(JSON.stringify({ action: "start" }));
+  });
+
+  it("rejects lifecycle responses with unsupported states", async () => {
+    setAccessToken("test-token");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ ...conversation, lifecycleState: "deleted" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      })
+    );
+
+    await expect(
+      transitionConversationLifecycle(conversation.id, "finish")
+    ).rejects.toThrow("The conversation lifecycle response is invalid.");
   });
 
   it("updates the conversation instruction", async () => {

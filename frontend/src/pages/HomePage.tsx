@@ -83,6 +83,14 @@ export function HomePage() {
     setLiveTranscript(nextTranscript);
   }
 
+  function handleLifecycleStateChange(
+    lifecycleState: NonNullable<ConversationSummary["lifecycleState"]>
+  ) {
+    setActiveConversation((current) =>
+      current ? { ...current, lifecycleState } : current
+    );
+  }
+
   function handleConversationSelect(
     conversation: ConversationSummary | null
   ) {
@@ -177,6 +185,14 @@ export function HomePage() {
           />
         )}
 
+        {activeConversation?.lifecycleState === "completed" && (
+          <ConversationStatus
+            tone="warning"
+            title="Conversation finished"
+            detail="This conversation is read-only for new assistant inputs. Start a new conversation to continue."
+          />
+        )}
+
         {activeConversation ? (
           <div className="workspace-card">
             <div className="active-conversation-header">
@@ -232,12 +248,18 @@ export function HomePage() {
         )}
 
         <TextAssistantPanel
-          conversationId={activeConversation?.id ?? null}
+          conversationId={
+            activeConversation?.lifecycleState === "completed"
+              ? null
+              : activeConversation?.id ?? null
+          }
           onProcessed={() => setRefreshToken((current) => current + 1)}
         />
 
         <MicrophoneCapturePanel
           conversationId={activeConversation?.id ?? null}
+          lifecycleState={activeConversation?.lifecycleState ?? "active"}
+          onLifecycleStateChange={handleLifecycleStateChange}
           onFinalTranscript={handleFinalTranscript}
           onTranscriptChange={handleLiveTranscriptChange}
           onConnectionStateChange={setLiveConnectionState}

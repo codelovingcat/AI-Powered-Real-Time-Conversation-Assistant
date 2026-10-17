@@ -158,6 +158,43 @@ public sealed class ConversationService(
         return conversation.ToSummary();
     }
 
+    public async Task<ConversationSummaryDto> TransitionLifecycleAsync(
+        Guid conversationId,
+        ConversationLifecycleAction action,
+        CancellationToken cancellationToken)
+    {
+        var conversation = await RequireAsync(conversationId, cancellationToken);
+        var now = timeProvider.GetUtcNow();
+
+        try
+        {
+            switch (action)
+            {
+                case ConversationLifecycleAction.Start:
+                    conversation.Start(now);
+                    break;
+                case ConversationLifecycleAction.Pause:
+                    conversation.Pause(now);
+                    break;
+                case ConversationLifecycleAction.Resume:
+                    conversation.Resume(now);
+                    break;
+                case ConversationLifecycleAction.Finish:
+                    conversation.Finish(now);
+                    break;
+                default:
+                    throw ValidationException.For("action", "Unsupported conversation lifecycle action.");
+            }
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw ValidationException.For("action", exception.Message);
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return conversation.ToSummary();
+    }
+
     public async Task DeleteAsync(Guid conversationId, CancellationToken cancellationToken)
     {
         var conversation = await RequireAsync(conversationId, cancellationToken);

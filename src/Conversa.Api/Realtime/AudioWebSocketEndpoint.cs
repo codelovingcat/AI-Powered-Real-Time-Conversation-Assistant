@@ -59,6 +59,17 @@ public static class AudioWebSocketEndpoint
             return;
         }
 
+        if (conversation.LifecycleState != Conversa.Domain.Conversations.ConversationLifecycleState.Active)
+        {
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            await context.Response.WriteAsJsonAsync(new
+            {
+                error = "conversation_not_active",
+                message = "Start or resume the conversation before sending audio."
+            }, context.RequestAborted);
+            return;
+        }
+
         if (!context.WebSockets.IsWebSocketRequest)
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;

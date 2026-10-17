@@ -56,6 +56,26 @@ public sealed class ConversationsController(
             new UpdateConversationCommand(id, request.Title, request.Instruction, request.SourceLanguage, request.TargetLanguage),
             cancellationToken));
 
+    [HttpPost("{id:guid}/lifecycle")]
+    public async Task<IActionResult> TransitionLifecycle(
+        Guid id,
+        [FromBody] TransitionConversationLifecycleRequest request,
+        CancellationToken cancellationToken)
+    {
+        var action = request.Action?.Trim().ToLowerInvariant() switch
+        {
+            "start" => ConversationLifecycleAction.Start,
+            "pause" => ConversationLifecycleAction.Pause,
+            "resume" => ConversationLifecycleAction.Resume,
+            "finish" => ConversationLifecycleAction.Finish,
+            _ => throw ValidationException.For(
+                "action",
+                "action must be start, pause, resume, or finish.")
+        };
+
+        return Ok(await conversations.TransitionLifecycleAsync(id, action, cancellationToken));
+    }
+
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {

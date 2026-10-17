@@ -54,6 +54,13 @@ public sealed class ConversationAssistant(
             throw new NotFoundException("Conversation was not found.");
         }
 
+        if (conversation.LifecycleState == ConversationLifecycleState.Completed)
+        {
+            throw ValidationException.For(
+                "conversationId",
+                "This conversation is finished. Create a new conversation to continue.");
+        }
+
         var recent = await messages.ListRecentAsync(conversation.Id, ContextMessageCount, cancellationToken);
         var contextSummary = contextService is null
             ? null
