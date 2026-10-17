@@ -1,8 +1,8 @@
 using Conversa.Application.Abstractions.Persistence;
 using Conversa.Application.Ai;
 using Conversa.Application.Common;
+using Conversa.Application.Observability;
 using Conversa.Domain.Conversations;
-using Microsoft.Extensions.Logging;
 
 namespace Conversa.Application.Conversations;
 
@@ -13,8 +13,7 @@ namespace Conversa.Application.Conversations;
 public sealed class ConversationContextService(
     IConversationContextSummaryRepository summaries,
     IConversationSummarizer summarizer,
-    TimeProvider timeProvider,
-    ILogger<ConversationContextService> logger) : IConversationContextService
+    TimeProvider timeProvider) : IConversationContextService
 {
     public const int SummaryBatchSize = 8;
 
@@ -105,10 +104,10 @@ public sealed class ConversationContextService(
         catch (Exception exception)
         {
             // No summary columns are written until generation and validation have succeeded.
-            // Log only the exception type; never log transcript or summary text.
-            logger.LogWarning(
-                "Conversation context summary refresh failed; the last committed summary remains in use. ErrorType {ErrorType}.",
-                exception.GetType().Name);
+            // Record only an outcome count; never log transcript or summary text.
+            ConversaTelemetry.AiContextSummaryRefreshFailures.Add(
+                1,
+                ConversaTelemetry.Tags("summary", "refresh", "fallback"));
             return current?.Summary;
         }
     }
