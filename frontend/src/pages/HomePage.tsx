@@ -25,6 +25,7 @@ import {
 export function HomePage() {
   const { signOut } = useAuth();
   const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [health, setHealth] = useState<BackendHealth | null>(null);
   const [activeConversation, setActiveConversation] =
     useState<ConversationSummary | null>(null);
@@ -37,6 +38,15 @@ export function HomePage() {
     useState<LiveConnectionState>("idle");
   const [latestAiResult, setLatestAiResult] =
     useState<ConversationMessage | null>(null);
+
+  async function handleSignOut() {
+    if (isSigningOut) {
+      return;
+    }
+
+    setIsSigningOut(true);
+    await signOut();
+  }
 
   async function handleFinalTranscript(text: string) {
     if (!activeConversation || !text.trim()) {
@@ -127,8 +137,14 @@ export function HomePage() {
             >
               Preferences
             </button>
-            <button className="ghost-button" type="button" onClick={signOut}>
-              Sign out
+            <button
+              className="ghost-button"
+              type="button"
+              onClick={() => void handleSignOut()}
+              disabled={isSigningOut}
+              aria-busy={isSigningOut}
+            >
+              {isSigningOut ? "Signing out…" : "Sign out"}
             </button>
           </div>
         </header>
