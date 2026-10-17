@@ -61,6 +61,7 @@ internal static class GeminiPromptBuilder
             - request_directed_at_others: a request clearly aimed at someone else.
             - user_formulation_request: only when input_kind is userFormulationRequest.
             - ambiguous: use when the addressee or communicative intent is genuinely unclear.
+            Return the chosen value in the JSON field "intent" using exactly the snake_case value from the list above.
             Do not infer that a question is directed at the user just because it contains "you" or a question mark.
             Only question_directed_at_user and request_directed_at_user may preserve a suggested reply,
             and only when the trusted conversation instruction permits it. User formulation is the separate
