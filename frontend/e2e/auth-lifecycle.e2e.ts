@@ -45,6 +45,24 @@ test("sign out shows confirmation after clearing the session", async ({
   await expect(page.getByLabel("Access token")).toHaveValue("");
 });
 
+test("logout warns when the server cannot confirm the session ended", async ({
+  authenticatedPage: page
+}) => {
+  await page.route("**/api/auth/logout", async (route) => {
+    await route.abort("failed");
+  });
+
+  await page.getByRole("button", { name: "Sign out" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Sign in" })
+  ).toBeVisible();
+
+  await expect(page.getByRole("status")).toHaveText(
+    "You have been signed out on this device, but the server could not confirm logout. Check your connection before leaving this device."
+  );
+});
+
 test("an expired server session returns the user to sign-in with a clear message", async ({
   authenticatedPage: page
 }) => {
