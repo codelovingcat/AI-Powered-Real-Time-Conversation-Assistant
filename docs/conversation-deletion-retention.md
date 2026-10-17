@@ -21,3 +21,6 @@ The browser removes the conversation from its local list only after the API conf
 This operation deletes data from the live application database. It does not promise immediate erasure from database-provider backups or infrastructure-level recovery copies, which follow the hosting provider's configured retention and expiry rules. This application does not claim a fixed backup-retention duration; operators must set and document that policy separately. The deletion flow does not create a transcript archive, tombstone, or soft-delete record in the application database.
 
 Application diagnostics should continue to avoid transcript, translation, summary and other conversation content. This document describes the live-database deletion contract, not a promise that every infrastructure backup has been physically rewritten.
+
+
+For the broader stored-data inventory, provider-processing boundary, logging/telemetry rules and retention defaults, see [the transcript privacy and retention policy](privacy-and-retention.md).

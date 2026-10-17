@@ -90,6 +90,10 @@ flowchart LR
 
 The WebSocket does not invent transcripts. Until a speech-to-text provider is registered, it accepts the socket and returns `stt_provider_not_configured`. Final text is posted to the assistant endpoint, which loads the conversation instruction and recent messages before calling the AI.
 
+## Privacy and transcript retention
+
+Treat transcripts, conversation instructions, generated summaries and AI replies as sensitive data. The repository's implementation-grounded retention, deletion, provider-processing, logging and telemetry rules are documented in [docs/privacy-and-retention.md](docs/privacy-and-retention.md). The application does not currently impose an automatic expiry period on live conversation records; they remain until explicitly deleted.
+
 ## Technology stack
 
 - .NET 10 / ASP.NET Core Web API
