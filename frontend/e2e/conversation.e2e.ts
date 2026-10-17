@@ -83,14 +83,12 @@ test("shows a recoverable error after live audio reconnection attempts fail", as
 }) => {
   let interceptedSocket = false;
 
-  // Use a glob for the endpoint path so matching is independent of the WebSocket host.
-  await page.routeWebSocket(
-    "**/ws/conversations/*/audio*",
-    (socket) => {
-      interceptedSocket = true;
-      socket.close({ code: 1011, reason: "synthetic E2E disconnect" });
-    }
-  );
+  // This test only opens the audio socket, so intercept any WebSocket URL rather
+  // than coupling the synthetic disconnect to the Vite proxy's URL shape.
+  await page.routeWebSocket(/.*/u, (socket) => {
+    interceptedSocket = true;
+    socket.close({ code: 1011, reason: "synthetic E2E disconnect" });
+  });
 
   await page.getByRole("button", { name: "New conversation" }).click();
   await page.getByLabel("Title").fill("Audio recovery E2E");
