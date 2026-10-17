@@ -1,5 +1,6 @@
 using Conversa.Application.Abstractions.Persistence;
 using Conversa.Application.Ai;
+using Conversa.Application.Conversations;
 using Conversa.Application.Speech;
 using Conversa.Infrastructure.Ai.Gemini;
 using Conversa.Infrastructure.Persistence;
@@ -42,6 +43,10 @@ public static class DependencyInjection
         {
             client.Timeout = Timeout.InfiniteTimeSpan;
         });
+        services.AddHttpClient<IConversationSummarizer, GeminiConversationSummarizer>(client =>
+        {
+            client.Timeout = Timeout.InfiniteTimeSpan;
+        });
 
         services.Configure<DeepgramOptions>(configuration.GetSection(DeepgramOptions.SectionName));
         var deepgramOptions =
@@ -63,6 +68,8 @@ public static class DependencyInjection
 
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddScoped<IConversationContextSummaryRepository, ConversationContextSummaryRepository>();
+        services.AddScoped<IConversationContextService, ConversationContextService>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddHealthChecks()
             .AddCheck<DatabaseHealthCheck>("postgres");
