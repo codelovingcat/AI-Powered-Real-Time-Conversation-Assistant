@@ -14,7 +14,8 @@ public sealed class ConversationAssistant(
     IMessageRepository messages,
     IAiProvider aiProvider,
     IUnitOfWork unitOfWork,
-    TimeProvider timeProvider) : IConversationAssistant
+    TimeProvider timeProvider,
+    IConversationContextService? contextService = null) : IConversationAssistant
 {
     public const int ContextMessageCount = 12;
 
@@ -52,6 +53,9 @@ public sealed class ConversationAssistant(
         }
 
         var recent = await messages.ListRecentAsync(conversation.Id, ContextMessageCount, cancellationToken);
+        var contextSummary = contextService is null
+            ? null
+            : await contextService.PrepareContextSummaryAsync(conversation, recent, cancellationToken);
         var request = new AiConversationRequest(
             conversation.Instruction,
             conversation.SourceLanguage,
@@ -63,7 +67,8 @@ public sealed class ConversationAssistant(
                 message.OriginalText,
                 message.Translation,
                 message.SuggestedAnswer,
-                message.CreatedAt)).ToArray());
+                message.CreatedAt)).ToArray(),
+            contextSummary);
 
         var result = await aiProvider.ProcessAsync(request, cancellationToken);
         var now = timeProvider.GetUtcNow();
