@@ -11,6 +11,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<Message> Messages => Set<Message>();
 
+    public DbSet<ConversationContextSummary> ConversationContextSummaries => Set<ConversationContextSummary>();
+
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
