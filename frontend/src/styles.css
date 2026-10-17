@@ -862,6 +862,16 @@ h1 {
   color: #91d4ad;
 }
 
+.microphone-status-paused {
+  border-color: rgba(240, 167, 106, 0.2);
+  color: #f0b57d;
+}
+
+.microphone-status-finishing {
+  border-color: rgba(133, 168, 255, 0.2);
+  color: #a8c0ff;
+}
+
 .microphone-status-error {
   border-color: rgba(255, 183, 183, 0.14);
   color: #ffb7b7;
