@@ -1,4 +1,5 @@
 using Conversa.Application.Abstractions.Persistence;
+using Conversa.Infrastructure.Persistence;
 using Conversa.Domain.Conversations;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
