@@ -109,6 +109,7 @@ public sealed class DeepgramWebSocketIntegrationTests
         Assert.Equal(
             "Hello, world.",
             secondPayload.RootElement.GetProperty("text").GetString());
+        await session.AudioChunkReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(1, session.ReceivedChunkCount);
         Assert.Single(sessionOptions);
         Assert.Equal(conversation.Id, sessionOptions[0].ConversationId);
@@ -219,7 +220,12 @@ public sealed class DeepgramWebSocketIntegrationTests
 
     private sealed class RecordingSpeechSession : ISpeechToTextSession
     {
-        public int ReceivedChunkCount { get; private set; }
+        private int _receivedChunkCount;
+
+        public int ReceivedChunkCount => Volatile.Read(ref _receivedChunkCount);
+
+        public TaskCompletionSource<object?> AudioChunkReceived { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public TaskCompletionSource<object?> Disposed { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -228,7 +234,8 @@ public sealed class DeepgramWebSocketIntegrationTests
             ReadOnlyMemory<byte> audioChunk,
             CancellationToken cancellationToken)
         {
-            ReceivedChunkCount++;
+            Interlocked.Increment(ref _receivedChunkCount);
+            AudioChunkReceived.TrySetResult(null);
             return ValueTask.CompletedTask;
         }
 
