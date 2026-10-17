@@ -23,6 +23,8 @@ export function AssistantPreferencesPanel({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -31,10 +33,12 @@ export function AssistantPreferencesPanel({
       .then((loaded) => {
         setPreferences(loaded);
         setError(null);
+        setLoadFailed(false);
       })
       .catch(() => {
         if (!controller.signal.aborted) {
           setError("Preferences could not be loaded. Check the connection and try again.");
+          setLoadFailed(true);
         }
       })
       .finally(() => {
@@ -44,7 +48,7 @@ export function AssistantPreferencesPanel({
       });
 
     return () => controller.abort();
-  }, []);
+  }, [loadAttempt]);
 
   function updatePreference<K extends keyof AssistantPreferences>(
     key: K,
@@ -104,6 +108,22 @@ export function AssistantPreferencesPanel({
           <p className="preferences-state" role="status">
             Loading your preferences…
           </p>
+        ) : loadFailed ? (
+          <div className="preferences-state">
+            <p role="alert">{error}</p>
+            <button
+              className="ghost-button"
+              type="button"
+              onClick={() => {
+                setError(null);
+                setLoadFailed(false);
+                setLoading(true);
+                setLoadAttempt((attempt) => attempt + 1);
+              }}
+            >
+              Try again
+            </button>
+          </div>
         ) : (
           <form className="preferences-form" onSubmit={handleSubmit}>
             <label>
@@ -203,18 +223,6 @@ export function AssistantPreferencesPanel({
               </button>
             </div>
           </form>
-        )}
-
-        {!loading && error && (
-          <div className="preferences-retry">
-            <button
-              className="ghost-button"
-              type="button"
-              onClick={() => window.location.reload()}
-            >
-              Reload page
-            </button>
-          </div>
         )}
       </section>
     </div>
