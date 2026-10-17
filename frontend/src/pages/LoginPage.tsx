@@ -68,7 +68,7 @@ export function LoginPage() {
             autoComplete="off"
             spellCheck={false}
             placeholder="Paste your access token"
-            aria-describedby="access-token-help"
+            aria-describedby={error ? "access-token-help auth-error" : "access-token-help"}
             aria-invalid={Boolean(error)}
             required
             disabled={isSubmitting}
@@ -87,7 +87,7 @@ export function LoginPage() {
         </form>
 
         {error && (
-          <p className="auth-error" role="alert">
+          <p id="auth-error" className="auth-error" role="alert">
             {error}
           </p>
         )}
