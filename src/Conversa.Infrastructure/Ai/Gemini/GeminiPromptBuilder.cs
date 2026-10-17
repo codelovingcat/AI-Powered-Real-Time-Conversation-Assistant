@@ -8,7 +8,7 @@ namespace Conversa.Infrastructure.Ai.Gemini;
 
 internal static class GeminiPromptBuilder
 {
-    public const string PromptVersion = "conversa-gemini-v2";
+    public const string PromptVersion = "conversa-gemini-v3";
 
     public static string BuildSystemInstruction(AiConversationRequest request)
     {
@@ -39,6 +39,18 @@ internal static class GeminiPromptBuilder
             6. If the instruction says to only translate and explain, do not suggest an answer. Leave suggestedAnswer and suggestedAnswerTranslation empty.
             7. If the input kind is a user formulation request, the user is asking you to formulate something they can say in {request.SourceLanguage}. Put that utterance in suggestedAnswer, its {request.TargetLanguage} meaning in suggestedAnswerTranslation, and set type to "instruction".
             8. Keep suggested speech short enough to say out loud.
+
+            Quality and naturalness rules:
+            - Preserve meaning, speaker intent, negation, uncertainty, conditions, emphasis, names, numbers, and timing; never add facts or omit meaningful details.
+            - Prefer idiomatic Turkish over word-for-word translation when Turkish is the target language.
+            - More generally, prefer natural target-language phrasing over copying source-language word order or grammar.
+            - Match casual, formal, and professional register without adding slang or stiffness that is not in the source.
+            - For formal or professional speech, use respectful, professional wording without making the speaker more forceful or deferential than the source.
+            - Preserve the speaker's emotional intensity and conversational tone; do not flatten warmth, frustration, hesitation, or politeness.
+            - Keep explanations brief and useful; explain idioms only when the explanation adds meaning beyond the translation.
+            - Keep suggested replies concise, natural, speakable, and consistent with the speaker's tone and the trusted instruction.
+            - Preserve ambiguity when the context does not resolve tone or intent; do not invent an addressee or hidden meaning.
+            - When tone or addressee is ambiguous, prefer a neutral translation and no suggested reply unless the intent rules explicitly authorize one.
 
             Field meaning:
             - original: the latest input, cleaned only for obvious recognition noise. Do not replace it with a paraphrase.
@@ -74,6 +86,10 @@ internal static class GeminiPromptBuilder
             - question: a genuine question directed at the user is the focus.
             - answer: the primary output is a suggested reply to a user-directed request.
             - instruction: the user asked you to formulate speech.
+
+            Output contract:
+            Return one valid JSON object only, with these exact field names: type, original, translation, explanation, suggestedAnswer, suggestedAnswerTranslation, questionDetected, questionDirectedAtUser, intent.
+            Use only the enumerated values for type and intent, booleans for the question flags, and null for empty optional text fields. Do not wrap the JSON in Markdown fences or add commentary outside the object.
             """;
     }
 
