@@ -79,6 +79,66 @@ public sealed class GeminiAiProviderTests
     }
 
     [Fact]
+    public async Task ProcessAsync_MissingHeardSpeechTranslation_IsRejectedBeforeReturningResult()
+    {
+        const string modelJson = """
+            {
+              "type": "question",
+              "original": "Would you like some coffee?",
+              "translation": null,
+              "explanation": null,
+              "suggestedAnswer": "Yes, please.",
+              "suggestedAnswerTranslation": "Evet, lütfen.",
+              "questionDetected": true,
+              "questionDirectedAtUser": true,
+              "intent": "question_directed_at_user"
+            }
+            """;
+        var handler = new DelegateHandler((_, _) => Task.FromResult(
+            JsonResponse(HttpStatusCode.OK, SuccessResponse(modelJson))));
+        using var client = new HttpClient(handler);
+        var provider = CreateProvider(client, new TestLogger<GeminiAiProvider>(), maxRetries: 0);
+
+        var exception = await Assert.ThrowsAsync<AiProviderException>(
+            () => provider.ProcessAsync(CreateRequest(), CancellationToken.None));
+
+        Assert.Equal("Gemini returned no translation for heard speech.", exception.Message);
+        Assert.Equal(1, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_UserFormulationWithoutSuggestedSpeech_IsRejected()
+    {
+        const string modelJson = """
+            {
+              "type": "instruction",
+              "original": "Bunu yarına erteleyebilir miyiz?",
+              "translation": "Can we postpone this until tomorrow?",
+              "explanation": null,
+              "suggestedAnswer": null,
+              "suggestedAnswerTranslation": null,
+              "questionDetected": false,
+              "questionDirectedAtUser": false,
+              "intent": "user_formulation_request"
+            }
+            """;
+        var handler = new DelegateHandler((_, _) => Task.FromResult(
+            JsonResponse(HttpStatusCode.OK, SuccessResponse(modelJson))));
+        using var client = new HttpClient(handler);
+        var provider = CreateProvider(client, new TestLogger<GeminiAiProvider>(), maxRetries: 0);
+
+        var exception = await Assert.ThrowsAsync<AiProviderException>(
+            () => provider.ProcessAsync(
+                CreateRequest() with { InputKind = AiInputKind.UserFormulationRequest },
+                CancellationToken.None));
+
+        Assert.Equal(
+            "Gemini returned no formulated speech for a user formulation request.",
+            exception.Message);
+        Assert.Equal(1, handler.RequestCount);
+    }
+
+    [Fact]
     public void Parser_MalformedModelJson_ThrowsProviderNeutralError()
     {
         var exception = Assert.Throws<AiProviderException>(

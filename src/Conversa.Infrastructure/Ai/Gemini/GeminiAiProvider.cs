@@ -96,6 +96,7 @@ internal sealed class GeminiAiProvider(
                             PromptVersion = GeminiPromptBuilder.PromptVersion
                         };
                         var result = AiAssistantResponsePolicy.Normalize(parsedResult, request.InputKind);
+                        GeminiResponseContractValidator.Validate(result, request.InputKind);
                         logger.LogInformation(
                             "Gemini request succeeded on attempt {Attempt} in {ElapsedMilliseconds} ms using prompt version {PromptVersion}.",
                             attempt,

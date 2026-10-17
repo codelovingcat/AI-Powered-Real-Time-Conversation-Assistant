@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "promptVersion": "conversa-gemini-v2",
+  "promptVersion": "conversa-gemini-v3",
   "cases": [
     {
       "id": "translation-only",
@@ -308,6 +308,110 @@
         "suggestedAnswerTranslation": null,
         "questionDetected": false,
         "questionDirectedAtUser": false
+      }
+    },
+    {
+      "id": "quality-casual-register",
+      "qualityProfile": "casual",
+      "intent": "statement",
+      "instruction": "Translate spoken English into natural Turkish. Preserve casual tone and do not suggest a reply.",
+      "sourceLanguage": "en",
+      "targetLanguage": "tr",
+      "inputKind": "HeardSpeech",
+      "inputText": "That meeting was a bit of a roller coaster.",
+      "expectedSystemContains": [
+        "Prefer idiomatic Turkish over word-for-word translation when Turkish is the target language.",
+        "Match casual, formal, and professional register without adding slang or stiffness that is not in the source.",
+        "Preserve the speaker's emotional intensity and conversational tone"
+      ],
+      "expectedUserContains": [
+        "That meeting was a bit of a roller coaster.",
+        "<source_language>en</source_language>",
+        "<target_language>tr</target_language>"
+      ],
+      "expectedUserDoesNotContain": [
+        "PRIVATE_TRANSCRIPT",
+        "TEST_ONLY_API_KEY"
+      ],
+      "response": {
+        "type": "translation",
+        "original": "That meeting was a bit of a roller coaster.",
+        "translation": "Toplantı tam bir iniş çıkıştı.",
+        "explanation": null,
+        "suggestedAnswer": null,
+        "suggestedAnswerTranslation": null,
+        "questionDetected": false,
+        "questionDirectedAtUser": false,
+        "intent": "statement"
+      }
+    },
+    {
+      "id": "quality-formal-business-register",
+      "qualityProfile": "formal",
+      "intent": "request_directed_at_user",
+      "instruction": "Translate formal business English into Turkish and suggest a concise polite reply to requests addressed to me.",
+      "sourceLanguage": "en",
+      "targetLanguage": "tr",
+      "inputKind": "HeardSpeech",
+      "inputText": "We would appreciate it if you could send the revised proposal by Friday.",
+      "expectedSystemContains": [
+        "For formal or professional speech, use respectful, professional wording without making the speaker more forceful or deferential than the source.",
+        "Keep suggested replies concise, natural, speakable, and consistent with the speaker's tone and the trusted instruction.",
+        "Return one valid JSON object only"
+      ],
+      "expectedUserContains": [
+        "We would appreciate it if you could send the revised proposal by Friday.",
+        "<source_language>en</source_language>",
+        "<target_language>tr</target_language>"
+      ],
+      "expectedUserDoesNotContain": [
+        "PRIVATE_TRANSCRIPT",
+        "TEST_ONLY_API_KEY"
+      ],
+      "response": {
+        "type": "answer",
+        "original": "We would appreciate it if you could send the revised proposal by Friday.",
+        "translation": "Revize edilmiş teklifi cuma gününe kadar iletebilirseniz memnun oluruz.",
+        "explanation": null,
+        "suggestedAnswer": "Certainly. I'll send the revised proposal by Friday.",
+        "suggestedAnswerTranslation": "Elbette. Revize edilmiş teklifi cuma gününe kadar ileteceğim.",
+        "questionDetected": false,
+        "questionDirectedAtUser": false,
+        "intent": "request_directed_at_user"
+      }
+    },
+    {
+      "id": "quality-ambiguous-tone",
+      "qualityProfile": "ambiguous",
+      "intent": "ambiguous",
+      "instruction": "Translate naturally. Preserve ambiguity when the tone cannot be inferred from available context; do not suggest a reply.",
+      "sourceLanguage": "en",
+      "targetLanguage": "tr",
+      "inputKind": "HeardSpeech",
+      "inputText": "That's fine.",
+      "expectedSystemContains": [
+        "Preserve ambiguity when the context does not resolve tone or intent; do not invent an addressee or hidden meaning.",
+        "When tone or addressee is ambiguous, prefer a neutral translation and no suggested reply unless the intent rules explicitly authorize one."
+      ],
+      "expectedUserContains": [
+        "That&apos;s fine.",
+        "<source_language>en</source_language>",
+        "<target_language>tr</target_language>"
+      ],
+      "expectedUserDoesNotContain": [
+        "PRIVATE_TRANSCRIPT",
+        "TEST_ONLY_API_KEY"
+      ],
+      "response": {
+        "type": "translation",
+        "original": "That's fine.",
+        "translation": "Peki, olur.",
+        "explanation": null,
+        "suggestedAnswer": null,
+        "suggestedAnswerTranslation": null,
+        "questionDetected": false,
+        "questionDirectedAtUser": false,
+        "intent": "ambiguous"
       }
     }
   ]
