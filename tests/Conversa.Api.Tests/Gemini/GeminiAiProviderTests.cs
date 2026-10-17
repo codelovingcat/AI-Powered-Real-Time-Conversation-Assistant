@@ -57,6 +57,28 @@ public sealed class GeminiAiProviderTests
     }
 
     [Fact]
+    public void Parser_LegacyQuestionWithoutDirectedAtUserFlag_UsesAmbiguousIntent()
+    {
+        const string legacyModelJson = """
+            {
+              "type": "question",
+              "original": "Could you help?",
+              "translation": "Yardım eder misin?",
+              "explanation": null,
+              "suggestedAnswer": null,
+              "suggestedAnswerTranslation": null,
+              "questionDetected": true,
+              "questionDirectedAtUser": false
+            }
+            """;
+
+        var result = GeminiResponseParser.ParseModelJson(legacyModelJson);
+
+        Assert.Equal(AiResponseType.Question, result.Type);
+        Assert.Equal(ConversationIntent.Ambiguous, result.Intent);
+    }
+
+    [Fact]
     public void Parser_MalformedModelJson_ThrowsProviderNeutralError()
     {
         var exception = Assert.Throws<AiProviderException>(
