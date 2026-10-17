@@ -40,7 +40,29 @@ internal sealed class GeminiAiProvider(
         var settings = options.Value;
         ValidateSettings(settings);
 
-        var payload = BuildPayload(request);
+        BoundedGeminiPrompt boundedPrompt;
+        try
+        {
+            boundedPrompt = GeminiPromptBuilder.FitToBudget(request, settings.MaxPromptCharacters);
+        }
+        catch (GeminiPromptBudgetExceededException exception)
+        {
+            ConversaTelemetry.AiContextBudgetRejections.Add(
+                1,
+                ConversaTelemetry.Tags(Name, "context", "rejected"));
+            activity?.SetTag("conversa.ai.context_budget_rejected", true);
+            throw new AiProviderException(exception.Message);
+        }
+
+        var contextTags = ConversaTelemetry.Tags(Name, "context", "bounded");
+        ConversaTelemetry.AiPromptCharacters.Record(boundedPrompt.PromptCharacters, contextTags);
+        ConversaTelemetry.AiContextTurnsIncluded.Record(boundedPrompt.IncludedTurnCount, contextTags);
+        ConversaTelemetry.AiContextTurnsDropped.Record(boundedPrompt.DroppedTurnCount, contextTags);
+        activity?.SetTag("conversa.ai.prompt_characters", boundedPrompt.PromptCharacters);
+        activity?.SetTag("conversa.ai.context_turns_included", boundedPrompt.IncludedTurnCount);
+        activity?.SetTag("conversa.ai.context_turns_dropped", boundedPrompt.DroppedTurnCount);
+
+        var payload = BuildPayload(boundedPrompt.SystemInstruction, boundedPrompt.UserPrompt);
         var maxAttempts = settings.MaxRetries + 1;
 
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
@@ -265,22 +287,25 @@ internal sealed class GeminiAiProvider(
 
         if (!Uri.TryCreate(settings.BaseUrl, UriKind.Absolute, out _))
             throw new AiProviderNotConfiguredException("Gemini base URL must be an absolute URL.");
+
+        if (settings.MaxPromptCharacters <= 0 || settings.MaxPromptCharacters > 250_000)
+            throw new AiProviderNotConfiguredException("Gemini prompt character budget must be between 1 and 250000.");
     }
 
-    private static string BuildPayload(AiConversationRequest request)
+    private static string BuildPayload(string systemInstruction, string userPrompt)
     {
         var payload = new
         {
             systemInstruction = new
             {
-                parts = new[] { new { text = GeminiPromptBuilder.BuildSystemInstruction(request) } }
+                parts = new[] { new { text = systemInstruction } }
             },
             contents = new[]
             {
                 new
                 {
                     role = "user",
-                    parts = new[] { new { text = GeminiPromptBuilder.BuildUserPrompt(request) } }
+                    parts = new[] { new { text = userPrompt } }
                 }
             },
             generationConfig = new
