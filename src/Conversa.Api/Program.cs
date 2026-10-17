@@ -9,6 +9,7 @@ using Conversa.Api.Infrastructure.RateLimiting;
 using Conversa.Api.Realtime;
 using Conversa.Application.Abstractions.Identity;
 using Conversa.Application.Conversations;
+using Conversa.Application.Preferences;
 using Conversa.Application.Observability;
 using Conversa.Application.Ai;
 using Conversa.Api.Testing;
@@ -279,6 +280,7 @@ builder.Services.Configure<RateLimitOptions>(
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, AuthenticatedCurrentUser>();
 builder.Services.AddScoped<IConversationService, ConversationService>();
+builder.Services.AddScoped<IAssistantPreferencesService, AssistantPreferencesService>();
 builder.Services.AddScoped<IConversationAssistant, ConversationAssistant>();
 builder.Services.AddScoped<ConversationInputValidator>();
 builder.Services.AddSingleton(TimeProvider.System);
