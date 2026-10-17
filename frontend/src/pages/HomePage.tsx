@@ -5,6 +5,7 @@ import { MicrophoneCapturePanel } from "../components/MicrophoneCapturePanel";
 import { TextAssistantPanel } from "../components/TextAssistantPanel";
 import { MessageHistory } from "../components/MessageHistory";
 import { InstructionEditor } from "../components/InstructionEditor";
+import { AssistantPreferencesPanel } from "../components/AssistantPreferencesPanel";
 import { EMPTY_TRANSCRIPT, type TranscriptSnapshot } from "../services/audio/transcriptState";
 import {
   type LiveConnectionState
@@ -23,6 +24,7 @@ import {
 
 export function HomePage() {
   const { signOut } = useAuth();
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [health, setHealth] = useState<BackendHealth | null>(null);
   const [activeConversation, setActiveConversation] =
     useState<ConversationSummary | null>(null);
@@ -117,10 +119,23 @@ export function HomePage() {
             <p className="eyebrow">REAL-TIME CONVERSATION ASSISTANT</p>
             <h1 id="page-title">Conversa</h1>
           </div>
-          <button className="ghost-button" type="button" onClick={signOut}>
-            Sign out
-          </button>
+          <div className="workspace-header-actions">
+            <button
+              className="ghost-button"
+              type="button"
+              onClick={() => setPreferencesOpen(true)}
+            >
+              Preferences
+            </button>
+            <button className="ghost-button" type="button" onClick={signOut}>
+              Sign out
+            </button>
+          </div>
         </header>
+
+        {preferencesOpen && (
+          <AssistantPreferencesPanel onClose={() => setPreferencesOpen(false)} />
+        )}
 
         {health?.status === "unavailable" && (
           <ConversationStatus
