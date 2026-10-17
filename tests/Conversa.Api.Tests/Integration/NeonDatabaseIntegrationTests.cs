@@ -92,6 +92,14 @@ public sealed class NeonDatabaseIntegrationTests(ITestOutputHelper output)
             now);
 
         await db.Messages.AddAsync(message);
+        var conversationSummary = ConversationContextSummary.Create(
+            conversation.Id,
+            "Synthetic summary for cascade deletion",
+            message.CreatedAt,
+            message.Id,
+            now,
+            "neon-integration-test");
+        await db.ConversationContextSummaries.AddAsync(conversationSummary);
         await db.SaveChangesAsync();
 
         db.ChangeTracker.Clear();
@@ -104,6 +112,9 @@ public sealed class NeonDatabaseIntegrationTests(ITestOutputHelper output)
 
         Assert.Equal("Neon integration test", storedConversation.Title);
         Assert.Equal("Neon'dan merhaba.", storedMessage.Translation);
+        Assert.Equal(
+            "Synthetic summary for cascade deletion",
+            (await db.ConversationContextSummaries.SingleAsync(item => item.ConversationId == conversation.Id)).Summary);
 
         storedConversation.Rename("Neon integration test updated", now.AddMinutes(1));
         await db.SaveChangesAsync();
@@ -125,6 +136,9 @@ public sealed class NeonDatabaseIntegrationTests(ITestOutputHelper output)
         Assert.False(
             await db.Messages.AnyAsync(item => item.Id == message.Id),
             "Deleting the conversation must cascade to its message.");
+        Assert.False(
+            await db.ConversationContextSummaries.AnyAsync(item => item.ConversationId == conversation.Id),
+            "Deleting the conversation must cascade to its generated context summary.");
 
         await transaction.RollbackAsync();
     }

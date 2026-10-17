@@ -205,7 +205,18 @@ public sealed class ConversationService(
 
     public async Task DeleteAsync(Guid conversationId, CancellationToken cancellationToken)
     {
-        var conversation = await RequireAsync(conversationId, cancellationToken);
+        // The owner-scoped lookup intentionally treats missing and non-owned IDs alike.
+        // Returning success in either case makes DELETE idempotent without leaking ownership.
+        var conversation = await conversations.GetByIdAsync(
+            conversationId,
+            currentUser.UserId,
+            cancellationToken);
+
+        if (conversation is null)
+        {
+            return;
+        }
+
         conversations.Remove(conversation);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
