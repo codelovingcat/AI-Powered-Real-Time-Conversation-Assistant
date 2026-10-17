@@ -105,7 +105,7 @@ public static class AudioWebSocketEndpoint
             return;
         }
 
-        await using var session = await factory.OpenSessionAsync(
+        var session = await factory.OpenSessionAsync(
             new SpeechSessionOptions(
                 conversation.Id,
                 conversation.SourceLanguage,
