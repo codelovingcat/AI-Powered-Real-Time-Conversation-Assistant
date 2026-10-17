@@ -121,7 +121,7 @@ internal static class GeminiResponseParser
             if (questionDetected)
                 return questionDirectedAtUser
                     ? ConversationIntent.QuestionDirectedAtUser
-                    : ConversationIntent.QuestionDirectedAtOthers;
+                    : ConversationIntent.Ambiguous;
             if (type == AiResponseType.Answer || !string.IsNullOrWhiteSpace(suggestedAnswer))
                 return ConversationIntent.Ambiguous;
             return ConversationIntent.Statement;
