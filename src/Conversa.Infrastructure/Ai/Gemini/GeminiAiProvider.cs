@@ -58,9 +58,11 @@ internal sealed class GeminiAiProvider(
         ConversaTelemetry.AiPromptCharacters.Record(boundedPrompt.PromptCharacters, contextTags);
         ConversaTelemetry.AiContextTurnsIncluded.Record(boundedPrompt.IncludedTurnCount, contextTags);
         ConversaTelemetry.AiContextTurnsDropped.Record(boundedPrompt.DroppedTurnCount, contextTags);
+        ConversaTelemetry.AiContextSummaryIncluded.Record(boundedPrompt.SummaryIncluded ? 1 : 0, contextTags);
         activity?.SetTag("conversa.ai.prompt_characters", boundedPrompt.PromptCharacters);
         activity?.SetTag("conversa.ai.context_turns_included", boundedPrompt.IncludedTurnCount);
         activity?.SetTag("conversa.ai.context_turns_dropped", boundedPrompt.DroppedTurnCount);
+        activity?.SetTag("conversa.ai.context_summary_included", boundedPrompt.SummaryIncluded);
 
         var payload = BuildPayload(boundedPrompt.SystemInstruction, boundedPrompt.UserPrompt);
         var maxAttempts = settings.MaxRetries + 1;
