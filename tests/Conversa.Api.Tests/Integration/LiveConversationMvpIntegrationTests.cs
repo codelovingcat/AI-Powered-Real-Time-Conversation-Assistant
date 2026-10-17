@@ -33,6 +33,7 @@ public sealed class LiveConversationMvpIntegrationTests
             "en",
             "tr",
             DateTimeOffset.UtcNow);
+        conversation.Start(DateTimeOffset.UtcNow);
 
         var messages = new RecordingMessageRepository();
         var aiProvider = new RecordingAiProvider(
