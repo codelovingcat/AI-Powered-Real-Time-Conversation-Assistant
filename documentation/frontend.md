@@ -151,3 +151,7 @@ The web conversation timeline now makes turn ownership explicit:
 - partial transcript state is labeled as in-progress, while the latest live AI assistance stays attached to the same turn;
 - transcript content keeps wrapping safely on long lines and narrow screens;
 - no internal identifiers or provider diagnostics are rendered as part of the presentation.
+
+## P43 — Authentication lifecycle UX
+
+See [authentication-ux.md](authentication-ux.md) for sign-in validation, fixed user-safe errors, session-expiry handling, pending sign-out feedback, and the warning shown when the server cannot confirm logout. Browser E2E and unit tests cover these states. Raw tokens, claims, server responses, and internal exception details are never presented as user-facing error copy.
