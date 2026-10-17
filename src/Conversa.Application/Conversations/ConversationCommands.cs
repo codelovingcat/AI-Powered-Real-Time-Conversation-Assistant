@@ -19,3 +19,11 @@ public sealed record ProcessConversationInputCommand(
     Guid ConversationId,
     AiInputKind InputKind,
     string Text);
+
+public enum ConversationLifecycleAction
+{
+    Start = 0,
+    Pause = 1,
+    Resume = 2,
+    Finish = 3
+}
