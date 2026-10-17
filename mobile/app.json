@@ -6,8 +6,24 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "scheme": "conversa",
-    "ios": { "supportsTablet": true },
-    "android": { "package": "com.conversa.mobile" },
-    "plugins": ["expo-secure-store"]
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.conversa.mobile",
+      "permissions": [
+        "RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Conversa uses your microphone only when you explicitly start capture.",
+          "recordAudioAndroid": true
+        }
+      ]
+    ]
   }
 }

@@ -42,3 +42,12 @@ From this directory:
 - `EXPO_PUBLIC_*` values are bundled into the application and must never contain secrets.
 - Authentication credentials are stored with Expo SecureStore, not AsyncStorage or source code.
 - Errors shown in the UI are mapped to fixed, user-safe messages; raw provider or server response bodies are not rendered.
+
+
+## Native microphone capture (P49)
+
+The app uses the SDK 54-compatible `expo-audio` module for native iOS/Android recording and configures an explicit microphone permission description. Permission status is checked at startup without displaying a prompt; the system prompt is requested only after the user presses **Allow microphone access**. A second explicit action starts capture.
+
+Capture is stopped and its temporary cache file is deleted when the user stops recording, the app moves out of the active state, or the capture panel unmounts. Returning to the foreground re-checks whether permission was revoked in device settings. Raw audio is not uploaded, persisted as conversation history, or sent to a provider by this foundation task.
+
+Run the automated permission/lifecycle tests with `npm test`.
