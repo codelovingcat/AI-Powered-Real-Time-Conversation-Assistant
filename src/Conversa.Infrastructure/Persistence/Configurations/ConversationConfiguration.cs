@@ -8,7 +8,12 @@ internal sealed class ConversationConfiguration : IEntityTypeConfiguration<Conve
 {
     public void Configure(EntityTypeBuilder<Conversation> builder)
     {
-        builder.ToTable("Conversations");
+        builder.ToTable("Conversations", table =>
+        {
+            table.HasCheckConstraint(
+                "CK_Conversations_LifecycleState",
+                "\"LifecycleState\" IN ('Ready', 'Active', 'Paused', 'Completed')");
+        });
         builder.HasKey(conversation => conversation.Id);
 
         builder.Property(conversation => conversation.Title)
@@ -29,6 +34,15 @@ internal sealed class ConversationConfiguration : IEntityTypeConfiguration<Conve
 
         builder.Property(conversation => conversation.CreatedAt).IsRequired();
         builder.Property(conversation => conversation.UpdatedAt).IsRequired();
+
+        builder.Property(conversation => conversation.LifecycleState)
+            .HasConversion<string>()
+            .HasMaxLength(16)
+            .HasDefaultValue(ConversationLifecycleState.Active)
+            .IsRequired();
+
+        builder.Property(conversation => conversation.StartedAt);
+        builder.Property(conversation => conversation.CompletedAt);
 
         builder.HasIndex(conversation => new { conversation.UserId, conversation.UpdatedAt });
 
