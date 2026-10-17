@@ -10,7 +10,8 @@ public sealed record ConversationSummaryDto(
     string SourceLanguage,
     string TargetLanguage,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    string LifecycleState = "active");
 
 public sealed record MessageDto(
     Guid Id,
@@ -39,7 +40,8 @@ public static class ConversationMappings
             conversation.SourceLanguage,
             conversation.TargetLanguage,
             conversation.CreatedAt,
-            conversation.UpdatedAt);
+            conversation.UpdatedAt,
+            conversation.LifecycleState.ToString().ToLowerInvariant());
 
     public static MessageDto ToDto(this Message message)
         => new(
