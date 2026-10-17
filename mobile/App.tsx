@@ -14,6 +14,7 @@ import {
   type ConversationSummary
 } from "./src/api/conversationService";
 import { ApiError } from "./src/api/apiClient";
+import { MicrophoneCapturePanel } from "./src/audio/MicrophoneCapturePanel";
 import { subscribeToSessionExpired } from "./src/auth/authEvents";
 import {
   getAuthErrorMessage,
@@ -169,6 +170,8 @@ export default function App() {
         <Text style={styles.eyebrow}>CONVERSA MOBILE</Text>
         <Text style={styles.title}>Your conversations</Text>
         <Text style={styles.muted}>Signed in</Text>
+
+        <MicrophoneCapturePanel />
 
         <View style={styles.row}>
           <TextInput
