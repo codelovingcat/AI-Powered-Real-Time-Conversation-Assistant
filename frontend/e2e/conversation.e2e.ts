@@ -89,19 +89,20 @@ test("starts, pauses, resumes, and finishes a conversation without duplicate act
   await expect(
     page.getByRole("heading", { name: "Lifecycle controls E2E" })
   ).toBeVisible();
-  await expect(page.getByRole("status").getByText("Ready to start", { exact: true })).toBeVisible();
+  const lifecyclePanel = page.locator(".microphone-panel");
+  await expect(lifecyclePanel.getByText("Ready to start", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Start microphone" }).click();
-  await expect(page.getByRole("status").getByText("Streaming", { exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(lifecyclePanel.getByText("Streaming", { exact: true })).toBeVisible({ timeout: 10_000 });
 
   await page.getByRole("button", { name: "Pause conversation" }).click();
-  await expect(page.getByRole("status").getByText("Paused", { exact: true })).toBeVisible();
+  await expect(lifecyclePanel.getByText("Paused", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Resume conversation" }).click();
-  await expect(page.getByRole("status").getByText("Streaming", { exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(lifecyclePanel.getByText("Streaming", { exact: true })).toBeVisible({ timeout: 10_000 });
 
   await page.getByRole("button", { name: "Finish conversation" }).click();
-  await expect(page.getByRole("status").getByText("Finished", { exact: true })).toBeVisible();
+  await expect(lifecyclePanel.getByText("Finished", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Finish conversation" })).toHaveCount(0);
   await expect(page.getByText("This conversation is read-only for new assistant inputs.")).toBeVisible();
 });
