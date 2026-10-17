@@ -1954,3 +1954,46 @@ h1 {
     border-radius: 18px;
   }
 }
+
+
+.form-help {
+  margin: 0;
+  color: #7f8fa7;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.auth-notice {
+  margin: 18px 0 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(88, 214, 141, 0.18);
+  border-radius: 12px;
+  color: #a8e6bf;
+  background: rgba(88, 214, 141, 0.045);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.auth-form input[aria-invalid="true"] {
+  border-color: rgba(255, 143, 143, 0.75);
+}
+
+.auth-form input[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 3px rgba(255, 143, 143, 0.12);
+}
+
+.auth-form button[aria-busy="true"] {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
