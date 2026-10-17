@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -13,7 +13,10 @@ import {
   listConversations,
   type ConversationSummary
 } from "./src/api/conversationService";
+import { ApiError } from "./src/api/apiClient";
+import { subscribeToSessionExpired } from "./src/auth/authEvents";
 import {
+  getAuthErrorMessage,
   restoreSession,
   signIn,
   signOut,
@@ -23,37 +26,75 @@ import {
 export default function App() {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [checking, setChecking] = useState(true);
+  const [authBusy, setAuthBusy] = useState(false);
   const [token, setToken] = useState("");
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [canRetryRestore, setCanRetryRestore] = useState(false);
 
-  useEffect(() => {
-    void restoreSession()
-      .then(setSession)
-      .catch(() => setSession(null))
-      .finally(() => setChecking(false));
+  const checkSavedSession = useCallback(async () => {
+    setChecking(true);
+    setError(null);
+    setCanRetryRestore(false);
+
+    try {
+      setSession(await restoreSession());
+    } catch (reason: unknown) {
+      setSession(null);
+      setError(getAuthErrorMessage(reason));
+      setCanRetryRestore(true);
+    } finally {
+      setChecking(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (!session) return;
+    void checkSavedSession();
+  }, [checkSavedSession]);
 
+  useEffect(() => subscribeToSessionExpired(() => {
+    setSession(null);
+    setConversations([]);
+    setError("Your session has expired. Please sign in again.");
+    setNotice(null);
+    setCanRetryRestore(false);
+  }), []);
+
+  useEffect(() => {
+    if (!session) {
+      setConversations([]);
+      return;
+    }
+
+    let cancelled = false;
     void listConversations()
-      .then((page) => setConversations(page.items))
-      .catch((reason: unknown) =>
+      .then((page) => {
+        if (!cancelled) {
+          setConversations(page.items);
+          setError(null);
+        }
+      })
+      .catch((reason: unknown) => {
+        if (cancelled) return;
         setError(
-          reason instanceof Error
+          reason instanceof ApiError
             ? reason.message
             : "Conversations could not be loaded."
-        )
-      );
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [session]);
 
   if (checking) {
     return (
       <SafeAreaView style={styles.center}>
         <ActivityIndicator />
-        <Text style={styles.muted}>Checking session…</Text>
+        <Text style={styles.muted}>Checking saved session…</Text>
       </SafeAreaView>
     );
   }
@@ -65,34 +106,57 @@ export default function App() {
           <Text style={styles.eyebrow}>CONVERSA MOBILE</Text>
           <Text style={styles.title}>Sign in</Text>
           <Text style={styles.muted}>
-            Enter an existing access token. It is stored only in the device
+            Enter an existing identity access token. It is exchanged for a
+            short-lived Conversa token; credentials are stored in the device
             secure store.
           </Text>
+
+          {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+          {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
+
+          {canRetryRestore ? (
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={() => void checkSavedSession()}
+              disabled={authBusy}
+            >
+              <Text>Retry saved session</Text>
+            </Pressable>
+          ) : null}
+
           <TextInput
             value={token}
             onChangeText={setToken}
-            placeholder="Access token"
+            placeholder="Identity access token"
             autoCapitalize="none"
             autoCorrect={false}
             secureTextEntry
+            editable={!authBusy}
+            accessibilityLabel="Identity access token"
             style={styles.input}
           />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
           <Pressable
-            style={styles.button}
+            style={[styles.button, authBusy && styles.disabledButton]}
             onPress={() => {
               setError(null);
-              void signIn(token.trim())
-                .then(setSession)
-                .catch((reason: unknown) =>
-                  setError(
-                    reason instanceof Error ? reason.message : "Sign in failed."
-                  )
-                );
+              setNotice(null);
+              setAuthBusy(true);
+              void signIn(token)
+                .then((nextSession) => {
+                  setSession(nextSession);
+                  setToken("");
+                  setCanRetryRestore(false);
+                })
+                .catch((reason: unknown) => setError(getAuthErrorMessage(reason)))
+                .finally(() => setAuthBusy(false));
             }}
-            disabled={!token.trim()}
+            disabled={!token.trim() || authBusy}
           >
-            <Text style={styles.buttonText}>Continue</Text>
+            {authBusy ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Continue</Text>
+            )}
           </Pressable>
         </View>
       </SafeAreaView>
@@ -104,13 +168,14 @@ export default function App() {
       <View style={styles.card}>
         <Text style={styles.eyebrow}>CONVERSA MOBILE</Text>
         <Text style={styles.title}>Your conversations</Text>
-        <Text style={styles.muted}>Signed in as {session.userId}</Text>
+        <Text style={styles.muted}>Signed in</Text>
 
         <View style={styles.row}>
           <TextInput
             value={title}
             onChangeText={setTitle}
             placeholder="New conversation"
+            accessibilityLabel="New conversation title"
             style={[styles.input, styles.flex]}
           />
           <Pressable
@@ -124,7 +189,7 @@ export default function App() {
                 })
                 .catch((reason: unknown) =>
                   setError(
-                    reason instanceof Error
+                    reason instanceof ApiError
                       ? reason.message
                       : "Conversation could not be created."
                   )
@@ -136,7 +201,7 @@ export default function App() {
           </Pressable>
         </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
 
         {conversations.map((conversation) => (
           <View key={conversation.id} style={styles.conversation}>
@@ -149,15 +214,25 @@ export default function App() {
         ))}
 
         <Pressable
-          style={styles.secondaryButton}
+          style={[styles.secondaryButton, authBusy && styles.disabledButton]}
+          disabled={authBusy}
           onPress={() => {
-            void signOut().then(() => {
-              setSession(null);
-              setConversations([]);
-            });
+            setAuthBusy(true);
+            void signOut()
+              .then((serverConfirmed) => {
+                setSession(null);
+                setConversations([]);
+                setError(null);
+                setNotice(
+                  serverConfirmed
+                    ? "You have signed out successfully."
+                    : "You have signed out on this device, but the server could not confirm logout."
+                );
+              })
+              .finally(() => setAuthBusy(false));
           }}
         >
-          <Text>Sign out</Text>
+          <Text>{authBusy ? "Signing out…" : "Sign out"}</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -228,7 +303,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center"
   },
+  disabledButton: {
+    opacity: 0.55
+  },
   error: { color: "#b42318" },
+  notice: { color: "#175cd3" },
   conversation: {
     borderTopWidth: 1,
     borderTopColor: "#eaecf0",
