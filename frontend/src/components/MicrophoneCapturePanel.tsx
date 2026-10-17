@@ -73,6 +73,7 @@ export function MicrophoneCapturePanel({
   const pausedRef = useRef(false);
   const reconnectTimerRef = useRef<number | null>(null);
   const reconnectAttemptRef = useRef(0);
+  const connectionGenerationRef = useRef(0);
 
   useEffect(() => {
     manualStopRef.current = true;
@@ -173,9 +174,18 @@ export function MicrophoneCapturePanel({
   async function connectSocket(targetConversationId: string) {
     if (manualStopRef.current || pausedRef.current) return;
 
+    const generation = ++connectionGenerationRef.current;
     try {
       const socket = openAudioWebSocket(targetConversationId, {
         onTranscript: (update: TranscriptUpdate) => {
+          if (
+            generation !== connectionGenerationRef.current ||
+            manualStopRef.current ||
+            pausedRef.current
+          ) {
+            return;
+          }
+
           setTranscript((current) => {
             const next = applyTranscriptUpdate(current, update);
             onTranscriptChange?.(next);
@@ -189,6 +199,10 @@ export function MicrophoneCapturePanel({
           });
         },
         onStatus: (nextStatus) => {
+          if (generation !== connectionGenerationRef.current) {
+            return;
+          }
+
           setSocketStatus(nextStatus);
 
           if (nextStatus === "open") {
@@ -224,7 +238,7 @@ export function MicrophoneCapturePanel({
           }
         },
         onError: () => {
-          if (!manualStopRef.current) {
+          if (generation === connectionGenerationRef.current && !manualStopRef.current) {
             setError("The audio connection was interrupted.");
             setRetryAction("capture");
           }
@@ -317,6 +331,7 @@ export function MicrophoneCapturePanel({
   }
 
   async function stopStreaming() {
+    connectionGenerationRef.current += 1;
     clearReconnectTimer();
     reconnectAttemptRef.current = 0;
     setReconnectAttempt(0);
@@ -350,6 +365,7 @@ export function MicrophoneCapturePanel({
 
       pausedRef.current = true;
       manualStopRef.current = true;
+      connectionGenerationRef.current += 1;
       clearReconnectTimer();
       await cleanupCapture();
 
@@ -379,6 +395,7 @@ export function MicrophoneCapturePanel({
 
     manualStopRef.current = true;
     pausedRef.current = false;
+    connectionGenerationRef.current += 1;
     clearReconnectTimer();
     setStatus("finishing");
     setError(null);
