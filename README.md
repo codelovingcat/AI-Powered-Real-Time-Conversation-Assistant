@@ -371,3 +371,5 @@ A model snapshot is not currently checked in. Before adding a second migration, 
 AI: implement `IAiProvider` and register it instead of `GeminiAiProvider` in `AddInfrastructure`. Do not reference the new SDK from `Conversa.Application` or `Conversa.Domain`.
 
 Speech: implement `ISpeechToTextSessionFactory` and register it. The WebSocket host already opens a session, appends binary frames, and forwards partial and final transcript events. It does not call the assistant automatically. The client posts the final transcript to `/assistant` so the instruction and conversation context stay in one place.
+
+Assistant preferences defaults, supported values, authenticated API contract, and migration details are documented in [`docs/assistant-preferences.md`](docs/assistant-preferences.md).

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "promptVersion": "conversa-gemini-v3",
+  "promptVersion": "conversa-gemini-v4",
   "cases": [
     {
       "id": "translation-only",

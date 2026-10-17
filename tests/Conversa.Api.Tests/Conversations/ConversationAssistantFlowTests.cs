@@ -6,6 +6,7 @@ using Conversa.Application.Common;
 using Conversa.Application.Conversations;
 using Conversa.Application.Observability;
 using Conversa.Domain.Conversations;
+using Conversa.Domain.Preferences;
 
 namespace Conversa.Api.Tests.Conversations;
 
@@ -123,6 +124,64 @@ public sealed class ConversationAssistantFlowTests
     }
 
     [Fact]
+    public async Task ProcessAsync_UsesSavedPreferencesAndEnforcesThemForHeardSpeech()
+    {
+        var userId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var conversation = Conversation.Create(
+            userId,
+            "Preferences",
+            "Translate and explain naturally; suggest replies when appropriate.",
+            "en",
+            "tr",
+            now);
+        var savedPreferences = UserAssistantPreferences.Create(
+            userId,
+            "concise",
+            "formal",
+            "minimal",
+            false,
+            now);
+        var messages = new TestMessageRepository();
+        var aiProvider = new RecordingAiProvider(new AiAssistantResponse(
+            AiResponseType.Answer,
+            "Could you send it today?",
+            "Bugün gönderebilir misiniz?",
+            "The speaker is making a request.",
+            "Certainly, I will send it today.",
+            "Elbette, bugün göndereceğim.",
+            QuestionDetected: false,
+            QuestionDirectedAtUser: false,
+            Intent: ConversationIntent.RequestDirectedAtUser));
+
+        var assistant = new ConversationAssistant(
+            new TestCurrentUser(userId),
+            new TestConversationRepository(conversation),
+            messages,
+            aiProvider,
+            new RecordingUnitOfWork(),
+            TimeProvider.System,
+            preferencesRepository: new TestAssistantPreferencesRepository(savedPreferences));
+
+        var result = await assistant.ProcessAsync(
+            new ProcessConversationInputCommand(
+                conversation.Id,
+                AiInputKind.HeardSpeech,
+                "Could you send it today?"),
+            CancellationToken.None);
+
+        var request = Assert.Single(aiProvider.Requests);
+        Assert.Equal(
+            new AssistantResponsePreferences("concise", "formal", "minimal", false),
+            request.Preferences);
+        Assert.Equal("Bugün gönderebilir misiniz?", result.Translation);
+        Assert.Equal(AiResponseType.Translation, result.ResponseType);
+        Assert.Null(result.SuggestedAnswer);
+        Assert.Null(result.SuggestedAnswerTranslation);
+        Assert.Null(result.Explanation);
+    }
+
+    [Fact]
     public async Task ProcessAsync_UserFormulationRequest_PersistsAsUserMessage()
     {
         var userId = Guid.NewGuid();
@@ -201,6 +260,21 @@ public sealed class ConversationAssistantFlowTests
 
         Assert.Empty(messages.AddedMessages);
         Assert.Equal(0, unitOfWork.SaveCalls);
+    }
+
+    private sealed class TestAssistantPreferencesRepository(
+        UserAssistantPreferences preferences) : IUserAssistantPreferencesRepository
+    {
+        public Task<UserAssistantPreferences?> GetByUserIdAsync(
+            Guid userId,
+            CancellationToken cancellationToken)
+            => Task.FromResult<UserAssistantPreferences?>(
+                userId == preferences.UserId ? preferences : null);
+
+        public Task AddAsync(
+            UserAssistantPreferences preferences,
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
     }
 
     private sealed class TestCurrentUser(Guid userId) : ICurrentUser

@@ -1,4 +1,5 @@
 using Conversa.Domain.Conversations;
+using Conversa.Domain.Preferences;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,6 +13,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Message> Messages => Set<Message>();
 
     public DbSet<ConversationContextSummary> ConversationContextSummaries => Set<ConversationContextSummary>();
+
+    public DbSet<UserAssistantPreferences> UserAssistantPreferences => Set<UserAssistantPreferences>();
 
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 

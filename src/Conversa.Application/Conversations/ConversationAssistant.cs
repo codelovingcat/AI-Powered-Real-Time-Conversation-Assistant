@@ -5,6 +5,7 @@ using Conversa.Application.Ai;
 using Conversa.Application.Common;
 using Conversa.Application.Observability;
 using Conversa.Domain.Conversations;
+using Conversa.Domain.Preferences;
 
 namespace Conversa.Application.Conversations;
 
@@ -15,7 +16,8 @@ public sealed class ConversationAssistant(
     IAiProvider aiProvider,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider,
-    IConversationContextService? contextService = null) : IConversationAssistant
+    IConversationContextService? contextService = null,
+    IUserAssistantPreferencesRepository? preferencesRepository = null) : IConversationAssistant
 {
     public const int ContextMessageCount = 12;
 
@@ -56,6 +58,16 @@ public sealed class ConversationAssistant(
         var contextSummary = contextService is null
             ? null
             : await contextService.PrepareContextSummaryAsync(conversation, recent, cancellationToken);
+        var storedPreferences = preferencesRepository is null
+            ? null
+            : await preferencesRepository.GetByUserIdAsync(currentUser.UserId, cancellationToken);
+        var responsePreferences = storedPreferences is null
+            ? AssistantResponsePreferences.Default
+            : new AssistantResponsePreferences(
+                storedPreferences.ResponseLength,
+                storedPreferences.Tone,
+                storedPreferences.ExplanationLevel,
+                storedPreferences.SuggestReplies);
         var request = new AiConversationRequest(
             conversation.Instruction,
             conversation.SourceLanguage,
@@ -68,9 +80,14 @@ public sealed class ConversationAssistant(
                 message.Translation,
                 message.SuggestedAnswer,
                 message.CreatedAt)).ToArray(),
-            contextSummary);
+            contextSummary,
+            responsePreferences);
 
-        var result = await aiProvider.ProcessAsync(request, cancellationToken);
+        var aiResponse = await aiProvider.ProcessAsync(request, cancellationToken);
+        var result = AiAssistantResponsePreferencesPolicy.Apply(
+            aiResponse,
+            command.InputKind,
+            responsePreferences);
         var now = timeProvider.GetUtcNow();
         var role = command.InputKind == AiInputKind.UserFormulationRequest
             ? MessageRole.User

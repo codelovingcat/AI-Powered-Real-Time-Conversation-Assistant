@@ -8,7 +8,7 @@ namespace Conversa.Infrastructure.Ai.Gemini;
 
 internal static class GeminiPromptBuilder
 {
-    public const string PromptVersion = "conversa-gemini-v3";
+    public const string PromptVersion = "conversa-gemini-v4";
 
     public static string BuildSystemInstruction(AiConversationRequest request)
     {
@@ -52,6 +52,10 @@ internal static class GeminiPromptBuilder
             - Preserve ambiguity when the context does not resolve tone or intent; do not invent an addressee or hidden meaning.
             - When tone or addressee is ambiguous, prefer a neutral translation and no suggested reply unless the intent rules explicitly authorize one.
 
+            User-selected assistance preferences:
+            Follow these preferences where they do not conflict with the active trusted conversation instruction or security rules.
+            {BuildPreferenceInstructions(request.Preferences ?? AssistantResponsePreferences.Default)}
+
             Field meaning:
             - original: the latest input, cleaned only for obvious recognition noise. Do not replace it with a paraphrase.
             - translation: the natural rendering in {request.TargetLanguage}. This is the target-language text, not a field locked to Turkish.
@@ -91,6 +95,36 @@ internal static class GeminiPromptBuilder
             Return one valid JSON object only, with these exact field names: type, original, translation, explanation, suggestedAnswer, suggestedAnswerTranslation, questionDetected, questionDirectedAtUser, intent.
             Use only the enumerated values for type and intent, booleans for the question flags, and null for empty optional text fields. Do not wrap the JSON in Markdown fences or add commentary outside the object.
             """;
+    }
+
+    private static string BuildPreferenceInstructions(AssistantResponsePreferences preferences)
+    {
+        var responseLength = preferences.ResponseLength switch
+        {
+            "concise" => "- Response length: concise. Use the shortest complete phrasing; never omit meaningful details.",
+            "detailed" => "- Response length: detailed. Include helpful nuance when it matters, but avoid repetition and unrelated commentary.",
+            _ => "- Response length: balanced. Keep the answer focused and include context only when it helps."
+        };
+
+        var tone = preferences.Tone switch
+        {
+            "casual" => "- Tone: casual. Use natural, conversational wording without forced slang.",
+            "formal" => "- Tone: formal. Use respectful, polished wording without changing the speaker's intent or emotional intensity.",
+            _ => "- Tone: contextual. Match the register and tone of the source and trusted conversation instruction."
+        };
+
+        var explanation = preferences.ExplanationLevel switch
+        {
+            "minimal" => "- Explanation detail: minimal. Omit explanations unless a brief note is necessary to avoid losing important meaning.",
+            "detailed" => "- Explanation detail: detailed. When a nuance, idiom, or cultural reference matters, explain it clearly but stay relevant.",
+            _ => "- Explanation detail: balanced. Add a brief explanation only when it contributes meaning beyond the translation."
+        };
+
+        var suggestions = preferences.SuggestReplies
+            ? "- Suggested replies: provide them only when the trusted instruction and intent classification authorize a reply."
+            : "- Suggested replies: do not generate suggested replies for heard speech; keep both suggested-answer fields empty. This does not suppress explicit user formulation requests.";
+
+        return string.Join(Environment.NewLine, responseLength, tone, explanation, suggestions);
     }
 
     public static string BuildUserPrompt(AiConversationRequest request)

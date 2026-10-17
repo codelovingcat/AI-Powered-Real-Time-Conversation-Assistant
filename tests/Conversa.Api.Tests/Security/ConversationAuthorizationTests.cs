@@ -14,4 +14,14 @@ public sealed class ConversationAuthorizationTests
 
         Assert.NotNull(attribute);
     }
+
+    [Fact]
+    public void AssistantPreferencesController_RequiresAuthentication()
+    {
+        var attribute = Attribute.GetCustomAttribute(
+            typeof(AssistantPreferencesController),
+            typeof(AuthorizeAttribute));
+
+        Assert.NotNull(attribute);
+    }
 }

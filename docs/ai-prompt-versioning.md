@@ -7,6 +7,7 @@ Conversa records prompt versions so a stored AI response can be tied to the inst
 - `conversa-gemini-v1` identifies the original conversation prompt contract.
 - `conversa-gemini-v2` adds explicit conversation-intent classification.
 - `conversa-gemini-v3` adds naturalness/register guidance and a clearer JSON-only output contract while preserving the structured response fields.
+- `conversa-gemini-v4` adds validated, user-selectable response length, tone, explanation detail, and suggested-reply preferences while preserving the structured response fields.
 - `conversa-summary-v1` identifies the bounded older-context summarization prompt.
 
 When changing semantic instructions, field meanings, the structured output contract, or prompt context sections, review the synthetic regression cases and deliberately decide whether the version should increment. Operational-only provider changes do not automatically require a version change.
