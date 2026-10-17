@@ -10,6 +10,9 @@ export function LoginPage() {
   const authError =
     state.status === "unauthenticated" ? state.error : null;
   const error = dismissedError ? null : authError;
+  const isCredentialError =
+    error === "The access token is invalid or expired." ||
+    error === "Authentication could not be completed. Check the token and try again.";
   const notice =
     state.status === "unauthenticated" ? state.notice : null;
 
@@ -69,7 +72,7 @@ export function LoginPage() {
             spellCheck={false}
             placeholder="Paste your access token"
             aria-describedby={error ? "access-token-help auth-error" : "access-token-help"}
-            aria-invalid={Boolean(error)}
+            aria-invalid={isCredentialError}
             required
             disabled={isSubmitting}
           />
@@ -80,6 +83,7 @@ export function LoginPage() {
           <button
             className="primary-button"
             type="submit"
+            aria-busy={isSubmitting}
             disabled={isSubmitting || !token.trim()}
           >
             {isSubmitting ? "Signing in…" : "Sign in"}
