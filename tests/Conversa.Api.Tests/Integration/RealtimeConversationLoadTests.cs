@@ -124,6 +124,10 @@ public sealed class RealtimeConversationLoadTests(ITestOutputHelper output)
                 "tr",
                 DateTimeOffset.UtcNow))
             .ToArray();
+        foreach (var conversation in conversations)
+        {
+            conversation.Start(DateTimeOffset.UtcNow);
+        }
 
         var conversationRepository = new ConcurrentConversationRepository(conversations);
         var speechFactory = new ConcurrentSyntheticSpeechSessionFactory(sessionCount);
