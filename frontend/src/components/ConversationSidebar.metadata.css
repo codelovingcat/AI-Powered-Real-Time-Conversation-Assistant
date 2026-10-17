@@ -65,3 +65,91 @@
 }
 
 .conversation-rename-actions .text-button { min-height: 34px; }
+
+
+.delete-confirmation-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  padding: 20px;
+  background: rgba(3, 9, 18, 0.82);
+  backdrop-filter: blur(10px);
+}
+
+.delete-confirmation-dialog {
+  width: min(460px, 100%);
+  padding: clamp(22px, 4vw, 30px);
+  border: 1px solid rgba(255, 143, 143, 0.2);
+  border-radius: 20px;
+  color: #e8eef8;
+  background: #0c192c;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.48);
+}
+
+.delete-confirmation-dialog h2 {
+  margin: 8px 0 0;
+  font-size: 1.45rem;
+  line-height: 1.25;
+}
+
+.delete-confirmation-dialog > p:not(.sidebar-eyebrow) {
+  margin: 16px 0 0;
+  color: #aebbd0;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.delete-confirmation-dialog > p strong {
+  color: #f0f4fb;
+}
+
+.delete-confirmation-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.delete-confirmation-actions .ghost-button,
+.delete-confirmation-actions .danger-button {
+  min-height: 42px;
+  padding: 0 13px;
+  font-size: 0.78rem;
+}
+
+.danger-button {
+  border: 1px solid rgba(255, 143, 143, 0.24);
+  border-radius: 12px;
+  color: #ffd4d4;
+  background: rgba(255, 143, 143, 0.12);
+  font-weight: 700;
+}
+
+.danger-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.delete-confirmation-error {
+  margin: 14px 0 0;
+  color: #ffb7b7;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 460px) {
+  .delete-confirmation-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .delete-confirmation-actions > button {
+    width: 100%;
+  }
+}

@@ -52,6 +52,7 @@ export function ConversationSidebar({
   const [isReloading, setIsReloading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDeleteConversation, setPendingDeleteConversation] = useState<ConversationSummary | null>(null);
   const [isLoadingTitleId, setIsLoadingTitleId] = useState<string | null>(null);
   const [editingConversation, setEditingConversation] = useState<ConversationSummary | null>(null);
   const [titleDraft, setTitleDraft] = useState("");
@@ -111,6 +112,19 @@ export function ConversationSidebar({
   useEffect(() => {
     void loadConversations({});
   }, [loadConversations]);
+
+  useEffect(() => {
+    if (!pendingDeleteConversation || deletingId) return;
+
+    function handleDialogKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setPendingDeleteConversation(null);
+      }
+    }
+
+    window.addEventListener("keydown", handleDialogKeyDown);
+    return () => window.removeEventListener("keydown", handleDialogKeyDown);
+  }, [pendingDeleteConversation, deletingId]);
 
   const sortedConversations = conversations;
   const hasActiveFilters = Boolean(
@@ -253,10 +267,14 @@ export function ConversationSidebar({
     }
   }
 
-  async function handleDelete(conversation: ConversationSummary) {
-    if (!window.confirm(`Delete "${conversation.title}"?`)) {
-      return;
-    }
+  function handleDelete(conversation: ConversationSummary) {
+    setError(null);
+    setPendingDeleteConversation(conversation);
+  }
+
+  async function handleConfirmDelete() {
+    const conversation = pendingDeleteConversation;
+    if (!conversation || deletingId) return;
 
     setDeletingId(conversation.id);
     setError(null);
@@ -266,11 +284,17 @@ export function ConversationSidebar({
       setConversations((current) =>
         current.filter((item) => item.id !== conversation.id)
       );
+      setEditingConversation((current) =>
+        current?.id === conversation.id ? null : current
+      );
 
       if (activeConversationId === conversation.id) {
         onSelect(null);
       }
+
+      setPendingDeleteConversation(null);
     } catch (deleteError) {
+      // Keep the confirmation open so a transient/network failure can be retried.
       setError(getConversationErrorMessage(deleteError));
     } finally {
       setDeletingId(null);
@@ -520,6 +544,49 @@ export function ConversationSidebar({
           </>
         )}
       </div>
+
+      {pendingDeleteConversation && (
+        <div className="delete-confirmation-backdrop">
+          <section
+            className="delete-confirmation-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-confirmation-title"
+            aria-describedby="delete-confirmation-description"
+          >
+            <p className="sidebar-eyebrow">PERMANENT ACTION</p>
+            <h2 id="delete-confirmation-title">Delete conversation?</h2>
+            <p id="delete-confirmation-description">
+              <strong>{pendingDeleteConversation.title}</strong> and its saved messages
+              and generated conversation summary will be permanently deleted. This
+              cannot be undone.
+            </p>
+            {error && (
+              <p className="delete-confirmation-error" role="alert">{error}</p>
+            )}
+            <div className="delete-confirmation-actions">
+              <button
+                className="ghost-button"
+                type="button"
+                autoFocus
+                onClick={() => setPendingDeleteConversation(null)}
+                disabled={deletingId !== null}
+              >
+                Cancel
+              </button>
+              <button
+                className="danger-button"
+                type="button"
+                onClick={() => void handleConfirmDelete()}
+                disabled={deletingId !== null}
+                aria-busy={deletingId !== null}
+              >
+                {deletingId !== null ? "Deleting…" : "Delete permanently"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </aside>
   );
 }

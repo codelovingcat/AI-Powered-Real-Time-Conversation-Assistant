@@ -164,3 +164,8 @@ See [conversation-lifecycle.md](../docs/conversation-lifecycle.md) for the persi
 ## P45 — Conversation title and metadata management
 
 See docs/conversation-metadata.md for owner-scoped title editing, localised created/updated timestamps, the 200-character title limit, and optimistic updates with safe rollback/reload behaviour when a save fails or a concurrent update is detected.
+
+
+## P46 — Delete and data-retention controls
+
+See [conversation-deletion-retention.md](../docs/conversation-deletion-retention.md) for the explicit delete confirmation, idempotent owner-scoped DELETE contract, database cascades for messages and generated summaries, and the boundary between live data and infrastructure backup retention.

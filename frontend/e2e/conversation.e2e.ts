@@ -1,5 +1,36 @@
 import { expect, test } from "./fixtures/authenticated";
 
+test("requires confirmation before deleting a conversation and removes its saved data from history", async ({
+  authenticatedPage: page
+}) => {
+  const title = "Delete conversation E2E";
+
+  await page.getByRole("button", { name: "New conversation" }).click();
+  await page.getByLabel("Title").fill(title);
+  await page.getByRole("button", { name: "Create conversation" }).click();
+  await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
+
+  const row = page.locator(".conversation-item").filter({ hasText: title });
+  await row.getByRole("button", { name: "Delete " + title }).click();
+  const dialog = page.getByRole("alertdialog", { name: "Delete conversation?" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText(/saved messages and generated conversation summary/)).toBeVisible();
+
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(row).toBeVisible();
+
+  await row.getByRole("button", { name: "Delete " + title }).click();
+  await expect(dialog).toBeVisible();
+  const deleteResponse = page.waitForResponse((response) =>
+    response.url().includes("/api/conversations/") && response.request().method() === "DELETE"
+  );
+  await dialog.getByRole("button", { name: "Delete permanently" }).click();
+  expect((await deleteResponse).status()).toBe(204);
+  await expect(row).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Select a conversation" })).toBeVisible();
+});
+
 test("renames a conversation and displays created and updated timestamps", async ({
   authenticatedPage: page
 }) => {
