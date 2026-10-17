@@ -1,5 +1,6 @@
 using Conversa.Application.Ai;
 using Conversa.Application.Common;
+using Conversa.Domain.Conversations;
 
 namespace Conversa.Infrastructure.Ai.Gemini;
 
