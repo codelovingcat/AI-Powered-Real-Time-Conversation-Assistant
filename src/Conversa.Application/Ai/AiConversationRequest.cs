@@ -7,4 +7,5 @@ public sealed record AiConversationRequest(
     string InputText,
     AiInputKind InputKind,
     IReadOnlyList<AiConversationTurn> RecentTurns,
-    string? ContextSummary = null);
+    string? ContextSummary = null,
+    AssistantResponsePreferences? Preferences = null);
