@@ -8,7 +8,7 @@ namespace Conversa.Infrastructure.Ai.Gemini;
 
 internal static class GeminiPromptBuilder
 {
-    public const string PromptVersion = "conversa-gemini-v1";
+    public const string PromptVersion = "conversa-gemini-v2";
 
     public static string BuildSystemInstruction(AiConversationRequest request)
     {
@@ -48,10 +48,29 @@ internal static class GeminiPromptBuilder
             - suggestedAnswerTranslation: the {request.TargetLanguage} meaning of suggestedAnswer, or empty.
             - questionDetected / questionDirectedAtUser: honest flags. If the instruction forbids question detection, set both to false.
 
+            Classify the utterance with exactly one intent value:
+            statement, question_directed_at_user, question_directed_at_others,
+            rhetorical_question, request_directed_at_user, request_directed_at_others,
+            user_formulation_request, ambiguous.
+            - statement: ordinary narration or information, not seeking a reply.
+            - question_directed_at_user: a genuine question clearly asked of the user.
+            - question_directed_at_others: a question clearly addressed to someone else.
+            - rhetorical_question: a rhetorical or general question not seeking the user's reply.
+            - request_directed_at_user: a clear request addressed to the user.
+            - request_directed_at_others: a request clearly aimed at someone else.
+            - user_formulation_request: only when input_kind is userFormulationRequest.
+            - ambiguous: use when the addressee or communicative intent is genuinely unclear.
+            Do not infer that a question is directed at the user just because it contains "you" or a question mark.
+            Only question_directed_at_user and request_directed_at_user may preserve a suggested reply,
+            and only when the trusted conversation instruction permits it. User formulation is the separate
+            exception. For statement, question_directed_at_others, rhetorical_question, request_directed_at_others,
+            or ambiguous, return no suggested answer. Ambiguous intent must use a neutral translation-only
+            result if translation is available, with both question flags false. Keep flags consistent with intent.
+
             Set type to one of: translation, question, answer, instruction.
             - translation: translate and optionally explain, with no suggested reply.
-            - question: a question directed at the user is the focus.
-            - answer: the primary output is a suggested reply.
+            - question: a genuine question directed at the user is the focus.
+            - answer: the primary output is a suggested reply to a user-directed request.
             - instruction: the user asked you to formulate speech.
             """;
     }

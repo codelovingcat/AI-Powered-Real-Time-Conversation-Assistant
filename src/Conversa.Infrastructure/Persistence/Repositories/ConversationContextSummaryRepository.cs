@@ -74,8 +74,7 @@ internal sealed class ConversationContextSummaryRepository(AppDbContext db)
         DateTimeOffset throughCreatedAt,
         Guid throughMessageId,
         DateTimeOffset updatedAt,
-        CancellationToken cancellationToken,
-        string promptVersion = "unknown")
+        CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(summary);
         var normalizedSummary = summary.Trim();
@@ -105,8 +104,7 @@ internal sealed class ConversationContextSummaryRepository(AppDbContext db)
                 normalizedSummary,
                 throughCreatedAt,
                 throughMessageId,
-                updatedAt,
-                promptVersion);
+                updatedAt);
             db.ConversationContextSummaries.Add(record);
 
             try
@@ -142,7 +140,6 @@ internal sealed class ConversationContextSummaryRepository(AppDbContext db)
                     .SetProperty(record => record.ThroughCreatedAt, throughCreatedAt)
                     .SetProperty(record => record.ThroughMessageId, throughMessageId)
                     .SetProperty(record => record.UpdatedAt, updatedAt)
-                    .SetProperty(record => record.PromptVersion, promptVersion)
                     .SetProperty(record => record.Revision, record => record.Revision + 1),
                 cancellationToken);
 

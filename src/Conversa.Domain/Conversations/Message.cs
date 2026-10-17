@@ -37,6 +37,9 @@ public sealed class Message
 
     public string? PromptVersion { get; private set; }
 
+    /// <summary>Semantic intent for this utterance; null on legacy rows.</summary>
+    public ConversationIntent? Intent { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     public static Message CreateFromAssistant(
@@ -52,7 +55,8 @@ public sealed class Message
         bool questionDirectedAtUser,
         string providerName,
         DateTimeOffset now,
-        string? promptVersion = null)
+        string? promptVersion = null,
+        ConversationIntent? intent = null)
     {
         if (conversationId == Guid.Empty)
         {
@@ -79,6 +83,7 @@ public sealed class Message
             QuestionDirectedAtUser = questionDirectedAtUser,
             ProviderName = NormalizeProvider(providerName),
             PromptVersion = NormalizePromptVersion(promptVersion),
+            Intent = intent,
             CreatedAt = now
         };
     }

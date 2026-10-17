@@ -3,19 +3,15 @@ namespace Conversa.Domain.Conversations;
 public sealed class ConversationContextSummary
 {
     public const int SummaryMaxLength = 8_000;
-    public const int PromptVersionMaxLength = 64;
 
     private ConversationContextSummary()
     {
         Summary = string.Empty;
-        PromptVersion = "unknown";
     }
 
     public Guid ConversationId { get; private set; }
 
     public string Summary { get; private set; }
-
-    public string PromptVersion { get; private set; }
 
     /// <summary>The last transcript message represented by this summary.</summary>
     public DateTimeOffset ThroughCreatedAt { get; private set; }
@@ -32,8 +28,7 @@ public sealed class ConversationContextSummary
         string summary,
         DateTimeOffset throughCreatedAt,
         Guid throughMessageId,
-        DateTimeOffset updatedAt,
-        string promptVersion = "unknown")
+        DateTimeOffset updatedAt)
     {
         if (conversationId == Guid.Empty)
         {
@@ -54,18 +49,10 @@ public sealed class ConversationContextSummary
                 nameof(summary));
         }
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(promptVersion);
-        var normalizedVersion = promptVersion.Trim();
-        if (normalizedVersion.Length > PromptVersionMaxLength)
-        {
-            throw new ArgumentException("Prompt version is too long.", nameof(promptVersion));
-        }
-
         return new ConversationContextSummary
         {
             ConversationId = conversationId,
             Summary = normalizedSummary,
-            PromptVersion = normalizedVersion,
             ThroughCreatedAt = throughCreatedAt,
             ThroughMessageId = throughMessageId,
             UpdatedAt = updatedAt,

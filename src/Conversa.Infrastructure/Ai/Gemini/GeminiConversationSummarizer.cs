@@ -21,10 +21,6 @@ internal sealed class GeminiConversationSummarizer(
     IOptions<GeminiOptions> options,
     ILogger<GeminiConversationSummarizer> logger) : IConversationSummarizer
 {
-    public const string PromptVersionValue = "conversa-summary-v1";
-
-    public string PromptVersion => PromptVersionValue;
-
     private const int MaxAttempts = 2;
     private const int MaxSummaryPromptCharacters = 48_000;
     private const int MaxInstructionCharacters = 1_000;
@@ -44,8 +40,6 @@ internal sealed class GeminiConversationSummarizer(
     {
         var stopwatch = Stopwatch.StartNew();
         var outcome = "error";
-        using var activity = ConversaTelemetry.ActivitySource.StartActivity("conversa.ai.summarize");
-        activity?.SetTag("conversa.prompt.version", PromptVersion);
         try
         {
             var summary = await SummarizeCoreAsync(
@@ -62,15 +56,6 @@ internal sealed class GeminiConversationSummarizer(
         {
             stopwatch.Stop();
             var tags = ConversaTelemetry.Tags("gemini", "summarize", outcome);
-            activity?.SetTag("conversa.outcome", outcome);
-            if (outcome == "success")
-            {
-                activity?.SetStatus(ActivityStatusCode.Ok);
-            }
-            else
-            {
-                activity?.SetStatus(ActivityStatusCode.Error, outcome);
-            }
             ConversaTelemetry.AiSummaryRequests.Add(1, tags);
             ConversaTelemetry.AiSummaryDuration.Record(stopwatch.Elapsed.TotalMilliseconds, tags);
         }

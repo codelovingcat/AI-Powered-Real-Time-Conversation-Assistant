@@ -39,6 +39,7 @@ internal static class GeminiResponseParser
         var suggestedAnswerTranslation = OptionalString(root, "suggestedAnswerTranslation");
         var questionDetected = OptionalBool(root, "questionDetected");
         var questionDirectedAtUser = OptionalBool(root, "questionDirectedAtUser");
+        var intent = ParseIntent(root, type, questionDetected, questionDirectedAtUser, suggestedAnswer);
 
         if (string.IsNullOrWhiteSpace(translation) && string.IsNullOrWhiteSpace(suggestedAnswer))
         {
@@ -53,7 +54,8 @@ internal static class GeminiResponseParser
             suggestedAnswer,
             suggestedAnswerTranslation,
             questionDetected,
-            questionDirectedAtUser);
+            questionDirectedAtUser,
+            Intent: intent);
     }
 
     private static string ExtractCandidateText(JsonElement root)
@@ -100,6 +102,48 @@ internal static class GeminiResponseParser
         }
 
         return combined;
+    }
+
+
+    private static ConversationIntent ParseIntent(
+        JsonElement root,
+        AiResponseType type,
+        bool questionDetected,
+        bool questionDirectedAtUser,
+        string? suggestedAnswer)
+    {
+        if (!root.TryGetProperty("intent", out var property))
+        {
+            // Compatibility with older responses is conservative: legacy suggestions
+            // without explicit intent are not assumed to be directed at the user.
+            if (type == AiResponseType.Instruction)
+                return ConversationIntent.UserFormulationRequest;
+            if (questionDetected)
+                return questionDirectedAtUser
+                    ? ConversationIntent.QuestionDirectedAtUser
+                    : ConversationIntent.QuestionDirectedAtOthers;
+            if (type == AiResponseType.Answer || !string.IsNullOrWhiteSpace(suggestedAnswer))
+                return ConversationIntent.Ambiguous;
+            return ConversationIntent.Statement;
+        }
+
+        if (property.ValueKind == JsonValueKind.Null)
+            return ConversationIntent.Ambiguous;
+        if (property.ValueKind != JsonValueKind.String)
+            throw new AiProviderException("Gemini field 'intent' was not a string.");
+
+        return property.GetString()?.Trim().ToLowerInvariant() switch
+        {
+            "statement" => ConversationIntent.Statement,
+            "question_directed_at_user" => ConversationIntent.QuestionDirectedAtUser,
+            "question_directed_at_others" => ConversationIntent.QuestionDirectedAtOthers,
+            "rhetorical_question" => ConversationIntent.RhetoricalQuestion,
+            "request_directed_at_user" => ConversationIntent.RequestDirectedAtUser,
+            "request_directed_at_others" => ConversationIntent.RequestDirectedAtOthers,
+            "user_formulation_request" => ConversationIntent.UserFormulationRequest,
+            "ambiguous" => ConversationIntent.Ambiguous,
+            _ => ConversationIntent.Ambiguous
+        };
     }
 
     private static AiResponseType ParseType(string value) => value.Trim().ToLowerInvariant() switch

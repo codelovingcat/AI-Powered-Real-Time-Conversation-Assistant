@@ -24,7 +24,7 @@ public sealed class PromptRegressionFixturesTests
             root.GetProperty("promptVersion").GetString());
 
         var cases = root.GetProperty("cases").EnumerateArray().ToArray();
-        Assert.Equal(4, cases.Length);
+        Assert.Equal(Enum.GetNames<ConversationIntent>().Length, cases.Select(item => item.GetProperty("intent").GetString()).Distinct().Count());
 
         foreach (var regressionCase in cases)
         {
@@ -80,6 +80,9 @@ public sealed class PromptRegressionFixturesTests
             Assert.Equal(
                 expectedResponse.GetProperty("type").GetString(),
                 parsed.Type.ToString().ToLowerInvariant());
+            Assert.Equal(
+                regressionCase.GetProperty("intent").GetString(),
+                ToFixtureIntent(parsed.Intent));
             Assert.Equal(expectedResponse.GetProperty("original").GetString(), parsed.Original);
             Assert.Equal(ReadNullableString(expectedResponse, "translation"), parsed.Translation);
             Assert.Equal(ReadNullableString(expectedResponse, "explanation"), parsed.Explanation);
@@ -95,6 +98,18 @@ public sealed class PromptRegressionFixturesTests
             Assert.False(string.IsNullOrWhiteSpace(id));
         }
     }
+
+    private static string ToFixtureIntent(ConversationIntent intent) => intent switch
+    {
+        ConversationIntent.Statement => "statement",
+        ConversationIntent.QuestionDirectedAtUser => "question_directed_at_user",
+        ConversationIntent.QuestionDirectedAtOthers => "question_directed_at_others",
+        ConversationIntent.RhetoricalQuestion => "rhetorical_question",
+        ConversationIntent.RequestDirectedAtUser => "request_directed_at_user",
+        ConversationIntent.RequestDirectedAtOthers => "request_directed_at_others",
+        ConversationIntent.UserFormulationRequest => "user_formulation_request",
+        _ => "ambiguous"
+    };
 
     private static string? ReadNullableString(JsonElement element, string propertyName)
     {

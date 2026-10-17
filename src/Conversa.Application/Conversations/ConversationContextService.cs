@@ -82,8 +82,7 @@ public sealed class ConversationContextService(
                 through.CreatedAt,
                 through.Id,
                 timeProvider.GetUtcNow(),
-                cancellationToken,
-                summarizer.PromptVersion);
+                cancellationToken);
 
             if (saved)
             {

@@ -16,4 +16,5 @@ public sealed record AiAssistantResponse(
     string? SuggestedAnswerTranslation,
     bool QuestionDetected,
     bool QuestionDirectedAtUser,
-    string? PromptVersion = null);
+    string? PromptVersion = null,
+    ConversationIntent Intent = ConversationIntent.Ambiguous);

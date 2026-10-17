@@ -28,6 +28,34 @@ public sealed class GeminiAiProviderTests
         Assert.False(result.QuestionDirectedAtUser);
     }
 
+
+    [Fact]
+    public async Task ProcessAsync_QuestionDirectedAtOtherPerson_SuppressesUnsolicitedAnswer()
+    {
+        const string modelJson =
+            "{\"type\":\"question\",\"intent\":\"question_directed_at_others\"," +
+            "\"original\":\"Maya, did you send the report?\"," +
+            "\"translation\":\"Maya, raporu gönderdin mi?\",\"explanation\":null," +
+            "\"suggestedAnswer\":\"Not my issue.\",\"suggestedAnswerTranslation\":\"Benim sorunum değil.\"," +
+            "\"questionDetected\":true,\"questionDirectedAtUser\":false}";
+        var handler = new DelegateHandler((_, _) => Task.FromResult(
+            JsonResponse(HttpStatusCode.OK, SuccessResponse(modelJson))));
+        using var client = new HttpClient(handler);
+        var provider = CreateProvider(client, new TestLogger<GeminiAiProvider>(), maxRetries: 0);
+
+        var result = await provider.ProcessAsync(
+            CreateRequest() with { InputText = "Maya, did you send the report?" },
+            CancellationToken.None);
+
+        Assert.Equal(ConversationIntent.QuestionDirectedAtOthers, result.Intent);
+        Assert.Equal(AiResponseType.Translation, result.Type);
+        Assert.True(result.QuestionDetected);
+        Assert.False(result.QuestionDirectedAtUser);
+        Assert.Null(result.SuggestedAnswer);
+        Assert.Null(result.SuggestedAnswerTranslation);
+        Assert.Equal("Maya, raporu gönderdin mi?", result.Translation);
+    }
+
     [Fact]
     public void Parser_MalformedModelJson_ThrowsProviderNeutralError()
     {

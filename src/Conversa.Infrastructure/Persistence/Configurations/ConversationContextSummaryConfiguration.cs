@@ -16,10 +16,6 @@ internal sealed class ConversationContextSummaryConfiguration
             .HasColumnType("text")
             .IsRequired();
 
-        builder.Property(summary => summary.PromptVersion)
-            .HasMaxLength(ConversationContextSummary.PromptVersionMaxLength)
-            .IsRequired();
-
         builder.Property(summary => summary.ThroughCreatedAt).IsRequired();
         builder.Property(summary => summary.ThroughMessageId).IsRequired();
         builder.Property(summary => summary.UpdatedAt).IsRequired();

@@ -43,7 +43,6 @@ public sealed class ConversationContextServiceTests
         Assert.Equal(pending[^1].Id, repository.Current!.ThroughMessageId);
         Assert.Equal(pending[^1].CreatedAt, repository.Current.ThroughCreatedAt);
         Assert.Equal("Compact durable summary", repository.Current.Summary);
-        Assert.Equal(summarizer.PromptVersion, repository.Current.PromptVersion);
     }
 
     [Fact]
@@ -192,8 +191,7 @@ public sealed class ConversationContextServiceTests
             DateTimeOffset throughCreatedAt,
             Guid throughMessageId,
             DateTimeOffset updatedAt,
-            CancellationToken cancellationToken,
-            string promptVersion = "unknown")
+            CancellationToken cancellationToken)
         {
             SaveCount++;
             LastConversationId = conversationId;
@@ -216,15 +214,13 @@ public sealed class ConversationContextServiceTests
                 summary,
                 throughCreatedAt,
                 throughMessageId,
-                updatedAt,
-                promptVersion);
+                updatedAt);
             return Task.FromResult(true);
         }
     }
 
     private sealed class FakeSummarizer(string? result = null, Exception? failure = null) : IConversationSummarizer
     {
-        public string PromptVersion => "conversa-summary-test-v1";
         public int CallCount { get; private set; }
         public string? PreviousSummary { get; private set; }
         public string? ActiveInstruction { get; private set; }

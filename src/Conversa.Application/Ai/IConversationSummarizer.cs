@@ -6,8 +6,6 @@ namespace Conversa.Application.Ai;
 /// </summary>
 public interface IConversationSummarizer
 {
-    string PromptVersion { get; }
-
     Task<string> SummarizeAsync(
         string activeInstruction,
         string sourceLanguage,
