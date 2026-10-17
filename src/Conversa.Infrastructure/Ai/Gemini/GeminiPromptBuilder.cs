@@ -1,6 +1,7 @@
 using System.Security;
 using System.Text;
 using Conversa.Application.Ai;
+using Conversa.Application.Common;
 using Conversa.Domain.Conversations;
 
 namespace Conversa.Infrastructure.Ai.Gemini;
@@ -98,6 +99,52 @@ internal static class GeminiPromptBuilder
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Builds the actual escaped prompt text and deterministically drops the oldest history turns
+    /// until the combined system/user prompt fits the configured character budget.
+    /// The active instruction and latest input are never truncated or silently discarded.
+    /// </summary>
+    internal static BoundedGeminiPrompt FitToBudget(
+        AiConversationRequest request,
+        int maxPromptCharacters)
+    {
+        if (maxPromptCharacters <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(maxPromptCharacters),
+                "The prompt character budget must be greater than zero.");
+        }
+
+        var remainingTurns = request.RecentTurns.ToArray();
+        var droppedTurns = 0;
+
+        while (true)
+        {
+            var candidate = request with { RecentTurns = remainingTurns };
+            var systemInstruction = BuildSystemInstruction(candidate);
+            var userPrompt = BuildUserPrompt(candidate);
+            var promptCharacters = systemInstruction.Length + userPrompt.Length;
+
+            if (promptCharacters <= maxPromptCharacters)
+            {
+                return new BoundedGeminiPrompt(
+                    systemInstruction,
+                    userPrompt,
+                    promptCharacters,
+                    remainingTurns.Length,
+                    droppedTurns);
+            }
+
+            if (remainingTurns.Length == 0)
+            {
+                throw new GeminiPromptBudgetExceededException();
+            }
+
+            remainingTurns = remainingTurns.Skip(1).ToArray();
+            droppedTurns++;
+        }
+    }
+
     private static string RoleLabel(MessageRole role) => role switch
     {
         MessageRole.Speaker => "speaker",
@@ -111,4 +158,19 @@ internal static class GeminiPromptBuilder
 
     private static string Truncate(string value)
         => value.Length <= 500 ? value : value[..500];
+}
+
+internal sealed record BoundedGeminiPrompt(
+    string SystemInstruction,
+    string UserPrompt,
+    int PromptCharacters,
+    int IncludedTurnCount,
+    int DroppedTurnCount);
+
+internal sealed class GeminiPromptBudgetExceededException : Exception
+{
+    public GeminiPromptBudgetExceededException()
+        : base("The current input exceeds the configured AI prompt budget.")
+    {
+    }
 }
