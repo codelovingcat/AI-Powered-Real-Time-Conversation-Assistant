@@ -33,6 +33,7 @@ public sealed class DeepgramWebSocketIntegrationTests
             "en",
             "tr",
             DateTimeOffset.UtcNow);
+        conversation.Start(DateTimeOffset.UtcNow);
 
         var session = new RecordingSpeechSession();
         var sessionOptions = new List<SpeechSessionOptions>();
