@@ -50,6 +50,7 @@ internal sealed class MessageRepository(AppDbContext db) : IMessageRepository
         var recent = await db.Messages
             .Where(message => message.ConversationId == conversationId)
             .OrderByDescending(message => message.CreatedAt)
+            .ThenByDescending(message => message.Id)
             .Take(take)
             .ToListAsync(cancellationToken);
 
