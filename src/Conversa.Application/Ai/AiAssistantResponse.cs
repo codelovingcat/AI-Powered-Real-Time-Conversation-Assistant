@@ -15,4 +15,5 @@ public sealed record AiAssistantResponse(
     string? SuggestedAnswer,
     string? SuggestedAnswerTranslation,
     bool QuestionDetected,
-    bool QuestionDirectedAtUser);
+    bool QuestionDirectedAtUser,
+    string? PromptVersion = null);

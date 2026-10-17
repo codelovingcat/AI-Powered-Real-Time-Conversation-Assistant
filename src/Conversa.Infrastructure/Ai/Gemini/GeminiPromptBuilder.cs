@@ -8,6 +8,8 @@ namespace Conversa.Infrastructure.Ai.Gemini;
 
 internal static class GeminiPromptBuilder
 {
+    // Bump AiPromptVersions.Assistant whenever this prompt contract changes.
+    public const string PromptVersion = AiPromptVersions.Assistant;
     public static string BuildSystemInstruction(AiConversationRequest request)
     {
         return $"""

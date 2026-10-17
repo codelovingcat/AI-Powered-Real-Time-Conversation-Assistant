@@ -23,6 +23,9 @@ internal sealed class ConversationContextSummaryConfiguration
             .IsRequired()
             .IsConcurrencyToken();
 
+        builder.Property(summary => summary.PromptVersion)
+            .HasMaxLength(ConversationContextSummary.PromptVersionMaxLength);
+
         builder.HasOne<Conversation>()
             .WithMany()
             .HasForeignKey(summary => summary.ConversationId)

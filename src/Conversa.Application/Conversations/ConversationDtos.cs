@@ -25,7 +25,8 @@ public sealed record MessageDto(
     bool QuestionDetected,
     bool QuestionDirectedAtUser,
     string? ProviderName,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string? PromptVersion = null);
 
 public static class ConversationMappings
 {
@@ -54,5 +55,6 @@ public static class ConversationMappings
             message.QuestionDetected,
             message.QuestionDirectedAtUser,
             message.ProviderName,
-            message.CreatedAt);
+            message.CreatedAt,
+            message.PromptVersion);
 }

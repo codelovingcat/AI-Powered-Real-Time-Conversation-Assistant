@@ -82,7 +82,8 @@ public sealed class ConversationContextService(
                 through.CreatedAt,
                 through.Id,
                 timeProvider.GetUtcNow(),
-                cancellationToken);
+                cancellationToken,
+                promptVersion: AiPromptVersions.ContextSummary);
 
             if (saved)
             {

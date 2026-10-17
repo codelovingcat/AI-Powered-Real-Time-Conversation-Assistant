@@ -34,6 +34,7 @@ internal sealed class GeminiAiProvider(
         activity?.SetTag("conversa.provider", Name);
         activity?.SetTag("conversa.operation", "ai.process");
         activity?.SetTag("conversa.input_kind", request.InputKind.ToString());
+        activity?.SetTag("conversa.ai.prompt_version", GeminiPromptBuilder.PromptVersion);
 
         try
         {
@@ -90,9 +91,13 @@ internal sealed class GeminiAiProvider(
                 {
                     try
                     {
-                        var result = GeminiResponseParser.Parse(body);
+                        var result = GeminiResponseParser.Parse(body) with
+                        {
+                            PromptVersion = GeminiPromptBuilder.PromptVersion
+                        };
                         logger.LogInformation(
-                            "Gemini request succeeded on attempt {Attempt} in {ElapsedMilliseconds} ms.",
+                            "Gemini request succeeded with prompt version {PromptVersion} on attempt {Attempt} in {ElapsedMilliseconds} ms.",
+                            GeminiPromptBuilder.PromptVersion,
                             attempt,
                             stopwatch.ElapsedMilliseconds);
                         outcome = "success";

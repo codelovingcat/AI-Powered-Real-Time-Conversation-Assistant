@@ -353,12 +353,14 @@ public sealed class NeonDatabaseIntegrationTests(ITestOutputHelper output)
             throughCreatedAt: messages[0].CreatedAt,
             throughMessageId: messages[0].Id,
             updatedAt: now,
-            cancellationToken: CancellationToken.None));
+            cancellationToken: CancellationToken.None,
+            promptVersion: Conversa.Application.Ai.AiPromptVersions.ContextSummary));
 
         var ownerScoped = await repository.GetByConversationIdAsync(conversationA.Id, ownerA, CancellationToken.None);
         Assert.NotNull(ownerScoped);
         Assert.Equal(1, ownerScoped.Revision);
         Assert.Equal("Synthetic summary revision one", ownerScoped.Summary);
+        Assert.Equal(Conversa.Application.Ai.AiPromptVersions.ContextSummary, ownerScoped.PromptVersion);
         Assert.Null(await repository.GetByConversationIdAsync(conversationA.Id, ownerB, CancellationToken.None));
         Assert.Null(await repository.GetByConversationIdAsync(conversationB.Id, ownerA, CancellationToken.None));
 
@@ -390,7 +392,8 @@ public sealed class NeonDatabaseIntegrationTests(ITestOutputHelper output)
             throughCreatedAt: messages[1].CreatedAt,
             throughMessageId: messages[1].Id,
             updatedAt: now.AddMinutes(1),
-            cancellationToken: CancellationToken.None));
+            cancellationToken: CancellationToken.None,
+            promptVersion: Conversa.Application.Ai.AiPromptVersions.ContextSummary));
         Assert.False(await repository.TrySaveAsync(
             conversationA.Id,
             ownerA,
@@ -405,6 +408,7 @@ public sealed class NeonDatabaseIntegrationTests(ITestOutputHelper output)
         Assert.NotNull(latest);
         Assert.Equal(2, latest.Revision);
         Assert.Equal("Synthetic summary revision two", latest.Summary);
+        Assert.Equal(Conversa.Application.Ai.AiPromptVersions.ContextSummary, latest.PromptVersion);
         Assert.Equal(messages[1].Id, latest.ThroughMessageId);
         // This test intentionally leaves its unique synthetic rows uncommitted; disposing the
         // PostgreSQL transaction rolls them all back, including both summary revisions.

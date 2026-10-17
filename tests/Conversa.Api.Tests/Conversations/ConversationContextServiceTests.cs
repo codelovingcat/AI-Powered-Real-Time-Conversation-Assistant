@@ -43,6 +43,7 @@ public sealed class ConversationContextServiceTests
         Assert.Equal(pending[^1].Id, repository.Current!.ThroughMessageId);
         Assert.Equal(pending[^1].CreatedAt, repository.Current.ThroughCreatedAt);
         Assert.Equal("Compact durable summary", repository.Current.Summary);
+        Assert.Equal(AiPromptVersions.ContextSummary, repository.Current.PromptVersion);
     }
 
     [Fact]
@@ -191,7 +192,8 @@ public sealed class ConversationContextServiceTests
             DateTimeOffset throughCreatedAt,
             Guid throughMessageId,
             DateTimeOffset updatedAt,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            string? promptVersion = null)
         {
             SaveCount++;
             LastConversationId = conversationId;
@@ -214,7 +216,8 @@ public sealed class ConversationContextServiceTests
                 summary,
                 throughCreatedAt,
                 throughMessageId,
-                updatedAt);
+                updatedAt,
+                promptVersion);
             return Task.FromResult(true);
         }
     }

@@ -19,4 +19,7 @@
     <ProjectReference Include="..\..\src\Conversa.Api\Conversa.Api.csproj" />
     <ProjectReference Include="..\..\src\Conversa.Infrastructure\Conversa.Infrastructure.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="Gemini/Fixtures/assistant-regression.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

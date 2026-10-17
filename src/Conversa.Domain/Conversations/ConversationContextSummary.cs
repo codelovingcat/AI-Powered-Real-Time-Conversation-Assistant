@@ -3,6 +3,7 @@ namespace Conversa.Domain.Conversations;
 public sealed class ConversationContextSummary
 {
     public const int SummaryMaxLength = 8_000;
+    public const int PromptVersionMaxLength = 64;
 
     private ConversationContextSummary()
     {
@@ -23,12 +24,16 @@ public sealed class ConversationContextSummary
     /// <summary>Monotonically incremented to prevent an older concurrent refresh replacing newer context.</summary>
     public int Revision { get; private set; }
 
+    /// <summary>The prompt contract version that generated this summary; null means legacy/unversioned.</summary>
+    public string? PromptVersion { get; private set; }
+
     public static ConversationContextSummary Create(
         Guid conversationId,
         string summary,
         DateTimeOffset throughCreatedAt,
         Guid throughMessageId,
-        DateTimeOffset updatedAt)
+        DateTimeOffset updatedAt,
+        string? promptVersion = null)
     {
         if (conversationId == Guid.Empty)
         {
@@ -56,7 +61,24 @@ public sealed class ConversationContextSummary
             ThroughCreatedAt = throughCreatedAt,
             ThroughMessageId = throughMessageId,
             UpdatedAt = updatedAt,
-            Revision = 1
+            Revision = 1,
+            PromptVersion = NormalizePromptVersion(promptVersion)
         };
+    }
+
+    private static string? NormalizePromptVersion(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = value.Trim();
+        if (normalized.Length > PromptVersionMaxLength)
+        {
+            throw new ArgumentException("Prompt version is too long.", nameof(value));
+        }
+
+        return normalized;
     }
 }

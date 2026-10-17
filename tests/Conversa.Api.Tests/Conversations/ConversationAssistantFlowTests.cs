@@ -59,7 +59,8 @@ public sealed class ConversationAssistantFlowTests
             "Sure, I'd love some.",
             "Tabii, memnuniyetle.",
             QuestionDetected: true,
-            QuestionDirectedAtUser: true));
+            QuestionDirectedAtUser: true,
+            PromptVersion: AiPromptVersions.Assistant));
 
         var assistant = new ConversationAssistant(
             new TestCurrentUser(userId),
@@ -85,6 +86,7 @@ public sealed class ConversationAssistantFlowTests
         Assert.True(result.QuestionDirectedAtUser);
         Assert.Equal("Sure, I'd love some.", result.SuggestedAnswer);
         Assert.Equal("Tabii, memnuniyetle.", result.SuggestedAnswerTranslation);
+        Assert.Equal(AiPromptVersions.Assistant, result.PromptVersion);
 
         var request = Assert.Single(aiProvider.Requests);
         Assert.Equal(conversation.Instruction, request.Instruction);
@@ -103,6 +105,7 @@ public sealed class ConversationAssistantFlowTests
         Assert.Equal(conversation.Id, persisted.ConversationId);
         Assert.Equal(MessageRole.Speaker, persisted.Role);
         Assert.Equal("gemini", persisted.ProviderName);
+        Assert.Equal(AiPromptVersions.Assistant, persisted.PromptVersion);
         Assert.Equal(1, unitOfWork.SaveCalls);
         Assert.True(conversation.UpdatedAt >= now);
 

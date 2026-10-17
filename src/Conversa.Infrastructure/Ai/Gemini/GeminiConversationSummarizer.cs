@@ -28,6 +28,9 @@ internal sealed class GeminiConversationSummarizer(
     private const int MaxTurnFieldCharacters = 150;
     private const int TimeoutCapSeconds = 15;
 
+    // Bump AiPromptVersions.ContextSummary whenever these instructions/output rules change.
+    internal const string PromptVersion = AiPromptVersions.ContextSummary;
+
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<string> SummarizeAsync(
@@ -40,6 +43,9 @@ internal sealed class GeminiConversationSummarizer(
     {
         var stopwatch = Stopwatch.StartNew();
         var outcome = "error";
+        using var activity = ConversaTelemetry.ActivitySource.StartActivity("conversa.ai.summarize");
+        activity?.SetTag("conversa.provider", "gemini");
+        activity?.SetTag("conversa.ai.summary_prompt_version", PromptVersion);
         try
         {
             var summary = await SummarizeCoreAsync(
@@ -154,7 +160,12 @@ internal sealed class GeminiConversationSummarizer(
 
                 try
                 {
-                    return ParseSummary(body);
+                    var summary = ParseSummary(body);
+                    logger.LogInformation(
+                        "Gemini conversation summary succeeded with prompt version {PromptVersion} on attempt {Attempt}.",
+                        PromptVersion,
+                        attempt);
+                    return summary;
                 }
                 catch (AiProviderException exception) when (attempt < maxAttempts)
                 {

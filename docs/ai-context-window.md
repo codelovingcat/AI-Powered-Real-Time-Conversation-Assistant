@@ -51,3 +51,7 @@ Additional low-cardinality metrics:
 - conversa.ai.summary.requests and conversa.ai.summary.duration record outcome and latency including retries.
 - conversa.ai.summary.prompt.characters and conversa.ai.summary.input.turns record bounded input size without recording transcript text.
 - conversa.ai.context.summary_included indicates whether the stored summary survived final prompt budgeting.
+
+## Prompt versioning
+
+See [AI prompt versioning and regression fixtures](ai-prompt-versioning.md) for the required version bump policy and the synthetic regression suite.

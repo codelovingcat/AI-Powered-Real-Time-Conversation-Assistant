@@ -37,6 +37,7 @@ public sealed class GeminiConversationSummarizerTests
             CancellationToken.None);
 
         Assert.Equal("Compact summary of the older turns.", result);
+        Assert.Contains(logger.Messages, message => message.Contains(AiPromptVersions.ContextSummary, StringComparison.Ordinal));
         Assert.Equal(2, handler.RequestCount);
         Assert.Contains(logger.Messages, message => message.Contains("503", StringComparison.Ordinal));
         Assert.DoesNotContain(PrivateTranscript, string.Join(Environment.NewLine, logger.Messages), StringComparison.Ordinal);
