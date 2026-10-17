@@ -338,10 +338,18 @@ public sealed class NeonDatabaseIntegrationTests(ITestOutputHelper output)
                 false,
                 false,
                 "summary-ownership-test",
-                now.AddMinutes(-3 + index)))
+                now.AddMinutes(-3 + index),
+                "conversa-gemini-test-v1"))
             .ToArray();
         await db.Messages.AddRangeAsync(messages);
         await db.SaveChangesAsync();
+
+        Assert.All(
+            await db.Messages.AsNoTracking()
+                .Where(message => message.ConversationId == conversationA.Id)
+                .Select(message => message.PromptVersion)
+                .ToArrayAsync(),
+            version => Assert.Equal("conversa-gemini-test-v1", version));
 
         var repository = new ConversationContextSummaryRepository(db);
         Assert.Null(await repository.GetByConversationIdAsync(conversationA.Id, ownerB, CancellationToken.None));
@@ -353,7 +361,8 @@ public sealed class NeonDatabaseIntegrationTests(ITestOutputHelper output)
             throughCreatedAt: messages[0].CreatedAt,
             throughMessageId: messages[0].Id,
             updatedAt: now,
-            cancellationToken: CancellationToken.None));
+            cancellationToken: CancellationToken.None,
+            promptVersion: "conversa-summary-test-v1"));
 
         var ownerScoped = await repository.GetByConversationIdAsync(conversationA.Id, ownerA, CancellationToken.None);
         Assert.NotNull(ownerScoped);
@@ -390,7 +399,8 @@ public sealed class NeonDatabaseIntegrationTests(ITestOutputHelper output)
             throughCreatedAt: messages[1].CreatedAt,
             throughMessageId: messages[1].Id,
             updatedAt: now.AddMinutes(1),
-            cancellationToken: CancellationToken.None));
+            cancellationToken: CancellationToken.None,
+            promptVersion: "conversa-summary-test-v1"));
         Assert.False(await repository.TrySaveAsync(
             conversationA.Id,
             ownerA,
@@ -405,6 +415,7 @@ public sealed class NeonDatabaseIntegrationTests(ITestOutputHelper output)
         Assert.NotNull(latest);
         Assert.Equal(2, latest.Revision);
         Assert.Equal("Synthetic summary revision two", latest.Summary);
+        Assert.Equal("conversa-summary-test-v1", latest.PromptVersion);
         Assert.Equal(messages[1].Id, latest.ThroughMessageId);
         // This test intentionally leaves its unique synthetic rows uncommitted; disposing the
         // PostgreSQL transaction rolls them all back, including both summary revisions.

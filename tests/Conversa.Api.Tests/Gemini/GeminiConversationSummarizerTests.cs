@@ -27,6 +27,7 @@ public sealed class GeminiConversationSummarizerTests
         using var client = new HttpClient(handler);
         var logger = new TestLogger<GeminiConversationSummarizer>();
         var summarizer = CreateSummarizer(client, logger, maxRetries: 3);
+        Assert.Equal(GeminiConversationSummarizer.PromptVersionValue, summarizer.PromptVersion);
 
         var result = await summarizer.SummarizeAsync(
             "Keep the active instruction.",

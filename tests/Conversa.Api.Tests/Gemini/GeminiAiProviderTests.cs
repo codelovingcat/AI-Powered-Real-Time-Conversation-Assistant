@@ -63,6 +63,7 @@ public sealed class GeminiAiProviderTests
         var result = await provider.ProcessAsync(CreateRequest(), CancellationToken.None);
 
         Assert.Equal("Merhaba.", result.Translation);
+        Assert.Equal(GeminiPromptBuilder.PromptVersion, result.PromptVersion);
         Assert.Equal(2, handler.RequestCount);
         Assert.Contains(logger.Messages, message => message.Contains("status 429", StringComparison.Ordinal));
     }

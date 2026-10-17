@@ -35,5 +35,6 @@ public interface IConversationContextSummaryRepository
         DateTimeOffset throughCreatedAt,
         Guid throughMessageId,
         DateTimeOffset updatedAt,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        string promptVersion = "unknown");
 }
