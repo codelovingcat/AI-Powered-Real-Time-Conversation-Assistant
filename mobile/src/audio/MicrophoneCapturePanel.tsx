@@ -115,7 +115,7 @@ export function MicrophoneCapturePanel() {
             accessibilityRole="button"
             accessibilityLabel={actionLabel}
             style={[styles.button, busy && styles.disabled]}
-            disabled={busy || state.permission === "unknown" || state.phase === "error" && state.permission === "unknown"}
+            disabled={busy || state.permission === "unknown"}
             onPress={onPress}
           >
             <Text style={styles.buttonText}>{actionLabel}</Text>
