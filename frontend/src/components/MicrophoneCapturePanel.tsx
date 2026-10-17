@@ -409,6 +409,7 @@ export function MicrophoneCapturePanel({
   }
 
   const lifecycleIsCompleted = lifecycleState === "completed";
+  const noConversationSelected = !conversationId;
   const startDisabled =
     !conversationId ||
     lifecycleIsCompleted ||
@@ -417,8 +418,10 @@ export function MicrophoneCapturePanel({
     status === "reconnecting" ||
     status === "capturing" ||
     status === "finishing";
-  const statusLabel = lifecycleIsCompleted
-    ? "Finished"
+  const statusLabel = noConversationSelected
+    ? "Select a conversation"
+    : lifecycleIsCompleted
+      ? "Finished"
     : status === "connecting"
       ? "Connecting…"
       : status === "reconnecting"
@@ -480,8 +483,10 @@ export function MicrophoneCapturePanel({
       )}
 
       <p className="microphone-description">
-        {lifecycleIsCompleted
-          ? "This conversation is finished. Its messages remain available in history."
+        {noConversationSelected
+          ? "Select a conversation to start, pause, resume, or finish its live session."
+          : lifecycleIsCompleted
+            ? "This conversation is finished. Its messages remain available in history."
           : lifecycleState === "paused"
             ? "Recording is paused and the microphone has been released. Resume when you're ready."
             : lifecycleState === "ready"
@@ -497,7 +502,7 @@ export function MicrophoneCapturePanel({
       </div>
 
       <div className="microphone-actions">
-        {!lifecycleIsCompleted && (
+        {!noConversationSelected && !lifecycleIsCompleted && (
           <>
             {status === "capturing" ? (
               <button
