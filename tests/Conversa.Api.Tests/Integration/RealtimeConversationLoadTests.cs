@@ -138,7 +138,7 @@ public sealed class RealtimeConversationLoadTests(ITestOutputHelper output)
         builder.Services
             .AddAuthentication(options =>
             {
-                options.DefaultAuthenticateScheme = LoadTestAuthenticationHandler.Scheme;
+                options.DefaultAuthenticateScheme = LoadTestAuthenticationHandler.SchemeName;
                 options.DefaultChallengeScheme = LoadTestAuthenticationHandler.Scheme;
             })
             .AddScheme<AuthenticationSchemeOptions, LoadTestAuthenticationHandler>(
@@ -161,7 +161,7 @@ public sealed class RealtimeConversationLoadTests(ITestOutputHelper output)
         var tasks = conversations.Select(async conversation =>
         {
             var connectionWatch = Stopwatch.StartNew();
-            using var client = app.GetTestServer().CreateWebSocketClient();
+            var client = app.GetTestServer().CreateWebSocketClient();
             using var socket = await client.ConnectAsync(
                 new Uri($"ws://localhost/ws/conversations/{conversation.Id}/audio"),
                 cancellation.Token);
@@ -566,7 +566,7 @@ public sealed class RealtimeConversationLoadTests(ITestOutputHelper output)
         UrlEncoder encoder)
         : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
     {
-        public const string Scheme = "RealtimeLoadTest";
+        public const string SchemeName = "RealtimeLoadTest";
 
         protected override Task<AuthenticateResult> HandleAuthenticateAsync()
         {
@@ -574,9 +574,9 @@ public sealed class RealtimeConversationLoadTests(ITestOutputHelper output)
                 [new Claim(
                     ClaimTypes.NameIdentifier,
                     "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")],
-                Scheme);
+                SchemeName);
             return Task.FromResult(AuthenticateResult.Success(
-                new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme)));
+                new AuthenticationTicket(new ClaimsPrincipal(identity), SchemeName)));
         }
     }
 
