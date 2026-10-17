@@ -53,6 +53,7 @@ if (observabilityOptions.Enabled)
             .AddHttpClientInstrumentation()
             .AddSource(ConversaTelemetry.ActivitySourceName);
 
+        tracing.AddProcessor(new TelemetryPrivacyProcessor());
         tracing.AddOtlpExporter(exporter =>
         {
             if (!string.IsNullOrWhiteSpace(observabilityOptions.OtlpEndpoint))

@@ -215,7 +215,9 @@ P26 adds configurable OpenTelemetry tracing and metrics.
 
 Observability is disabled by default in committed configuration. Enable it with `Observability__Enabled=true` and direct the OTLP exporter with `Observability__OtlpEndpoint`. Outside Development and Testing, configured OTLP endpoints must use HTTPS and cannot contain embedded credentials.
 
-Telemetry intentionally excludes prompts, transcripts, access tokens, API keys, database credentials and conversation identifiers. Correlation is provided by the standard W3C trace context and the trace ID already returned by the API error model.
+Telemetry intentionally excludes prompts, transcripts, access tokens, API keys, database credentials and conversation identifiers. An activity processor removes raw URL/path/query tags (including legacy URL attribute names) at span end, before export; route templates, when available, remain for low-cardinality grouping. Request and response bodies are not captured by this configuration. Correlation is provided by the standard W3C trace context and the trace ID already returned by the API error model.
+
+See [the PII, transcript privacy and retention policy](../docs/privacy-and-retention.md) for the data inventory, default retention semantics, provider boundaries, log/telemetry allowlist, backups and test-fixture rules.
 
 
 ## P27 — Cursor pagination

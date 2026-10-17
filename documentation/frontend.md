@@ -169,3 +169,8 @@ See docs/conversation-metadata.md for owner-scoped title editing, localised crea
 ## P46 — Delete and data-retention controls
 
 See [conversation-deletion-retention.md](../docs/conversation-deletion-retention.md) for the explicit delete confirmation, idempotent owner-scoped DELETE contract, database cascades for messages and generated summaries, and the boundary between live data and infrastructure backup retention.
+
+
+## P47 — Transcript privacy and retention
+
+See [privacy-and-retention.md](../docs/privacy-and-retention.md) for the stored-data inventory, default retention behavior, user-deletion boundary, third-party processing, synthetic test-fixture rules, and the logging/telemetry redaction policy.
