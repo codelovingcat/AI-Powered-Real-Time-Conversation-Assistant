@@ -18,9 +18,9 @@ test("sign-in validates the token field and gives a safe error for rejected cred
   await tokenInput.fill("not-a-valid-access-token");
   await signInButton.click();
 
-  await expect(
-    page.getByRole("alert").getByText("The access token is invalid or expired.")
-  ).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveText(
+    "The access token is invalid or expired."
+  );
 
   await expect(tokenInput).toHaveAttribute("aria-invalid", "true");
   await expect(tokenInput).toHaveAttribute(
@@ -39,9 +39,9 @@ test("sign out shows confirmation after clearing the session", async ({
     page.getByRole("heading", { name: "Sign in" })
   ).toBeVisible();
 
-  await expect(
-    page.getByRole("status").getByText("You have signed out successfully.")
-  ).toBeVisible();
+  await expect(page.getByRole("status")).toHaveText(
+    "You have signed out successfully."
+  );
   await expect(page.getByLabel("Access token")).toHaveValue("");
 });
 
@@ -69,9 +69,7 @@ test("an expired server session returns the user to sign-in with a clear message
     page.getByRole("heading", { name: "Sign in" })
   ).toBeVisible();
 
-  await expect(
-    page.getByRole("alert").getByText(
-      "Your session has expired. Please sign in again."
-    )
-  ).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveText(
+    "Your session has expired. Please sign in again."
+  );
 });
