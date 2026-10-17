@@ -81,13 +81,60 @@ test("streams microphone audio through partial and final transcripts into AI ass
 test("shows a recoverable error after live audio reconnection attempts fail", async ({
   authenticatedPage: page
 }) => {
-  let interceptedSocket = false;
+  // Route interception has proved unreliable through the Vite WebSocket proxy.
+  // Replace only the page's WebSocket constructor with a deterministic socket
+  // that closes before opening, so the component must exhaust its retry policy.
+  await page.evaluate(() => {
+    type E2EWindow = Window & { __e2eAudioSocketAttempts?: number };
+    const testWindow = window as E2EWindow;
+    testWindow.__e2eAudioSocketAttempts = 0;
 
-  // This test only opens the audio socket, so intercept any WebSocket URL rather
-  // than coupling the synthetic disconnect to the Vite proxy's URL shape.
-  await page.routeWebSocket(/.*/u, (socket) => {
-    interceptedSocket = true;
-    socket.close({ code: 1011, reason: "synthetic E2E disconnect" });
+    class FailingWebSocket {
+      static readonly CONNECTING = 0;
+      static readonly OPEN = 1;
+      static readonly CLOSING = 2;
+      static readonly CLOSED = 3;
+
+      readonly url: string;
+      readonly protocol = "";
+      readonly extensions = "";
+      readonly bufferedAmount = 0;
+      binaryType: BinaryType = "blob";
+      readyState = FailingWebSocket.CONNECTING;
+      onopen: ((event: Event) => void) | null = null;
+      onerror: ((event: Event) => void) | null = null;
+      onmessage: ((event: MessageEvent) => void) | null = null;
+      onclose: ((event: CloseEvent) => void) | null = null;
+
+      constructor(url: string | URL) {
+        this.url = String(url);
+        testWindow.__e2eAudioSocketAttempts =
+          (testWindow.__e2eAudioSocketAttempts ?? 0) + 1;
+
+        queueMicrotask(() => {
+          this.readyState = FailingWebSocket.CLOSED;
+          this.onclose?.(
+            new CloseEvent("close", {
+              code: 1011,
+              reason: "synthetic E2E disconnect",
+              wasClean: false
+            })
+          );
+        });
+      }
+
+      send(_data: unknown): void {}
+
+      close(): void {
+        this.readyState = FailingWebSocket.CLOSED;
+      }
+    }
+
+    Object.defineProperty(window, "WebSocket", {
+      configurable: true,
+      writable: true,
+      value: FailingWebSocket
+    });
   });
 
   await page.getByRole("button", { name: "New conversation" }).click();
@@ -100,11 +147,15 @@ test("shows a recoverable error after live audio reconnection attempts fail", as
 
   await page.getByRole("button", { name: "Start microphone" }).click();
 
-  await expect.poll(() => interceptedSocket, { timeout: 5_000 }).toBe(true);
   await expect(
     page.getByText(
       "The audio connection could not be restored. Start the microphone again.",
       { exact: true }
     )
   ).toBeVisible({ timeout: 20_000 });
+
+  const socketAttempts = await page.evaluate(
+    () => (window as Window & { __e2eAudioSocketAttempts?: number }).__e2eAudioSocketAttempts ?? 0
+  );
+  expect(socketAttempts).toBeGreaterThan(3);
 });
