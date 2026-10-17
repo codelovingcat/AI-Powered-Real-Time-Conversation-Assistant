@@ -277,6 +277,44 @@ public sealed class ConversationAssistantFlowTests
             => throw new NotSupportedException();
     }
 
+    [Fact]
+    public async Task ProcessAsync_RejectsFinishedConversationBeforeCallingAiOrPersisting()
+    {
+        var userId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var conversation = Conversation.Create(
+            userId,
+            "Finished conversation",
+            "Translate naturally.",
+            "en",
+            "tr",
+            now);
+        conversation.Finish(now);
+
+        var messages = new TestMessageRepository();
+        var unitOfWork = new RecordingUnitOfWork();
+        var aiProvider = new ThrowingAiProvider();
+        var assistant = new ConversationAssistant(
+            new TestCurrentUser(userId),
+            new TestConversationRepository(conversation),
+            messages,
+            aiProvider,
+            unitOfWork,
+            TimeProvider.System);
+
+        var exception = await Assert.ThrowsAsync<ValidationException>(() =>
+            assistant.ProcessAsync(
+                new ProcessConversationInputCommand(
+                    conversation.Id,
+                    AiInputKind.HeardSpeech,
+                    "Hello there."),
+                CancellationToken.None));
+
+        Assert.Contains("This conversation is finished.", exception.Errors["conversationId"][0]);
+        Assert.Empty(messages.AddedMessages);
+        Assert.Equal(0, unitOfWork.SaveCalls);
+    }
+
     private sealed class TestCurrentUser(Guid userId) : ICurrentUser
     {
         public Guid UserId => userId;
