@@ -115,12 +115,15 @@ internal sealed class GeminiAiProvider(
                 if (attempt == maxAttempts)
                     throw new AiProviderException("Gemini request timed out.");
             }
-            catch (HttpRequestException exception) when (attempt < maxAttempts)
+            catch (HttpRequestException exception)
             {
                 logger.LogWarning(
                     "Gemini transport error on attempt {Attempt}. ErrorType {ErrorType}.",
                     attempt,
                     exception.GetType().Name);
+
+                if (attempt == maxAttempts)
+                    throw new AiProviderException("Gemini transport request failed.", exception);
             }
 
             if (attempt < maxAttempts)
