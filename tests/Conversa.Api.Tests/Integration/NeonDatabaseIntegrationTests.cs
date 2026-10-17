@@ -267,6 +267,20 @@ public sealed class NeonDatabaseIntegrationTests(ITestOutputHelper output)
                     cleanupDb.Conversations.RemoveRange(syntheticConversations);
                     await cleanupDb.SaveChangesAsync();
                 }
+
+                cleanupDb.ChangeTracker.Clear();
+                Assert.Equal(
+                    0,
+                    await cleanupDb.Conversations.CountAsync(conversation =>
+                        conversation.UserId == userId &&
+                        conversation.Title.StartsWith(titlePrefix)));
+                if (syntheticIds.Length > 0)
+                {
+                    Assert.Equal(
+                        0,
+                        await cleanupDb.Messages.CountAsync(message =>
+                            syntheticIds.Contains(message.ConversationId)));
+                }
             }
         }
 
