@@ -21,5 +21,19 @@ public interface IMessageRepository
         int take,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Returns the oldest unsummarized messages that fall outside the most recent
+    /// <paramref name="preserveRecentCount"/> messages. The checkpoint is exclusive.
+    /// Implementations may return fewer than <paramref name="take"/> results.
+    /// </summary>
+    Task<IReadOnlyList<Message>> ListSummaryCandidatesAsync(
+        Guid conversationId,
+        int preserveRecentCount,
+        DateTimeOffset? afterCreatedAt,
+        Guid? afterId,
+        int take,
+        CancellationToken cancellationToken)
+        => Task.FromResult<IReadOnlyList<Message>>(Array.Empty<Message>());
+
     Task AddAsync(Message message, CancellationToken cancellationToken);
 }

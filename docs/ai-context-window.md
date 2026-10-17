@@ -32,3 +32,20 @@ dotnet test tests/Conversa.Api.Tests/Conversa.Api.Tests.csproj \
   --configuration Release \
   --filter "FullyQualifiedName~GeminiAiProviderTests"
 ```
+
+
+## Long-conversation summary
+
+When a conversation has at least eight unsummarized messages older than the 12-turn verbatim window, the assistant asks the configured AI provider for a concise cumulative summary. It sends at most 20 chronological messages per summary refresh, capped field sizes, and a small output budget. The summary is stored on its owning conversation together with the inclusive message checkpoint and a concurrency revision; it is not exposed in conversation DTOs.
+
+The main assistant response is persisted before summary refresh starts. A summary/provider/database failure therefore leaves the last successful summary/checkpoint and all messages intact. A checkpoint moves forward only after a non-empty, size-validated summary is generated. Simultaneous summary writers use the revision as an optimistic concurrency token; a losing request keeps the already-persisted response and retries from the winning checkpoint on a later turn.
+
+The prompt composes the stored summary with the most recent turns. The summary is treated as untrusted historical data, never as instructions, and the active conversation instruction remains a separate trusted field on every request. The summary, transcript, and active instruction are excluded from logs and telemetry.
+
+Focused summary tests:
+
+```sh
+dotnet test tests/Conversa.Api.Tests/Conversa.Api.Tests.csproj \
+  --configuration Release \
+  --filter "FullyQualifiedName~GeminiConversationSummarizerTests"
+```

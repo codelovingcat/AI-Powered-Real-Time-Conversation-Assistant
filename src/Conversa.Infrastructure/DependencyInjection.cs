@@ -43,6 +43,11 @@ public static class DependencyInjection
             client.Timeout = Timeout.InfiniteTimeSpan;
         });
 
+        services.AddHttpClient<IAiConversationSummarizer, GeminiConversationSummarizer>(client =>
+        {
+            client.Timeout = Timeout.InfiniteTimeSpan;
+        });
+
         services.Configure<DeepgramOptions>(configuration.GetSection(DeepgramOptions.SectionName));
         var deepgramOptions =
             configuration.GetSection(DeepgramOptions.SectionName).Get<DeepgramOptions>()

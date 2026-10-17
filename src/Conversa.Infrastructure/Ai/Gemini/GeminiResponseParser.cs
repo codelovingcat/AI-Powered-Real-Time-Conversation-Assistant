@@ -56,8 +56,13 @@ internal static class GeminiResponseParser
             questionDirectedAtUser);
     }
 
-    private static string ExtractCandidateText(JsonElement root)
+    internal static string ExtractCandidateText(JsonElement root)
     {
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            throw new AiProviderException("Gemini returned a response without a candidate.");
+        }
+
         if (root.TryGetProperty("promptFeedback", out var feedback)
             && feedback.TryGetProperty("blockReason", out var blockReason)
             && blockReason.ValueKind == JsonValueKind.String)

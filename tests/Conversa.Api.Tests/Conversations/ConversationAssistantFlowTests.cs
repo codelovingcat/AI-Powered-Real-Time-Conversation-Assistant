@@ -167,6 +167,69 @@ public sealed class ConversationAssistantFlowTests
     }
 
     [Fact]
+    public async Task ProcessAsync_WhenSummaryRefreshFails_PreservesAlreadySavedAssistantMessage()
+    {
+        var userId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var conversation = Conversation.Create(
+            userId,
+            "Summary failure",
+            "Translate naturally into Turkish.",
+            "en",
+            "tr",
+            now);
+        var olderMessages = Enumerable.Range(0, ConversationAssistant.ContextMessageCount - 4)
+            .Select(index => Message.CreateFromAssistant(
+                conversation.Id,
+                MessageRole.Speaker,
+                $"Synthetic prior utterance {index}.",
+                $"Önceki ifade {index}.",
+                null,
+                null,
+                null,
+                AiResponseType.Translation,
+                questionDetected: false,
+                questionDirectedAtUser: false,
+                "gemini",
+                now.AddMinutes(index - 30)))
+            .ToArray();
+        var messages = new TestMessageRepository(olderMessages)
+        {
+            SummaryCandidates = olderMessages
+        };
+        var unitOfWork = new RecordingUnitOfWork();
+        var provider = new RecordingAiProvider(new AiAssistantResponse(
+            AiResponseType.Translation,
+            "I can make it.",
+            "Yapabilirim.",
+            null,
+            null,
+            null,
+            QuestionDetected: false,
+            QuestionDirectedAtUser: false));
+        var assistant = new ConversationAssistant(
+            new TestCurrentUser(userId),
+            new TestConversationRepository(conversation),
+            messages,
+            provider,
+            unitOfWork,
+            TimeProvider.System,
+            summarizer: new ThrowingConversationSummarizer());
+
+        var result = await assistant.ProcessAsync(
+            new ProcessConversationInputCommand(
+                conversation.Id,
+                AiInputKind.HeardSpeech,
+                "I can make it."),
+            CancellationToken.None);
+
+        Assert.Equal("Yapabilirim.", result.Translation);
+        Assert.Single(messages.AddedMessages);
+        Assert.Equal(1, unitOfWork.SaveCalls);
+        Assert.Null(conversation.ContextSummary);
+    }
+
+    [Fact]
     public async Task ProcessAsync_WhenAiProviderFails_DoesNotPersistMessage()
     {
         var userId = Guid.NewGuid();
@@ -246,6 +309,8 @@ public sealed class ConversationAssistantFlowTests
 
         public List<Message> AddedMessages { get; } = [];
 
+        public IReadOnlyList<Message> SummaryCandidates { get; init; } = [];
+
         public Task<IReadOnlyList<Message>> ListByConversationAsync(
             Guid conversationId,
             int take,
@@ -276,6 +341,28 @@ public sealed class ConversationAssistantFlowTests
                     .Take(take)
                     .Reverse()
                     .ToArray());
+
+        public Task<IReadOnlyList<Message>> ListSummaryCandidatesAsync(
+            Guid conversationId,
+            int preserveRecentCount,
+            DateTimeOffset? afterCreatedAt,
+            Guid? afterId,
+            int take,
+            CancellationToken cancellationToken)
+        {
+            var candidates = SummaryCandidates
+                .Where(message => message.ConversationId == conversationId)
+                .Where(message => afterCreatedAt is null
+                    || message.CreatedAt > afterCreatedAt.Value
+                    || (message.CreatedAt == afterCreatedAt.Value
+                        && afterId is not null
+                        && message.Id.CompareTo(afterId.Value) > 0))
+                .OrderBy(message => message.CreatedAt)
+                .ThenBy(message => message.Id)
+                .Take(take)
+                .ToArray();
+            return Task.FromResult<IReadOnlyList<Message>>(candidates);
+        }
 
         public Task AddAsync(Message message, CancellationToken cancellationToken)
         {
@@ -309,6 +396,18 @@ public sealed class ConversationAssistantFlowTests
             Requests.Add(request);
             return Task.FromResult(response);
         }
+    }
+
+    private sealed class ThrowingConversationSummarizer : IAiConversationSummarizer
+    {
+        public Task<string> SummarizeAsync(
+            string instruction,
+            string sourceLanguage,
+            string targetLanguage,
+            string? existingSummary,
+            IReadOnlyList<AiConversationTurn> olderTurns,
+            CancellationToken cancellationToken)
+            => throw new AiProviderException("Synthetic summary failure.");
     }
 
     private sealed class ThrowingAiProvider : IAiProvider

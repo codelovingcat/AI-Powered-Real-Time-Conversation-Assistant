@@ -6,6 +6,7 @@ public sealed class Conversation
 {
     public const int TitleMaxLength = 200;
     public const int InstructionMaxLength = 4000;
+    public const int ContextSummaryMaxLength = 4000;
 
     private readonly List<Message> _messages = [];
 
@@ -32,6 +33,23 @@ public sealed class Conversation
     public DateTimeOffset CreatedAt { get; private set; }
 
     public DateTimeOffset UpdatedAt { get; private set; }
+
+    /// <summary>
+    /// A bounded, cumulative summary of older conversation turns. It is private
+    /// context for the AI pipeline and is deliberately not part of public DTOs.
+    /// </summary>
+    public string? ContextSummary { get; private set; }
+
+    /// <summary>The inclusive message checkpoint represented by ContextSummary.</summary>
+    public Guid? ContextSummaryThroughMessageId { get; private set; }
+
+    public DateTimeOffset? ContextSummaryThroughCreatedAt { get; private set; }
+
+    /// <summary>
+    /// Optimistic concurrency token so simultaneous requests cannot overwrite a
+    /// newer summary with one generated from an older checkpoint.
+    /// </summary>
+    public int ContextSummaryRevision { get; private set; }
 
     public IReadOnlyCollection<Message> Messages => _messages;
 
@@ -81,6 +99,50 @@ public sealed class Conversation
     }
 
     public void Touch(DateTimeOffset now) => UpdatedAt = now;
+
+    /// <summary>
+    /// Stores a summary only when its checkpoint advances. The revision is an
+    /// optimistic concurrency token; a concurrent summary writer must re-read and
+    /// retry on a later request instead of replacing newer context.
+    /// </summary>
+    public bool UpdateContextSummary(
+        string summary,
+        Guid lastIncludedMessageId,
+        DateTimeOffset lastIncludedMessageCreatedAt,
+        DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(summary);
+        if (lastIncludedMessageId == Guid.Empty)
+        {
+            throw new ArgumentException("A summary checkpoint message id is required.", nameof(lastIncludedMessageId));
+        }
+
+        var normalized = summary.Trim();
+        if (normalized.Length > ContextSummaryMaxLength)
+        {
+            throw new ArgumentException(
+                $"Context summary cannot exceed {ContextSummaryMaxLength} characters.",
+                nameof(summary));
+        }
+
+        if (ContextSummaryThroughCreatedAt is { } currentCreatedAt
+            && ContextSummaryThroughMessageId is { } currentId)
+        {
+            var timestampOrder = lastIncludedMessageCreatedAt.CompareTo(currentCreatedAt);
+            if (timestampOrder < 0
+                || (timestampOrder == 0 && lastIncludedMessageId.CompareTo(currentId) <= 0))
+            {
+                return false;
+            }
+        }
+
+        ContextSummary = normalized;
+        ContextSummaryThroughMessageId = lastIncludedMessageId;
+        ContextSummaryThroughCreatedAt = lastIncludedMessageCreatedAt;
+        ContextSummaryRevision++;
+        UpdatedAt = now;
+        return true;
+    }
 
     private static string NormalizeTitle(string title)
     {

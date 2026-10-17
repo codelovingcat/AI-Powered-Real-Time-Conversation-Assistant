@@ -5,6 +5,7 @@ using Conversa.Application.Ai;
 using Conversa.Application.Common;
 using Conversa.Application.Observability;
 using Conversa.Domain.Conversations;
+using Microsoft.Extensions.Logging;
 
 namespace Conversa.Application.Conversations;
 
@@ -14,9 +15,13 @@ public sealed class ConversationAssistant(
     IMessageRepository messages,
     IAiProvider aiProvider,
     IUnitOfWork unitOfWork,
-    TimeProvider timeProvider) : IConversationAssistant
+    TimeProvider timeProvider,
+    IAiConversationSummarizer? summarizer = null,
+    ILogger<ConversationAssistant>? logger = null) : IConversationAssistant
 {
     public const int ContextMessageCount = 12;
+    private const int SummaryBatchMessageCount = 8;
+    private const int MinimumSummaryMessageCount = 8;
 
     public async Task<MessageDto> ProcessAsync(
         ProcessConversationInputCommand command,
@@ -63,7 +68,8 @@ public sealed class ConversationAssistant(
                 message.OriginalText,
                 message.Translation,
                 message.SuggestedAnswer,
-                message.CreatedAt)).ToArray());
+                message.CreatedAt)).ToArray(),
+            conversation.ContextSummary);
 
         var result = await aiProvider.ProcessAsync(request, cancellationToken);
         var now = timeProvider.GetUtcNow();
@@ -96,6 +102,11 @@ public sealed class ConversationAssistant(
         conversation.Touch(now);
         await messages.AddAsync(message, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Summary refresh is best-effort and happens after the user-visible result
+        // has been committed. A provider/database failure cannot roll it back or hide it.
+        await RefreshContextSummaryAsync(conversation, cancellationToken);
+
         outcome = "success";
         activity?.SetStatus(ActivityStatusCode.Ok);
         return message.ToDto();
@@ -115,6 +126,63 @@ public sealed class ConversationAssistant(
         {
             stopwatch.Stop();
             activity?.SetTag("conversa.outcome", outcome);
+        }
+    }
+    private async Task RefreshContextSummaryAsync(
+        Conversation conversation,
+        CancellationToken cancellationToken)
+    {
+        if (summarizer is null)
+            return;
+
+        try
+        {
+            var candidates = await messages.ListSummaryCandidatesAsync(
+                conversation.Id,
+                ContextMessageCount,
+                conversation.ContextSummaryThroughCreatedAt,
+                conversation.ContextSummaryThroughMessageId,
+                SummaryBatchMessageCount,
+                cancellationToken);
+
+            if (candidates.Count < MinimumSummaryMessageCount)
+                return;
+
+            var olderTurns = candidates.Select(message => new AiConversationTurn(
+                message.Role,
+                message.OriginalText,
+                message.Translation,
+                message.SuggestedAnswer,
+                message.CreatedAt)).ToArray();
+
+            var summary = await summarizer.SummarizeAsync(
+                conversation.Instruction,
+                conversation.SourceLanguage,
+                conversation.TargetLanguage,
+                conversation.ContextSummary,
+                olderTurns,
+                cancellationToken);
+
+            if (!conversation.UpdateContextSummary(
+                summary,
+                candidates[^1].Id,
+                candidates[^1].CreatedAt,
+                timeProvider.GetUtcNow()))
+            {
+                return;
+            }
+
+            // The revision column is an optimistic concurrency token. If another
+            // request won the race, this save fails and the next turn can retry
+            // from the winning checkpoint without losing already saved messages.
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            // Never include the prompt, transcript, summary or provider body in logs.
+            logger?.LogWarning(
+                "Conversation context summary refresh failed. ErrorType {ErrorType}.",
+                exception.GetType().Name);
         }
     }
 }

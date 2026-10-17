@@ -183,7 +183,7 @@ internal sealed class GeminiAiProvider(
         }
     }
 
-    private static bool IsTransient(HttpStatusCode statusCode, GeminiError error) =>
+    internal static bool IsTransient(HttpStatusCode statusCode, GeminiError error) =>
         statusCode is HttpStatusCode.RequestTimeout
             or HttpStatusCode.BadGateway
             or HttpStatusCode.ServiceUnavailable
@@ -192,7 +192,7 @@ internal sealed class GeminiAiProvider(
                 && !string.Equals(error.Code, "quota_exceeded", StringComparison.OrdinalIgnoreCase)
                 && !string.Equals(error.Reason, "QUOTA_EXCEEDED", StringComparison.OrdinalIgnoreCase);
 
-    private static GeminiError ParseGeminiError(HttpStatusCode statusCode, string responseBody)
+    internal static GeminiError ParseGeminiError(HttpStatusCode statusCode, string responseBody)
     {
         try
         {

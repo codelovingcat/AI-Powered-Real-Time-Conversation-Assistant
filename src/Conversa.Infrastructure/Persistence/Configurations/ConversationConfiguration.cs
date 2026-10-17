@@ -27,6 +27,18 @@ internal sealed class ConversationConfiguration : IEntityTypeConfiguration<Conve
             .HasMaxLength(16)
             .IsRequired();
 
+        builder.Property(conversation => conversation.ContextSummary)
+            .HasMaxLength(Conversation.ContextSummaryMaxLength);
+
+        builder.Property(conversation => conversation.ContextSummaryThroughMessageId);
+
+        builder.Property(conversation => conversation.ContextSummaryThroughCreatedAt);
+
+        builder.Property(conversation => conversation.ContextSummaryRevision)
+            .HasDefaultValue(0)
+            .IsConcurrencyToken()
+            .IsRequired();
+
         builder.Property(conversation => conversation.CreatedAt).IsRequired();
         builder.Property(conversation => conversation.UpdatedAt).IsRequired();
 
