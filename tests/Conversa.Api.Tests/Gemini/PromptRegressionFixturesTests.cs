@@ -40,6 +40,8 @@ public sealed class PromptRegressionFixturesTests
             var systemInstruction = GeminiPromptBuilder.BuildSystemInstruction(request);
             var userPrompt = GeminiPromptBuilder.BuildUserPrompt(request);
 
+            Assert.Contains("Return the chosen value in the JSON field \"intent\"", systemInstruction);
+
             foreach (var expected in regressionCase.GetProperty("expectedSystemContains").EnumerateArray())
             {
                 Assert.Contains(expected.GetString()!, systemInstruction);

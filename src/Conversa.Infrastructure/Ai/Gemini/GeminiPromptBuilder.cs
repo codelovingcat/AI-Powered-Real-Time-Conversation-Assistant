@@ -46,6 +46,7 @@ internal static class GeminiPromptBuilder
             - explanation: a short note in {request.TargetLanguage}, or empty.
             - suggestedAnswer: speech in {request.SourceLanguage}, or empty.
             - suggestedAnswerTranslation: the {request.TargetLanguage} meaning of suggestedAnswer, or empty.
+            - intent: exactly one of the explicit snake_case categories above, emitted in the JSON field "intent".
             - questionDetected / questionDirectedAtUser: honest flags. If the instruction forbids question detection, set both to false.
 
             Classify the utterance with exactly one intent value:
