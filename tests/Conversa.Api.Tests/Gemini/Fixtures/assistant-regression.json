@@ -17,7 +17,7 @@
       "expectedUserMarkers": [
         "<input_kind>heardSpeech</input_kind>",
         "<latest_input>",
-        "I'm running late."
+        "I&apos;m running late."
       ],
       "modelResponse": {
         "type": "translation",
