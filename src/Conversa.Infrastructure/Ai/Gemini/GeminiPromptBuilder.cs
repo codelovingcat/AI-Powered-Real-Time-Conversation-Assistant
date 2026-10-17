@@ -8,6 +8,8 @@ namespace Conversa.Infrastructure.Ai.Gemini;
 
 internal static class GeminiPromptBuilder
 {
+    public const string PromptVersion = "conversa-gemini-v1";
+
     public static string BuildSystemInstruction(AiConversationRequest request)
     {
         return $"""
