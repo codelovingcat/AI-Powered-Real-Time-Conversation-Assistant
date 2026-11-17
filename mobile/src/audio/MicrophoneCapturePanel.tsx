@@ -205,10 +205,12 @@ export function MicrophoneCapturePanel({
     }
 
     if (Platform.OS === "ios") {
-      AudioManager.setAudioSessionOptions({
-        iosCategory: "record",
-        iosMode: "default",
-        iosOptions: []
+      AudioManager.setSystemOptions({
+        ios: {
+          category: "record",
+          mode: "default",
+          options: []
+        }
       });
       await AudioManager.setAudioSessionActivity(true);
     }
