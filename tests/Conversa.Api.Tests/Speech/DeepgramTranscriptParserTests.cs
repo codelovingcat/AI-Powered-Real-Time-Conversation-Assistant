@@ -161,7 +161,7 @@ public sealed class DeepgramTranscriptParserTests
     [Fact]
     public void ParseStreamingResult_throws_for_invalid_json_so_the_session_can_map_it()
     {
-        Assert.Throws<System.Text.Json.JsonException>(
+        Assert.ThrowsAny<System.Text.Json.JsonException>(
             () => DeepgramTranscriptParser.ParseStreamingResult("{not-json"));
     }
 
