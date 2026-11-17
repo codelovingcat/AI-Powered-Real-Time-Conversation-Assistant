@@ -209,12 +209,6 @@ public sealed class AudioWebSocketFailureTests
                     "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")],
                 TestScheme);
 
-            var identity = new ClaimsIdentity(
-                [new Claim(
-                    ClaimTypes.NameIdentifier,
-                    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")],
-                TestScheme);
-
             return Task.FromResult(
                 AuthenticateResult.Success(
                     new AuthenticationTicket(new ClaimsPrincipal(identity), TestScheme)));
