@@ -585,6 +585,10 @@ function getSpeechErrorMessage(code: string): string {
       return "Speech recognition was cancelled. Start the microphone again when ready.";
     case "speech_transcription_failed":
       return "Speech could not be transcribed. Start the microphone again.";
+    case "audio_message_too_large":
+      return "The audio chunk was too large. Restart the microphone.";
+    case "audio_stream_unavailable":
+      return "The audio stream is unavailable. Check your connection and try again.";
     default:
       return "The live speech service could not complete this request. Try again.";
   }
