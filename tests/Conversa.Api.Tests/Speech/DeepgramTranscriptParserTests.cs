@@ -99,4 +99,70 @@ public sealed class DeepgramTranscriptParserTests
 
         Assert.Null(result);
     }
+
+    [Fact]
+    public void ParseStreamingResult_maps_provider_error_events_to_a_safe_failure()
+    {
+        const string json = """
+        {
+          "type": "Error",
+          "description": "provider details and request metadata"
+        }
+        """;
+
+        var result = DeepgramTranscriptParser.ParseStreamingResult(json);
+
+        Assert.NotNull(result);
+        Assert.Equal(SpeechTranscriptStatus.Failed, result.Status);
+        Assert.Equal("provider_unavailable", result.Error?.Code);
+        Assert.DoesNotContain("provider details", result.Error?.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ParseStreamingResult_returns_failure_for_malformed_transcript_shape()
+    {
+        const string json = """
+        {
+          "channel": {
+            "alternatives": {}
+          }
+        }
+        """;
+
+        var result = DeepgramTranscriptParser.ParseStreamingResult(json);
+
+        Assert.NotNull(result);
+        Assert.Equal(SpeechTranscriptStatus.Failed, result.Status);
+        Assert.Equal("invalid_provider_response", result.Error?.Code);
+    }
+
+    [Fact]
+    public void ParseStreamingResult_returns_failure_when_transcript_has_an_invalid_type()
+    {
+        const string json = """
+        {
+          "channel": {
+            "alternatives": [
+              {
+                "transcript": 42
+              }
+            ]
+          }
+        }
+        """;
+
+        var result = DeepgramTranscriptParser.ParseStreamingResult(json);
+
+        Assert.NotNull(result);
+        Assert.Equal(SpeechTranscriptStatus.Failed, result.Status);
+        Assert.Equal("invalid_provider_response", result.Error?.Code);
+    }
+
+    [Fact]
+    public void ParseStreamingResult_throws_for_invalid_json_so_the_session_can_map_it()
+    {
+        Assert.Throws<System.Text.Json.JsonException>(
+            () => DeepgramTranscriptParser.ParseStreamingResult("{not-json"));
+    }
+
 }
