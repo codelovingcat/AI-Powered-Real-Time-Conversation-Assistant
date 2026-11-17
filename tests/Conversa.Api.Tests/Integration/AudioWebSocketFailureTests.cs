@@ -345,6 +345,8 @@ public sealed class AudioWebSocketFailureTests
 
     private sealed class WaitingSpeechSession : ISpeechToTextSession
     {
+        private readonly CancellationTokenSource _disposeCts = new();
+
         public TaskCompletionSource<object?> ReadStarted { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource<object?> Disposed { get; } =
@@ -360,13 +362,27 @@ public sealed class AudioWebSocketFailureTests
             CancellationToken cancellationToken)
         {
             ReadStarted.TrySetResult(null);
-            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                _disposeCts.Token);
+
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, linked.Token);
+            }
+            catch (OperationCanceledException) when (_disposeCts.IsCancellationRequested)
+            {
+                yield break;
+            }
+
             yield break;
         }
 
         public ValueTask DisposeAsync()
         {
+            _disposeCts.Cancel();
             Disposed.TrySetResult(null);
+            _disposeCts.Dispose();
             return ValueTask.CompletedTask;
         }
     }
