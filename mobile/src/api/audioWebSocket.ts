@@ -19,7 +19,6 @@ export interface TranscriptUpdate {
 
 export interface AudioServerError {
   code: string;
-  message: string;
 }
 
 export interface AudioWebSocketHandlers {
@@ -174,12 +173,12 @@ function parseServerMessage(
 
   if (candidate.type === "error") {
     if (
-      typeof candidate.code === "string" &&
-      typeof candidate.message === "string"
+      typeof candidate.code === "string"
     ) {
+      // Do not trust or render remote diagnostic text. The UI maps stable codes
+      // to local, provider-neutral messages.
       return {
-        code: candidate.code,
-        message: candidate.message
+        code: candidate.code
       };
     }
     return null;
