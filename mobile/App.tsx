@@ -47,7 +47,12 @@ export default function App() {
   const [assistantBusy, setAssistantBusy] = useState(false);
   const [latestAiResult, setLatestAiResult] = useState<ConversationMessage | null>(null);
   const assistantBusyRef = useRef(false);
-  const pendingTranscriptQueueRef = useRef<string[]>([]);
+  const pendingTranscriptQueueRef = useRef<Array<{
+    conversationId: string;
+    text: string;
+  }>>([]);
+  const activeConversationIdRef = useRef<string | null>(activeConversationId);
+  activeConversationIdRef.current = activeConversationId;
 
   const activeConversation = useMemo(
     () => conversations.find((item) => item.id === activeConversationId) ?? null,
@@ -116,6 +121,12 @@ export default function App() {
       setMessages([]);
     }
   }, [session, loadConversations]);
+
+  useEffect(() => {
+    // A transcript waiting for the previous conversation must never be sent
+    // to a newly selected conversation.
+    pendingTranscriptQueueRef.current = [];
+  }, [activeConversationId]);
 
   useEffect(() => {
     if (!activeConversationId) {
@@ -223,13 +234,16 @@ export default function App() {
       return;
     }
 
-    // Keep every final utterance in order while the previous AI request is running.
+    // Keep every final utterance in order and bind it to its originating conversation.
     if (pendingTranscriptQueueRef.current.length >= 50) {
       setError("The assistant is processing a backlog. Pause the microphone and retry when it catches up.");
       return;
     }
 
-    pendingTranscriptQueueRef.current.push(text.trim());
+    pendingTranscriptQueueRef.current.push({
+      conversationId: activeConversation.id,
+      text: text.trim()
+    });
     if (assistantBusyRef.current) {
       return;
     }
@@ -237,25 +251,27 @@ export default function App() {
     assistantBusyRef.current = true;
     setAssistantBusy(true);
     setError(null);
-    const targetConversationId = activeConversation.id;
 
     try {
       while (pendingTranscriptQueueRef.current.length > 0) {
-        const nextText = pendingTranscriptQueueRef.current.shift();
-        if (!nextText) {
+        const nextItem = pendingTranscriptQueueRef.current.shift();
+        if (!nextItem) {
           continue;
         }
 
         try {
-          const result = await processAssistantInput(targetConversationId, nextText);
-          const history = await listMessages(targetConversationId);
+          const result = await processAssistantInput(
+            nextItem.conversationId,
+            nextItem.text
+          );
+          const history = await listMessages(nextItem.conversationId);
 
-          if (activeConversationId === targetConversationId) {
+          if (activeConversationIdRef.current === nextItem.conversationId) {
             setLatestAiResult(result);
             setMessages(history.items);
           }
         } catch (reason: unknown) {
-          if (activeConversationId === targetConversationId) {
+          if (activeConversationIdRef.current === nextItem.conversationId) {
             setError(
               reason instanceof ApiError
                 ? reason.message
