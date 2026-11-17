@@ -64,6 +64,9 @@ describe("mobile audio WebSocket", () => {
     const pending = audioWebSocket.openAudioWebSocket(
       "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
     );
+    await vi.waitFor(() => {
+      expect(MockWebSocket.instances).toHaveLength(1);
+    });
     const socket = MockWebSocket.instances[0]!;
 
     expect(socket.url).toBe(
@@ -102,6 +105,9 @@ describe("mobile audio WebSocket", () => {
         onServerError: (event) => failures.push(event)
       }
     );
+    await vi.waitFor(() => {
+      expect(MockWebSocket.instances).toHaveLength(1);
+    });
     const socket = MockWebSocket.instances[0]!;
     socket.readyState = MockWebSocket.OPEN;
     socket.onopen?.();
@@ -150,6 +156,9 @@ describe("mobile audio WebSocket", () => {
       "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
       { onError }
     );
+    await vi.waitFor(() => {
+      expect(MockWebSocket.instances).toHaveLength(1);
+    });
     const socket = MockWebSocket.instances[0]!;
     socket.readyState = MockWebSocket.OPEN;
     socket.onopen?.();
