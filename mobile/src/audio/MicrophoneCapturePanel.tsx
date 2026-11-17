@@ -71,6 +71,7 @@ export function MicrophoneCapturePanel({
   const generationRef = useRef(0);
   const startingRef = useRef(false);
   const finalTranscriptHandlerRef = useRef(onFinalTranscript);
+  const lastFinalTranscriptRef = useRef("");
 
   finalTranscriptHandlerRef.current = onFinalTranscript;
 
@@ -150,6 +151,7 @@ export function MicrophoneCapturePanel({
     void stopLocalCapture();
     setPartialText("");
     setFinalTexts([]);
+    lastFinalTranscriptRef.current = "";
     setChunkCount(0);
     setReconnectAttempt(0);
     setSocketStatus("closed");
@@ -234,11 +236,11 @@ export function MicrophoneCapturePanel({
     }
 
     setPartialText("");
+    if (lastFinalTranscriptRef.current === text) {
+      return;
+    }
+    lastFinalTranscriptRef.current = text;
     setFinalTexts((current) => {
-      if (current[current.length - 1] === text) {
-        return current;
-      }
-
       // The live screen keeps a bounded recent timeline; complete history is loaded from API.
       return [...current, text].slice(-30);
     });
@@ -293,7 +295,7 @@ export function MicrophoneCapturePanel({
 
           serverFailureRef.current = true;
           manualStopRef.current = true;
-          setError(serverError.message);
+          setError(getSpeechErrorMessage(serverError.code));
           setState("error");
           setPermissionMessage(null);
           socketRef.current?.close();
@@ -332,11 +334,13 @@ export function MicrophoneCapturePanel({
         socketRef.current = null;
         await stopLocalCapture();
         setState("error");
-        setError(
-          reason instanceof Error
-            ? reason.message
-            : "The live conversation could not be started."
-        );
+        const safeMessage = reason instanceof Error
+          ? reason.message
+          : "The live conversation could not be started.";
+        setError(safeMessage);
+        if (safeMessage.toLowerCase().includes("microphone access")) {
+          setPermissionMessage(safeMessage);
+        }
       }
     } finally {
       startingRef.current = false;
@@ -566,6 +570,24 @@ export function MicrophoneCapturePanel({
       </Text>
     </View>
   );
+}
+
+
+function getSpeechErrorMessage(code: string): string {
+  switch (code) {
+    case "stt_provider_not_configured":
+      return "Speech recognition is not configured for this environment.";
+    case "speech_provider_unavailable":
+      return "Speech recognition is temporarily unavailable. Reconnect and try again.";
+    case "speech_invalid_provider_response":
+      return "Speech recognition returned an invalid response. Start the microphone again.";
+    case "speech_cancelled":
+      return "Speech recognition was cancelled. Start the microphone again when ready.";
+    case "speech_transcription_failed":
+      return "Speech could not be transcribed. Start the microphone again.";
+    default:
+      return "The live speech service could not complete this request. Try again.";
+  }
 }
 
 const styles = StyleSheet.create({
