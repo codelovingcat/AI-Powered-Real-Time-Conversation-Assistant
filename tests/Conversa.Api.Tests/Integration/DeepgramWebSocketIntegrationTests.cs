@@ -244,7 +244,9 @@ public sealed class DeepgramWebSocketIntegrationTests
             [System.Runtime.CompilerServices.EnumeratorCancellation]
             CancellationToken cancellationToken)
         {
-            await Task.Yield();
+            // Model a live provider stream: it remains open until the client
+            // has delivered its first audio frame.
+            await AudioChunkReceived.Task.WaitAsync(cancellationToken);
 
             yield return new SpeechTranscriptUpdate(
                 "Hello",
