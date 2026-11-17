@@ -1,15 +1,17 @@
 using System.Diagnostics;
 using System.Net.WebSockets;
 using System.Text;
-using Conversa.Application.Observability;
 using System.Text.Json;
 using System.Threading.Channels;
+using Conversa.Application.Observability;
 using Conversa.Application.Speech;
 
 namespace Conversa.Infrastructure.Speech;
 
 public sealed class DeepgramSpeechToTextSession : ISpeechToTextSession
 {
+    private const int MaxProviderMessageBytes = 256 * 1024;
+
     private readonly DeepgramOptions _settings;
     private readonly SpeechSessionOptions _sessionOptions;
     private readonly ClientWebSocket _socket = new();
@@ -17,7 +19,9 @@ public sealed class DeepgramSpeechToTextSession : ISpeechToTextSession
         Channel.CreateBounded<SpeechTranscriptUpdate>(
             new BoundedChannelOptions(100)
             {
-                FullMode = BoundedChannelFullMode.DropOldest,
+                // Backpressure keeps the application bounded without silently dropping final
+                // transcript events when a consumer is temporarily slower than the provider.
+                FullMode = BoundedChannelFullMode.Wait,
                 SingleWriter = true,
                 SingleReader = false
             });
@@ -46,33 +50,33 @@ public sealed class DeepgramSpeechToTextSession : ISpeechToTextSession
 
         try
         {
-        var parameters = DeepgramSpeechToTextProvider.BuildStreamingParameters(
-            _settings,
-            _sessionOptions.Language,
-            _sessionOptions.ContentType,
-            _sessionOptions.SampleRateHertz);
+            var parameters = DeepgramSpeechToTextProvider.BuildStreamingParameters(
+                _settings,
+                _sessionOptions.Language,
+                _sessionOptions.ContentType,
+                _sessionOptions.SampleRateHertz);
 
-        var uri = DeepgramSpeechToTextProvider.BuildUri(
-            _settings.BaseUrl.Replace("https://", "wss://", StringComparison.OrdinalIgnoreCase)
-                .Replace("http://", "ws://", StringComparison.OrdinalIgnoreCase),
-            "/v1/listen",
-            parameters);
+            var uri = DeepgramSpeechToTextProvider.BuildUri(
+                _settings.BaseUrl.Replace("https://", "wss://", StringComparison.OrdinalIgnoreCase)
+                    .Replace("http://", "ws://", StringComparison.OrdinalIgnoreCase),
+                "/v1/listen",
+                parameters);
 
-        _socket.Options.SetRequestHeader("Authorization", $"Token {_settings.ApiKey}");
+            _socket.Options.SetRequestHeader("Authorization", $"Token {_settings.ApiKey}");
 
-        try
-        {
-            await _socket.ConnectAsync(uri, cancellationToken);
-        }
-        catch
-        {
-            _socket.Dispose();
-            throw;
-        }
+            try
+            {
+                await _socket.ConnectAsync(uri, cancellationToken);
+            }
+            catch
+            {
+                _socket.Dispose();
+                throw;
+            }
 
-        _receiveTask = ReceiveLoopAsync(_disposeCts.Token);
-        outcome = "success";
-        activity?.SetStatus(ActivityStatusCode.Ok);
+            _receiveTask = ReceiveLoopAsync(_disposeCts.Token);
+            outcome = "success";
+            activity?.SetStatus(ActivityStatusCode.Ok);
         }
         catch (OperationCanceledException)
         {
@@ -145,12 +149,33 @@ public sealed class DeepgramSpeechToTextSession : ISpeechToTextSession
 
                     if (received.MessageType == WebSocketMessageType.Close)
                     {
+                        if (!cancellationToken.IsCancellationRequested)
+                        {
+                            await PublishFailureAsync(
+                                "provider_unavailable",
+                                "The speech-to-text provider streaming connection closed unexpectedly.",
+                                cancellationToken);
+                        }
+
                         return;
                     }
 
                     if (received.MessageType != WebSocketMessageType.Text)
                     {
-                        continue;
+                        await PublishFailureAsync(
+                            "invalid_provider_response",
+                            "The speech-to-text provider returned an unsupported message.",
+                            cancellationToken);
+                        return;
+                    }
+
+                    if (message.Length + received.Count > MaxProviderMessageBytes)
+                    {
+                        await PublishFailureAsync(
+                            "invalid_provider_response",
+                            "The speech-to-text provider response exceeded the allowed size.",
+                            cancellationToken);
+                        return;
                     }
 
                     await message.WriteAsync(
@@ -162,7 +187,7 @@ public sealed class DeepgramSpeechToTextSession : ISpeechToTextSession
                 if (message.Length == 0)
                     continue;
 
-                var json = Encoding.UTF8.GetString(message.ToArray());
+                var json = Encoding.UTF8.GetString(message.GetBuffer(), 0, (int)message.Length);
 
                 SpeechTranscriptUpdate? update;
                 try
@@ -171,19 +196,23 @@ public sealed class DeepgramSpeechToTextSession : ISpeechToTextSession
                 }
                 catch (JsonException)
                 {
-                    update = new SpeechTranscriptUpdate(
-                        string.Empty,
-                        true,
-                        null,
-                        SpeechTranscriptStatus.Failed,
-                        new SpeechError(
-                            "invalid_provider_response",
-                            "The speech-to-text provider returned an invalid response."));
+                    update = FailedUpdate(
+                        "invalid_provider_response",
+                        "The speech-to-text provider returned an invalid response.");
+                }
+                catch (InvalidOperationException)
+                {
+                    update = FailedUpdate(
+                        "invalid_provider_response",
+                        "The speech-to-text provider returned an invalid response.");
                 }
 
                 if (update is not null)
                 {
                     await _updates.Writer.WriteAsync(update, cancellationToken);
+
+                    if (update.Status is SpeechTranscriptStatus.Failed or SpeechTranscriptStatus.Cancelled)
+                        return;
                 }
             }
         }
@@ -192,20 +221,51 @@ public sealed class DeepgramSpeechToTextSession : ISpeechToTextSession
         }
         catch (WebSocketException)
         {
-            _updates.Writer.TryWrite(
-                new SpeechTranscriptUpdate(
-                    string.Empty,
-                    true,
-                    null,
-                    SpeechTranscriptStatus.Failed,
-                    new SpeechError(
-                        "provider_unavailable",
-                        "The speech-to-text provider streaming connection is unavailable.")));
+            await PublishFailureAsync(
+                "provider_unavailable",
+                "The speech-to-text provider streaming connection is unavailable.",
+                CancellationToken.None);
+        }
+        catch (Exception)
+        {
+            await PublishFailureAsync(
+                "transcription_failed",
+                "Speech recognition could not complete this audio stream.",
+                CancellationToken.None);
         }
         finally
         {
             _updates.Writer.TryComplete();
         }
+    }
+
+    private async ValueTask PublishFailureAsync(
+        string code,
+        string message,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _updates.Writer.WriteAsync(
+                FailedUpdate(code, message),
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ChannelClosedException)
+        {
+        }
+    }
+
+    private static SpeechTranscriptUpdate FailedUpdate(string code, string message)
+    {
+        return new SpeechTranscriptUpdate(
+            string.Empty,
+            true,
+            null,
+            SpeechTranscriptStatus.Failed,
+            new SpeechError(code, message));
     }
 
     public async ValueTask DisposeAsync()
@@ -215,9 +275,14 @@ public sealed class DeepgramSpeechToTextSession : ISpeechToTextSession
 
         try
         {
-            await _sendLock.WaitAsync();
+            using var closeTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            var lockTaken = false;
+
             try
             {
+                await _sendLock.WaitAsync(closeTimeout.Token);
+                lockTaken = true;
+
                 if (_socket.State == WebSocketState.Open)
                 {
                     var closeMessage = Encoding.UTF8.GetBytes(
@@ -227,25 +292,33 @@ public sealed class DeepgramSpeechToTextSession : ISpeechToTextSession
                         closeMessage,
                         WebSocketMessageType.Text,
                         endOfMessage: true,
-                        CancellationToken.None);
+                        closeTimeout.Token);
 
-                    await _socket.CloseAsync(
+                    await _socket.CloseOutputAsync(
                         WebSocketCloseStatus.NormalClosure,
                         "session complete",
-                        CancellationToken.None);
+                        closeTimeout.Token);
                 }
             }
             finally
             {
-                _sendLock.Release();
+                if (lockTaken)
+                    _sendLock.Release();
             }
-
+        }
+        catch
+        {
+            _socket.Abort();
+        }
+        finally
+        {
             _disposeCts.Cancel();
+        }
 
+        try
+        {
             if (_receiveTask is not null)
-            {
-                await _receiveTask;
-            }
+                await _receiveTask.WaitAsync(TimeSpan.FromSeconds(2));
         }
         catch
         {
