@@ -1,53 +1,94 @@
 # Conversa Mobile
 
-React Native/Expo foundation for the Conversa client.
+React Native / Expo client for authenticated, real-time conversations.
 
-## Scope
+## Implemented mobile flows
 
-The mobile client currently includes:
-- React Native + Expo application shell
-- Secure storage for Conversa's short-lived access token and the persistent session cookie
-- Startup session validation and refresh
-- Sign-in by exchanging an externally issued identity access token with `POST /api/auth/session`
-- Expiry/logout handling and one refresh-and-retry attempt for protected API requests
-- Shared backend API base URL through `EXPO_PUBLIC_API_BASE_URL`
-- Conversation list and creation using the existing backend contract
-- Initial conversation screen
+- Secure sign-in using an externally issued identity access token.
+- Short-lived Conversa access token and session cookie stored with Expo SecureStore.
+- Startup session restoration, refresh and sign-out.
+- Conversation creation, selection and paginated history endpoint integration.
+- Live microphone capture and WebSocket audio streaming.
+- Partial/final transcript timeline and automatic AI assistance for final transcript segments.
+- Pause, resume, finish and bounded reconnect handling.
+- Provider-neutral error messages and accessible recording controls.
 
-Native microphone/audio streaming is intentionally left for a later mobile audio task.
+## Requirements
 
-## Authentication lifecycle
+- Node.js compatible with Expo SDK 54.
+- Android Studio / Android SDK for Android builds, or Xcode for iOS builds.
+- A reachable Conversa API URL.
+- A native development build. **Expo Go is not supported** because the realtime microphone module includes native code.
 
-1. The user enters an externally issued identity token. The app sends it only to `POST /api/auth/session`; it does not persist that external token.
-2. The backend returns a short-lived Conversa access token and sets the `conversa_session` HttpOnly session cookie. The access token, expiry timestamp and an explicitly available cookie pair are stored with Expo SecureStore.
-3. On startup, the app validates the saved access token. If it is expired or rejected, the app attempts `POST /api/auth/refresh` and saves the new short-lived token.
-4. A protected API request that receives HTTP 401 triggers one coalesced refresh attempt and retries the original request once.
-5. If the refresh session is invalid or expired, local credentials are deleted and the app returns to sign-in. Temporary network/server errors do not silently erase credentials and can be retried.
-6. Sign-out calls `POST /api/auth/logout` and clears local credentials even if the server cannot be reached.
+## Configuration
 
-The session cookie is sent using the native fetch cookie mechanism and, where native fetch exposes `Set-Cookie`, a secure-store copy of just the cookie pair. No credential is written to AsyncStorage, logs or `EXPO_PUBLIC_*` configuration.
+Copy `.env.example` to `.env` and set the API address:
 
-## Commands
+    EXPO_PUBLIC_API_BASE_URL=http://localhost:5080
+
+For a physical phone, use the API host's LAN address or an HTTPS deployment that the phone can reach. On Android Emulator, use `http://10.0.2.2:5080` to reach the host machine. Use HTTPS/WSS for non-local environments.
+
+The API address is public application configuration. Never put access tokens, refresh cookies, Gemini keys, Deepgram keys or other secrets in `EXPO_PUBLIC_*` variables.
+
+## Native audio and wire format
+
+The mobile app uses `react-native-audio-api` data callbacks. It captures mono microphone frames, converts floating-point samples to signed 16-bit little-endian PCM, and streams binary chunks using:
+
+- Content type: `audio/raw`
+- Encoding: Linear16 / PCM16
+- Sample rate: 16,000 Hz
+- Channels: 1 (mono)
+- Callback batch: approximately 100 ms
+
+No local audio file is created. The microphone permission is requested only after the user explicitly starts a conversation. Audio capture and the WebSocket are stopped when the user pauses/finishes or the app moves to the background. Returning to the foreground does not restart the microphone automatically.
+
+The WebSocket endpoint is:
+
+    /ws/conversations/{conversationId}/audio
+
+The short-lived Conversa access token is sent as the `conversa.auth` WebSocket subprotocol, not in the URL or query string. The mobile app never receives or stores a speech-provider credential. The client also caps its outbound WebSocket buffer and stops streaming rather than allowing unbounded audio to accumulate.
+
+## Run locally
 
 From this directory:
 
     npm install
+    npx expo prebuild
+    npm run android
+
+For iOS on macOS:
+
+    npm install
+    npx expo prebuild
+    npm run ios
+
+After installing the native development client, start Metro with:
+
+    npm start
+
+When native dependencies or app plugins change, regenerate/rebuild the native application.
+
+## Validation
+
     npm run typecheck
     npm test
-    npm start
+
+The PCM conversion tests run without a native device. Microphone permission, actual device audio delivery, Bluetooth routing and live provider behaviour still require a native build and physical/simulator testing with the API and STT provider configured.
+
+## Authentication lifecycle
+
+1. The user enters an externally issued identity token. The app sends it only to `POST /api/auth/session`; it does not persist that external token.
+2. The backend returns a short-lived Conversa access token and sets the `conversa_session` HttpOnly session cookie. The app stores the token, expiry and an explicitly available cookie pair with Expo SecureStore.
+3. On startup, the app validates the saved access token. If expired or rejected, it attempts `POST /api/auth/refresh`.
+4. A protected API request that receives HTTP 401 triggers one coalesced refresh attempt and retries the original request once.
+5. An invalid or expired refresh session clears local credentials. Temporary network/server failures do not silently erase credentials.
+6. Sign-out calls `POST /api/auth/logout` and clears local credentials even if the server cannot be reached.
+
+The session cookie is sent using the native fetch cookie mechanism and, where native fetch exposes `Set-Cookie`, a secure-store copy of only the cookie pair. Credentials are not written to AsyncStorage or application logs.
 
 ## Security
 
-- Do not commit access tokens, session cookies, API keys, or provider credentials.
+- Never commit access tokens, session cookies, provider credentials or personal conversation transcripts.
 - `EXPO_PUBLIC_*` values are bundled into the application and must never contain secrets.
-- Authentication credentials are stored with Expo SecureStore, not AsyncStorage or source code.
-- Errors shown in the UI are mapped to fixed, user-safe messages; raw provider or server response bodies are not rendered.
-
-
-## Native microphone capture (P49)
-
-The app uses the SDK 54-compatible `expo-audio` module for native iOS/Android recording and configures an explicit microphone permission description. Permission status is checked at startup without displaying a prompt; the system prompt is requested only after the user presses **Allow microphone access**. A second explicit action starts capture.
-
-Capture is stopped and its temporary cache file is deleted when the user stops recording, the app moves out of the active state, or the capture panel unmounts. Returning to the foreground re-checks whether permission was revoked in device settings. Raw audio is not uploaded, persisted as conversation history, or sent to a provider by this foundation task.
-
-Run the automated permission/lifecycle tests with `npm test`.
+- Authentication credentials remain in Expo SecureStore.
+- Raw provider messages, provider diagnostics and internal identifiers are not rendered as user-facing errors.
