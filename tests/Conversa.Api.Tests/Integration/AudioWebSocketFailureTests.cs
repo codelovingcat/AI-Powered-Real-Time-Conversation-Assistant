@@ -100,6 +100,64 @@ public sealed class AudioWebSocketFailureTests
         }
     }
 
+    [Fact]
+    public async Task Provider_open_timeout_cancels_the_factory_and_closes_the_socket()
+    {
+        var conversation = CreateActiveConversation(
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
+        var factory = new BlockingSpeechSessionFactory();
+        var app = await StartServerAsync(
+            conversation,
+            factory,
+            maxConnectionSeconds: 1);
+
+        try
+        {
+            using var socket = await ConnectAsync(app, conversation.Id);
+            await factory.OpenStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+            var close = await ReceiveCloseAsync(socket);
+
+            Assert.Equal(WebSocketMessageType.Close, close.MessageType);
+            Assert.Equal(WebSocketCloseStatus.PolicyViolation, socket.CloseStatus);
+            await factory.OpenCancellationObserved.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally
+        {
+            await app.StopAsync();
+            await app.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Client_cancellation_disposes_the_active_speech_session()
+    {
+        var conversation = CreateActiveConversation(
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
+        var session = new WaitingSpeechSession();
+        var app = await StartServerAsync(
+            conversation,
+            new FixedSpeechSessionFactory(session));
+
+        try
+        {
+            using var socket = await ConnectAsync(app, conversation.Id);
+            await session.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+            await socket.CloseAsync(
+                WebSocketCloseStatus.NormalClosure,
+                "client cancelled",
+                CancellationToken.None);
+
+            await session.Disposed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally
+        {
+            await app.StopAsync();
+            await app.DisposeAsync();
+        }
+    }
+
     private static Conversation CreateActiveConversation(Guid userId)
     {
         var conversation = Conversation.Create(
@@ -115,13 +173,18 @@ public sealed class AudioWebSocketFailureTests
 
     private static async Task<WebApplication> StartServerAsync(
         Conversation conversation,
-        ISpeechToTextSessionFactory sessionFactory)
+        ISpeechToTextSessionFactory sessionFactory,
+        int maxConnectionSeconds = 600)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
 
         builder.Services.AddRouting();
-        builder.Services.Configure<AudioWebSocketOptions>(_ => { });
+        builder.Services.AddSingleton<IOptions<AudioWebSocketOptions>>(
+            Options.Create(new AudioWebSocketOptions
+            {
+                MaxConnectionSeconds = maxConnectionSeconds
+            }));
         builder.Services.AddRateLimiter(options =>
         {
             options.AddPolicy(
@@ -251,6 +314,61 @@ public sealed class AudioWebSocketFailureTests
 
         public void Remove(Conversation conversation)
             => throw new NotSupportedException();
+    }
+
+    private sealed class BlockingSpeechSessionFactory : ISpeechToTextSessionFactory
+    {
+        public string ProviderName => "test";
+        public TaskCompletionSource<object?> OpenStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<object?> OpenCancellationObserved { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<ISpeechToTextSession> OpenSessionAsync(
+            SpeechSessionOptions options,
+            CancellationToken cancellationToken)
+        {
+            OpenStarted.TrySetResult(null);
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                OpenCancellationObserved.TrySetResult(null);
+                throw;
+            }
+
+            throw new InvalidOperationException("The test provider should remain pending.");
+        }
+    }
+
+    private sealed class WaitingSpeechSession : ISpeechToTextSession
+    {
+        public TaskCompletionSource<object?> ReadStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<object?> Disposed { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public ValueTask AppendAudioAsync(
+            ReadOnlyMemory<byte> audioChunk,
+            CancellationToken cancellationToken)
+            => ValueTask.CompletedTask;
+
+        public async IAsyncEnumerable<SpeechTranscriptUpdate> ReadUpdatesAsync(
+            [System.Runtime.CompilerServices.EnumeratorCancellation]
+            CancellationToken cancellationToken)
+        {
+            ReadStarted.TrySetResult(null);
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            yield break;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            Disposed.TrySetResult(null);
+            return ValueTask.CompletedTask;
+        }
     }
 
     private sealed class FailingSpeechSessionFactory : ISpeechToTextSessionFactory
