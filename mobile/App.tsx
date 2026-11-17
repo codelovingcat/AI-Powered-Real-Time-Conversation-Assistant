@@ -224,6 +224,11 @@ export default function App() {
     }
 
     // Keep every final utterance in order while the previous AI request is running.
+    if (pendingTranscriptQueueRef.current.length >= 50) {
+      setError("The assistant is processing a backlog. Pause the microphone and retry when it catches up.");
+      return;
+    }
+
     pendingTranscriptQueueRef.current.push(text.trim());
     if (assistantBusyRef.current) {
       return;
