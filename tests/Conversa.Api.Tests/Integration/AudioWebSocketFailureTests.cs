@@ -144,7 +144,7 @@ public sealed class AudioWebSocketFailureTests
             using var socket = await ConnectAsync(app, conversation.Id);
             await session.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-            await socket.CloseAsync(
+            await socket.CloseOutputAsync(
                 WebSocketCloseStatus.NormalClosure,
                 "client cancelled",
                 CancellationToken.None);
