@@ -40,9 +40,10 @@ export function float32ToPcm16(
     const sourceIndex = Math.min(Math.floor(sourcePosition), input.length - 1);
     const nextIndex = Math.min(sourceIndex + 1, input.length - 1);
     const interpolation = sourcePosition - sourceIndex;
+    const sourceSample = input[sourceIndex] ?? 0;
+    const nextSample = input[nextIndex] ?? sourceSample;
     const sample =
-      input[sourceIndex] +
-      (input[nextIndex] - input[sourceIndex]) * interpolation;
+      sourceSample + (nextSample - sourceSample) * interpolation;
     const clamped = Math.max(-1, Math.min(1, sample));
 
     output[outputIndex] =
@@ -51,7 +52,7 @@ export function float32ToPcm16(
 
   const view = new DataView(new ArrayBuffer(output.byteLength));
   for (let index = 0; index < output.length; index += 1) {
-    view.setInt16(index * 2, output[index], true);
+    view.setInt16(index * 2, output[index] ?? 0, true);
   }
 
   return view.buffer;
