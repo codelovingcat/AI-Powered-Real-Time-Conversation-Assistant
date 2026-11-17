@@ -58,7 +58,7 @@ public sealed class AudioWebSocketFailureTests
     [Fact]
     public async Task Provider_failure_after_partial_transcript_preserves_partial_and_closes_cleanly()
     {
-        var userId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        var userId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
         var conversation = CreateActiveConversation(userId);
         var session = new FailingSpeechSession();
         var app = await StartServerAsync(
@@ -131,7 +131,6 @@ public sealed class AudioWebSocketFailureTests
         });
         builder.Services.AddSingleton<IConversationRepository>(
             new RecordingConversationRepository(conversation));
-        builder.Services.AddSingleton(sessionFactory);
         builder.Services.AddSingleton<ISpeechToTextSessionFactory>(sessionFactory);
 
         builder.Services
@@ -210,16 +209,11 @@ public sealed class AudioWebSocketFailureTests
                     "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")],
                 TestScheme);
 
-            // The second scenario uses a different conversation owner; only the
-            // authenticated test identity is needed for its isolated test server.
-            if (Request.Path.Value?.Contains("bbbbbbbb", StringComparison.OrdinalIgnoreCase) == true)
-            {
-                identity = new ClaimsIdentity(
-                    [new Claim(
-                        ClaimTypes.NameIdentifier,
-                        "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")],
-                    TestScheme);
-            }
+            var identity = new ClaimsIdentity(
+                [new Claim(
+                    ClaimTypes.NameIdentifier,
+                    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")],
+                TestScheme);
 
             return Task.FromResult(
                 AuthenticateResult.Success(
