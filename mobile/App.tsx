@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -46,6 +46,8 @@ export default function App() {
   const [creatingConversation, setCreatingConversation] = useState(false);
   const [assistantBusy, setAssistantBusy] = useState(false);
   const [latestAiResult, setLatestAiResult] = useState<ConversationMessage | null>(null);
+  const assistantBusyRef = useRef(false);
+  const pendingTranscriptQueueRef = useRef<string[]>([]);
 
   const activeConversation = useMemo(
     () => conversations.find((item) => item.id === activeConversationId) ?? null,
@@ -217,25 +219,48 @@ export default function App() {
   }
 
   async function handleFinalTranscript(text: string) {
-    if (!activeConversation || !text.trim() || assistantBusy) {
+    if (!activeConversation || !text.trim()) {
       return;
     }
 
+    // Keep every final utterance in order while the previous AI request is running.
+    pendingTranscriptQueueRef.current.push(text.trim());
+    if (assistantBusyRef.current) {
+      return;
+    }
+
+    assistantBusyRef.current = true;
     setAssistantBusy(true);
     setError(null);
+    const targetConversationId = activeConversation.id;
 
     try {
-      const result = await processAssistantInput(activeConversation.id, text);
-      setLatestAiResult(result);
-      const history = await listMessages(activeConversation.id);
-      setMessages(history.items);
-    } catch (reason: unknown) {
-      setError(
-        reason instanceof ApiError
-          ? reason.message
-          : "The AI could not process this speech. Try again."
-      );
+      while (pendingTranscriptQueueRef.current.length > 0) {
+        const nextText = pendingTranscriptQueueRef.current.shift();
+        if (!nextText) {
+          continue;
+        }
+
+        try {
+          const result = await processAssistantInput(targetConversationId, nextText);
+          const history = await listMessages(targetConversationId);
+
+          if (activeConversationId === targetConversationId) {
+            setLatestAiResult(result);
+            setMessages(history.items);
+          }
+        } catch (reason: unknown) {
+          if (activeConversationId === targetConversationId) {
+            setError(
+              reason instanceof ApiError
+                ? reason.message
+                : "The AI could not process this speech. Try again."
+            );
+          }
+        }
+      }
     } finally {
+      assistantBusyRef.current = false;
       setAssistantBusy(false);
     }
   }
