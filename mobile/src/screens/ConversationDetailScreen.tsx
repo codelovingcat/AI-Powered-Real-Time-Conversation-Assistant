@@ -90,6 +90,10 @@ export function ConversationDetailScreen({
     requestRef.current?.abort();
     olderRequestRef.current?.abort();
     olderLockRef.current = false;
+    setIsLoadingOlder(false);
+    setConversation(null);
+    setMessages([]);
+    setNextCursor(null);
     const controller = new AbortController();
     requestRef.current = controller;
 
