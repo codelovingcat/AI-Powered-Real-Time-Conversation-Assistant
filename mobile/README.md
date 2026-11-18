@@ -13,6 +13,22 @@ React Native / Expo client for authenticated, real-time conversations.
 - Pause, resume, finish and bounded reconnect handling.
 - Provider-neutral error messages and accessible recording controls.
 
+## Saved conversation history
+
+The **History** screen uses the same authenticated conversation endpoints and server-side ownership checks as the web client.
+
+- Conversation list pages use `GET /api/conversations?limit=30&cursor=...`.
+- Search is sent to the server and can be combined with UTC update-date bounds (`updatedFrom` inclusive, `updatedTo` exclusive).
+- The **Load more conversations** action requests the next page using the returned opaque cursor. The app does not download the full history or locally filter an incomplete page.
+- Opening a saved record loads its metadata from `GET /api/conversations/{id}` and the newest message page from `GET /api/conversations/{id}/messages?limit=30`.
+- Older messages are fetched incrementally with the message cursor and prepended in chronological order.
+- Pull-to-refresh reloads the first list page. Returning from a detail screen remounts the list and re-reads server state.
+- A deleted or no-longer-authorized conversation is reported as unavailable. Deleting from the detail screen calls the owner-scoped `DELETE /api/conversations/{id}` endpoint; on success the record is removed from the mobile list immediately.
+
+Conversation IDs and cursors are used only as resource/position references. The API independently enforces the authenticated user's ownership on list, detail, message and delete operations. Client-side filtering is a convenience only; it is not an authorization boundary.
+
+History reads and detail reads are cancellable when screens change, so stale responses do not overwrite a newly selected conversation. Search, load-more and refresh errors have retry states; empty search results are distinguished from an account with no saved conversations.
+
 ## Requirements
 
 - Node.js compatible with Expo SDK 54.

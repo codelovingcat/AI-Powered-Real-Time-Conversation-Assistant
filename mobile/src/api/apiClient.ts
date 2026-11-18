@@ -69,17 +69,39 @@ async function sendRequest(path: string, init: RequestInit): Promise<Response> {
 
   try {
     return await fetch(resolveApiUrl(path), { ...init, headers });
-  } catch {
+  } catch (error) {
+    if (init.signal?.aborted) {
+      throw error;
+    }
+
     throw new ApiError("The API request could not be completed. Check your connection and try again.", 0);
   }
 }
 
-export async function apiGet(path: string): Promise<Response> {
-  return apiRequest(path, { method: "GET" });
+export async function apiGet(
+  path: string,
+  signal?: AbortSignal
+): Promise<Response> {
+  return apiRequest(path, { method: "GET", signal });
 }
 
-export async function apiPost(path: string, body: unknown): Promise<Response> {
-  return apiRequest(path, { method: "POST", body: JSON.stringify(body) });
+export async function apiPost(
+  path: string,
+  body: unknown,
+  signal?: AbortSignal
+): Promise<Response> {
+  return apiRequest(path, {
+    method: "POST",
+    body: JSON.stringify(body),
+    signal
+  });
+}
+
+export async function apiDelete(
+  path: string,
+  signal?: AbortSignal
+): Promise<Response> {
+  return apiRequest(path, { method: "DELETE", signal });
 }
 
 function resolveApiUrl(path: string): string {

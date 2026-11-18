@@ -13,7 +13,7 @@ vi.mock("expo-secure-store", () => ({
   })
 }));
 
-import { apiGet, ApiError } from "./apiClient";
+import { apiDelete, apiGet, ApiError } from "./apiClient";
 import { subscribeToSessionExpired } from "../auth/authEvents";
 import { getAccessToken, getSessionCookie, setAccessToken, setSessionCookie } from "../auth/tokenStore";
 
@@ -45,6 +45,22 @@ describe("mobile API authentication", () => {
     secureValues.clear();
   });
 
+  it("sends an authenticated DELETE request and forwards its cancellation signal", async () => {
+    await setAccessToken("saved-access-token", "2099-01-01T00:00:00Z");
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    const controller = new AbortController();
+    const response = await apiDelete("/api/conversations/conversation-123", controller.signal);
+
+    expect(response.status).toBe(204);
+    expect(fetch).toHaveBeenCalledOnce();
+    const [url, init] = vi.mocked(fetch).mock.calls[0]!;
+    expect(String(url)).toContain("/api/conversations/conversation-123");
+    expect(init?.method).toBe("DELETE");
+    expect(init?.signal).toBe(controller.signal);
+    expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer saved-access-token");
+  });
+
   it("refreshes after 401 and retries the request exactly once with the new token", async () => {
     await setAccessToken("old-access-token", "2099-01-01T00:00:00Z");
     await setSessionCookie("conversa_session=refresh-secret");
@@ -63,6 +79,18 @@ describe("mobile API authentication", () => {
     const [, retryInit] = vi.mocked(fetch).mock.calls[2]!;
     expect(new Headers(retryInit?.headers).get("Authorization")).toBe("Bearer new-access-token");
     expect(await getAccessToken()).toBe("new-access-token");
+  });
+
+  it("preserves AbortError so stale history reads can be cancelled cleanly", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    vi.mocked(fetch).mockRejectedValueOnce(new DOMException("Aborted", "AbortError"));
+
+    await expect(
+      apiGet("/api/conversations?limit=30", controller.signal)
+    ).rejects.toMatchObject({
+      name: "AbortError"
+    });
   });
 
   it("clears credentials and notifies the app when the refresh session has expired", async () => {

@@ -20,6 +20,8 @@ import {
 import { processAssistantInput } from "./src/api/assistantService";
 import { ApiError } from "./src/api/apiClient";
 import { MicrophoneCapturePanel } from "./src/audio/MicrophoneCapturePanel";
+import { ConversationHistoryScreen } from "./src/screens/ConversationHistoryScreen";
+import { ConversationDetailScreen } from "./src/screens/ConversationDetailScreen";
 import { subscribeToSessionExpired } from "./src/auth/authEvents";
 import {
   getAuthErrorMessage,
@@ -31,6 +33,8 @@ import {
 
 export default function App() {
   const [session, setSession] = useState<AuthSession | null>(null);
+  const [activeScreen, setActiveScreen] = useState<"live" | "history" | "detail">("live");
+  const [detailConversationId, setDetailConversationId] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
   const [authBusy, setAuthBusy] = useState(false);
   const [token, setToken] = useState("");
@@ -81,6 +85,8 @@ export default function App() {
 
   useEffect(() => subscribeToSessionExpired(() => {
     setSession(null);
+    setActiveScreen("live");
+    setDetailConversationId(null);
     setConversations([]);
     setActiveConversationId(null);
     setMessages([]);
@@ -188,6 +194,8 @@ export default function App() {
     try {
       const serverConfirmed = await signOut();
       setSession(null);
+      setActiveScreen("live");
+      setDetailConversationId(null);
       setConversations([]);
       setActiveConversationId(null);
       setMessages([]);
@@ -296,6 +304,36 @@ export default function App() {
     );
   }
 
+  function openConversationDetails(conversationId: string) {
+    setDetailConversationId(conversationId);
+    setActiveScreen("detail");
+  }
+
+  function openLiveConversation(conversation: ConversationSummary) {
+    setConversations((current) => {
+      const exists = current.some((item) => item.id === conversation.id);
+      return exists
+        ? current.map((item) => item.id === conversation.id ? conversation : item)
+        : [conversation, ...current];
+    });
+    setActiveConversationId(conversation.id);
+    setDetailConversationId(null);
+    setActiveScreen("live");
+    setError(null);
+  }
+
+  function handleConversationDeleted(conversationId: string) {
+    setConversations((current) => current.filter((item) => item.id !== conversationId));
+    if (activeConversationId === conversationId) {
+      setActiveConversationId(null);
+      setMessages([]);
+      setLatestAiResult(null);
+    }
+    setDetailConversationId(null);
+    setActiveScreen("history");
+    setNotice("The conversation was deleted.");
+  }
+
   if (checking) {
     return (
       <SafeAreaView style={styles.center}>
@@ -354,6 +392,79 @@ export default function App() {
     );
   }
 
+  if (activeScreen === "history") {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.secondaryContent}>
+          <View style={styles.topBar}>
+            <View>
+              <Text style={styles.eyebrow}>CONVERSA MOBILE</Text>
+              <Text style={styles.title}>History</Text>
+            </View>
+            <View style={styles.headerActions}>
+              <Pressable
+                style={styles.historyButton}
+                onPress={() => setActiveScreen("live")}
+              >
+                <Text style={styles.historyButtonText}>Live</Text>
+              </Pressable>
+              <Pressable
+                style={styles.signOutButton}
+                disabled={authBusy}
+                onPress={() => void handleSignOut()}
+              >
+                <Text style={styles.signOutText}>{authBusy ? "Signing out…" : "Sign out"}</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          <ConversationHistoryScreen
+            onSelectConversation={openConversationDetails}
+            successNotice={notice}
+            onDismissNotice={() => setNotice(null)}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (activeScreen === "detail" && detailConversationId) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.secondaryContent}>
+          <View style={styles.topBar}>
+            <View>
+              <Text style={styles.eyebrow}>CONVERSATION DETAILS</Text>
+              <Text style={styles.title}>Saved conversation</Text>
+            </View>
+            <View style={styles.headerActions}>
+              <Pressable
+                style={styles.historyButton}
+                onPress={() => setActiveScreen("history")}
+              >
+                <Text style={styles.historyButtonText}>History</Text>
+              </Pressable>
+              <Pressable
+                style={styles.signOutButton}
+                disabled={authBusy}
+                onPress={() => void handleSignOut()}
+              >
+                <Text style={styles.signOutText}>{authBusy ? "Signing out…" : "Sign out"}</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          <ConversationDetailScreen
+            conversationId={detailConversationId}
+            onOpenLive={openLiveConversation}
+            onDeleted={handleConversationDeleted}
+            onBackToHistory={() => setActiveScreen("history")}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -365,13 +476,21 @@ export default function App() {
             <Text style={styles.eyebrow}>REAL-TIME CONVERSATION ASSISTANT</Text>
             <Text style={styles.title}>Conversa</Text>
           </View>
-          <Pressable
-            style={styles.signOutButton}
-            disabled={authBusy}
-            onPress={() => void handleSignOut()}
-          >
-            <Text style={styles.signOutText}>{authBusy ? "Signing out…" : "Sign out"}</Text>
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              style={styles.historyButton}
+              onPress={() => setActiveScreen("history")}
+            >
+              <Text style={styles.historyButtonText}>History</Text>
+            </Pressable>
+            <Pressable
+              style={styles.signOutButton}
+              disabled={authBusy}
+              onPress={() => void handleSignOut()}
+            >
+              <Text style={styles.signOutText}>{authBusy ? "Signing out…" : "Sign out"}</Text>
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.createCard}>
@@ -566,6 +685,33 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingTop: 14,
     paddingBottom: 36
+  },
+  secondaryContent: {
+    flex: 1,
+    gap: 14,
+    paddingTop: 14,
+    paddingBottom: 20
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  historyButton: {
+    minHeight: 44,
+    minWidth: 62,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#b2ddff",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#eff8ff"
+  },
+  historyButtonText: {
+    color: "#175cd3",
+    fontWeight: "800",
+    fontSize: 12
   },
   center: {
     flex: 1,
