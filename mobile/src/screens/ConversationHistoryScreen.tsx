@@ -99,6 +99,7 @@ export function ConversationHistoryScreen({
   const requestRef = useRef<AbortController | null>(null);
   const loadMoreRequestRef = useRef<AbortController | null>(null);
   const loadMoreLockRef = useRef(false);
+  const filtersRef = useRef<ConversationListFilters>({});
 
   const loadFirstPage = useCallback(async (
     nextFilters: ConversationListFilters,
@@ -107,10 +108,26 @@ export function ConversationHistoryScreen({
     requestRef.current?.abort();
     loadMoreRequestRef.current?.abort();
     loadMoreLockRef.current = false;
+    setIsLoadingMore(false);
+
+    const filtersChanged =
+      filtersRef.current.search !== nextFilters.search ||
+      filtersRef.current.updatedFrom !== nextFilters.updatedFrom ||
+      filtersRef.current.updatedTo !== nextFilters.updatedTo;
+    filtersRef.current = nextFilters;
+    setFilters(nextFilters);
+
+    if (filtersChanged) {
+      setConversations([]);
+      setNextCursor(null);
+    }
+
     const controller = new AbortController();
     requestRef.current = controller;
 
-    if (refresh || conversations.length > 0) {
+    if (filtersChanged) {
+      setIsLoading(true);
+    } else if (refresh || conversations.length > 0) {
       setIsRefreshing(true);
     } else {
       setIsLoading(true);
@@ -129,7 +146,6 @@ export function ConversationHistoryScreen({
       if (!controller.signal.aborted) {
         setConversations(page.items);
         setNextCursor(page.nextCursor);
-        setFilters(nextFilters);
       }
     } catch (reason: unknown) {
       if (!controller.signal.aborted) {
@@ -153,7 +169,7 @@ export function ConversationHistoryScreen({
   }, []);
 
   const loadMore = useCallback(async () => {
-    if (!nextCursor || isLoadingMore || isLoading || loadMoreLockRef.current) {
+    if (!nextCursor || isLoadingMore || isLoading || isRefreshing || loadMoreLockRef.current) {
       return;
     }
 
@@ -192,7 +208,7 @@ export function ConversationHistoryScreen({
         loadMoreRequestRef.current = null;
       }
     }
-  }, [filters, isLoading, isLoadingMore, nextCursor]);
+  }, [filters, isLoading, isLoadingMore, isRefreshing, nextCursor]);
 
   function applyFilters() {
     try {
