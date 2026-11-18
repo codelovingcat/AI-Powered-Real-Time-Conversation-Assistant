@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from "./apiClient";
+import { apiDelete, apiGet, apiPost } from "./apiClient";
 
 export type ConversationLifecycleState = "ready" | "active" | "paused" | "completed";
 export type ConversationLifecycleAction = "start" | "pause" | "resume" | "finish";
@@ -36,6 +36,31 @@ export interface CursorPage<T> {
   nextCursor: string | null;
 }
 
+export interface ConversationListFilters {
+  search?: string;
+  updatedFrom?: string;
+  updatedTo?: string;
+}
+
+const CONVERSATION_STATES: readonly ConversationLifecycleState[] = [
+  "ready",
+  "active",
+  "paused",
+  "completed"
+];
+const MESSAGE_ROLES = ["speaker", "user", "assistant", "system"] as const;
+const RESPONSE_TYPES = ["translation", "question", "answer", "instruction"] as const;
+const MESSAGE_INTENTS = [
+  "statement",
+  "questionDirectedAtUser",
+  "questionDirectedAtOthers",
+  "rhetoricalQuestion",
+  "requestDirectedAtUser",
+  "requestDirectedAtOthers",
+  "userFormulationRequest",
+  "ambiguous"
+] as const;
+
 function isConversationSummary(value: unknown): value is ConversationSummary {
   if (typeof value !== "object" || value === null) return false;
   const candidate = value as Record<string, unknown>;
@@ -48,11 +73,12 @@ function isConversationSummary(value: unknown): value is ConversationSummary {
     typeof candidate.targetLanguage === "string" &&
     typeof candidate.createdAt === "string" &&
     typeof candidate.updatedAt === "string" &&
-    (candidate.lifecycleState === "ready" ||
-      candidate.lifecycleState === "active" ||
-      candidate.lifecycleState === "paused" ||
-      candidate.lifecycleState === "completed")
+    CONVERSATION_STATES.includes(candidate.lifecycleState as ConversationLifecycleState)
   );
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
 }
 
 function isConversationMessage(value: unknown): value is ConversationMessage {
@@ -62,19 +88,21 @@ function isConversationMessage(value: unknown): value is ConversationMessage {
   return (
     typeof candidate.id === "string" &&
     typeof candidate.conversationId === "string" &&
-    ["speaker", "user", "assistant", "system"].includes(candidate.role as string) &&
+    MESSAGE_ROLES.includes(candidate.role as (typeof MESSAGE_ROLES)[number]) &&
     typeof candidate.originalText === "string" &&
-    (candidate.translation === null || typeof candidate.translation === "string") &&
-    (candidate.explanation === null || typeof candidate.explanation === "string") &&
-    (candidate.suggestedAnswer === null || typeof candidate.suggestedAnswer === "string") &&
-    (candidate.suggestedAnswerTranslation === null ||
-      typeof candidate.suggestedAnswerTranslation === "string") &&
+    isNullableString(candidate.translation) &&
+    isNullableString(candidate.explanation) &&
+    isNullableString(candidate.suggestedAnswer) &&
+    isNullableString(candidate.suggestedAnswerTranslation) &&
     (candidate.responseType === null ||
-      ["translation", "question", "answer", "instruction"].includes(candidate.responseType as string)) &&
+      RESPONSE_TYPES.includes(candidate.responseType as (typeof RESPONSE_TYPES)[number])) &&
     typeof candidate.questionDetected === "boolean" &&
     typeof candidate.questionDirectedAtUser === "boolean" &&
-    (candidate.providerName === null || typeof candidate.providerName === "string") &&
-    typeof candidate.createdAt === "string"
+    isNullableString(candidate.providerName) &&
+    typeof candidate.createdAt === "string" &&
+    (candidate.intent === undefined ||
+      candidate.intent === null ||
+      MESSAGE_INTENTS.includes(candidate.intent as (typeof MESSAGE_INTENTS)[number]))
   );
 }
 
@@ -102,13 +130,58 @@ function parsePage<T>(
   };
 }
 
-export async function listConversations(): Promise<CursorPage<ConversationSummary>> {
-  const response = await apiGet("/api/conversations?limit=50");
+export async function listConversations(
+  cursor?: string,
+  signal?: AbortSignal,
+  filters: ConversationListFilters = {},
+  limit = 50
+): Promise<CursorPage<ConversationSummary>> {
+  const boundedLimit = Math.max(1, Math.min(100, Math.floor(limit)));
+  const params = new URLSearchParams({ limit: String(boundedLimit) });
+
+  if (cursor) {
+    params.set("cursor", cursor);
+  }
+
+  const search = filters.search?.trim();
+  if (search) {
+    if (search.length > 100) {
+      throw new Error("Conversation search must be 100 characters or fewer.");
+    }
+    params.set("search", search);
+  }
+
+  if (filters.updatedFrom) {
+    params.set("updatedFrom", filters.updatedFrom);
+  }
+
+  if (filters.updatedTo) {
+    params.set("updatedTo", filters.updatedTo);
+  }
+
+  const response = await apiGet("/api/conversations?" + params.toString(), signal);
   return parsePage(
     await response.json(),
     isConversationSummary,
     "The conversation list response is invalid."
   );
+}
+
+export async function getConversation(
+  conversationId: string,
+  signal?: AbortSignal
+): Promise<ConversationSummary> {
+  const response = await apiGet(
+    "/api/conversations/" + encodeURIComponent(conversationId),
+    signal
+  );
+  const payload: unknown = await response.json();
+
+  if (!isConversationSummary(payload)) {
+    throw new Error("The conversation response is invalid.");
+  }
+
+  return payload;
 }
 
 export async function createConversation(
@@ -148,15 +221,39 @@ export async function transitionConversationLifecycle(
 }
 
 export async function listMessages(
-  conversationId: string
+  conversationId: string,
+  cursor?: string,
+  signal?: AbortSignal,
+  limit = 50
 ): Promise<CursorPage<ConversationMessage>> {
+  const boundedLimit = Math.max(1, Math.min(100, Math.floor(limit)));
+  const params = new URLSearchParams({ limit: String(boundedLimit) });
+
+  if (cursor) {
+    params.set("cursor", cursor);
+  }
+
   const response = await apiGet(
-    "/api/conversations/" + encodeURIComponent(conversationId) + "/messages?limit=50"
+    "/api/conversations/" +
+      encodeURIComponent(conversationId) +
+      "/messages?" +
+      params.toString(),
+    signal
   );
 
   return parsePage(
     await response.json(),
     isConversationMessage,
     "The conversation history response is invalid."
+  );
+}
+
+export async function deleteConversation(
+  conversationId: string,
+  signal?: AbortSignal
+): Promise<void> {
+  await apiDelete(
+    "/api/conversations/" + encodeURIComponent(conversationId),
+    signal
   );
 }
