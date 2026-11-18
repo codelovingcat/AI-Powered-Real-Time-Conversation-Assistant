@@ -326,9 +326,9 @@ export default function App() {
     setConversations((current) => current.filter((item) => item.id !== conversationId));
     if (activeConversationId === conversationId) {
       setActiveConversationId(null);
+      setMessages([]);
+      setLatestAiResult(null);
     }
-    setMessages([]);
-    setLatestAiResult(null);
     setDetailConversationId(null);
     setActiveScreen("history");
     setNotice("The conversation was deleted.");
@@ -420,6 +420,8 @@ export default function App() {
 
           <ConversationHistoryScreen
             onSelectConversation={openConversationDetails}
+            successNotice={notice}
+            onDismissNotice={() => setNotice(null)}
           />
         </View>
       </SafeAreaView>
