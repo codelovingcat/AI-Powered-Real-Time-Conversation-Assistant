@@ -18,10 +18,12 @@
     "plugins": [
       "expo-secure-store",
       [
-        "expo-audio",
+        "react-native-audio-api",
         {
-          "microphonePermission": "Conversa uses your microphone only when you explicitly start capture.",
-          "recordAudioAndroid": true
+          "iosMicrophonePermission": "Conversa uses your microphone only when you explicitly start a live conversation.",
+          "androidPermissions": [
+            "android.permission.RECORD_AUDIO"
+          ]
         }
       ]
     ]

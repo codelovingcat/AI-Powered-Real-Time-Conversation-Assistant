@@ -24,7 +24,7 @@ The new instruction replaces the previous one for that conversation only.
 
 ## Current status
 
-This repository is the first foundation step. It is a modular monolith, not a set of microservices, and it does not yet include a web or mobile client.
+Conversa is implemented as a modular monolith with authenticated web and React Native clients. The mobile client now supports native live microphone streaming against the same authenticated audio WebSocket contract as the web client.
 
 Working now:
 
@@ -40,11 +40,13 @@ Working now:
 - WebSocket entry point for continuous listening that reports when speech-to-text is not configured
 - JWT Bearer validation and an authenticated session endpoint for web clients
 - React web authentication/session flow with short-lived memory-only access tokens and a persistent HttpOnly browser session
+- React Native / Expo mobile authentication, conversation selection/history, real-time microphone streaming and AI assistance
+- Mobile native audio capture using PCM16 Linear16 mono at 16 kHz, with background-stop and bounded reconnect behaviour
 
 Not implemented yet:
 
 - Identity provider / user credential issuance
-- React Native client
+
 - A full microphone pipeline in the web client
 - Production deployment configuration is included for Render; the production service itself is provisioned outside GitHub
 - A model snapshot for later `dotnet ef migrations add` diffs (see below)
@@ -99,9 +101,19 @@ Treat transcripts, conversation instructions, generated summaries and AI replies
 - .NET 10 / ASP.NET Core Web API
 - C# with nullable reference types
 - Entity Framework Core 10 and Npgsql for PostgreSQL
-- React web client is present; React Native is planned
+- React web client and React Native / Expo mobile client
+- Native mobile audio uses a development build; Expo Go is not supported
 - Gemini as the first `IAiProvider`
 - Speech-to-text is an interface only, so the vendor can be chosen later
+
+
+## Mobile client
+
+The React Native application lives in `mobile/`. It uses the same conversation lifecycle, message-history, assistant and audio WebSocket endpoints as the web client. Mobile audio is captured as in-memory mono Linear16 PCM at 16 kHz and streamed over the authenticated WebSocket. The access token is sent as the `conversa.auth` WebSocket subprotocol, never in the URL.
+
+The mobile client uses `react-native-audio-api` native callbacks, disables file output, and stops capture when a conversation is paused/finished or the app leaves the foreground. It is a native development build, not an Expo Go project. See [mobile/README.md](mobile/README.md) for environment configuration, build commands, privacy behaviour, and validation steps.
+
+STT outage, malformed-event and recovery behaviour is described in [documentation/realtime-speech-failure-recovery.md](documentation/realtime-speech-failure-recovery.md).
 
 ## Domain
 
