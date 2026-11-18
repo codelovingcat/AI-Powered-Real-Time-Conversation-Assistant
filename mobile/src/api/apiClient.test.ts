@@ -81,6 +81,18 @@ describe("mobile API authentication", () => {
     expect(await getAccessToken()).toBe("new-access-token");
   });
 
+  it("preserves AbortError so stale history reads can be cancelled cleanly", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    vi.mocked(fetch).mockRejectedValueOnce(new DOMException("Aborted", "AbortError"));
+
+    await expect(
+      apiGet("/api/conversations?limit=30", controller.signal)
+    ).rejects.toMatchObject({
+      name: "AbortError"
+    });
+  });
+
   it("clears credentials and notifies the app when the refresh session has expired", async () => {
     await setAccessToken("old-access-token", "2099-01-01T00:00:00Z");
     await setSessionCookie("conversa_session=expired-refresh-secret");
