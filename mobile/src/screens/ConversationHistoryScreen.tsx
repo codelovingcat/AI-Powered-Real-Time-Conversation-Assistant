@@ -20,6 +20,8 @@ const PAGE_SIZE = 30;
 
 interface ConversationHistoryScreenProps {
   onSelectConversation: (conversationId: string) => void;
+  successNotice?: string | null;
+  onDismissNotice?: () => void;
 }
 
 function formatTimestamp(value: string): string {
@@ -84,7 +86,9 @@ function getEmptyMessage(filters: ConversationListFilters): string {
 }
 
 export function ConversationHistoryScreen({
-  onSelectConversation
+  onSelectConversation,
+  successNotice = null,
+  onDismissNotice
 }: ConversationHistoryScreenProps) {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -307,6 +311,19 @@ export function ConversationHistoryScreen({
         </View>
       </View>
 
+      {successNotice ? (
+        <View style={styles.successCard}>
+          <Text style={styles.successText}>{successNotice}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss notification"
+            onPress={onDismissNotice}
+          >
+            <Text style={styles.successDismiss}>Dismiss</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       {error ? (
         <View style={styles.errorCard}>
           <Text style={styles.errorText} accessibilityRole="alert">{error}</Text>
@@ -504,6 +521,17 @@ const styles = StyleSheet.create({
   },
   loadMoreText: { color: "#175cd3", fontWeight: "800", fontSize: 13 },
   endOfList: { color: "#98a2b3", fontSize: 11, textAlign: "center", padding: 10 },
+  successCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    padding: 11,
+    borderRadius: 12,
+    backgroundColor: "#ecfdf3"
+  },
+  successText: { flex: 1, color: "#067647", fontSize: 12, lineHeight: 18 },
+  successDismiss: { color: "#067647", fontSize: 11, fontWeight: "800" },
   errorCard: {
     gap: 8,
     padding: 12,
